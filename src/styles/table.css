@@ -322,6 +322,13 @@
   color: var(--text-dim);
 }
 
+.result__next {
+  margin-top: 2px;
+  font-size: 0.75em;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------------------------------------------------------------- Seats */
 
 .seat {
@@ -1136,5 +1143,48 @@
   }
   100% {
     transform: scale(1);
+  }
+}
+
+/* ---------------------------------------------------------------- Short landscape screens (phones sideways) */
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .table-top {
+    padding-top: calc(4px + var(--safe-top));
+    padding-bottom: 4px;
+  }
+
+  .table-top__meta {
+    display: none;
+  }
+
+  .table-top .icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .actionbar {
+    min-height: 50px;
+    padding-top: 6px;
+    padding-bottom: calc(6px + var(--safe-bottom));
+    gap: 6px;
+  }
+
+  .actions .btn {
+    min-height: 42px;
+    font-size: 0.95rem;
+  }
+
+  .actionbar__meta,
+  .raise__presets {
+    display: none;
+  }
+
+  .pretoggle {
+    padding: 6px 10px;
+  }
+
+  .seatctl .btn {
+    min-height: 36px;
   }
 }

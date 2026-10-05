@@ -132,6 +132,8 @@ revoke insert, update, delete on public.profiles, public.tables, public.table_se
   public.table_seats, public.player_cards, public.room_join_failures from anon, authenticated;
 revoke update, delete on public.chat_messages from anon, authenticated;
 revoke all on public.table_secrets, public.room_join_failures from anon, authenticated;
+revoke truncate, references, trigger on public.profiles, public.tables, public.table_members, public.table_seats,
+  public.player_cards, public.chat_messages from anon, authenticated;
 grant select on public.profiles, public.tables, public.table_members, public.table_seats, public.player_cards,
   public.chat_messages to authenticated;
 revoke insert on public.chat_messages from anon, authenticated;

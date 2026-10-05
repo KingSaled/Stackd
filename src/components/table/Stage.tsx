@@ -105,7 +105,7 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
   const sidePots = state.phase !== 'showdown' && state.pots.length > 1 ? state.pots : [];
 
   const sizes = useMemo(() => {
-    const unit = portrait ? w / 100 : w / 100;
+    const unit = w / 100;
     return {
       '--card-board': `${Math.min(92, portrait ? unit * (n > 6 ? 11.6 : 12.8) : unit * 5.9)}px`,
       '--card-seat': `${Math.min(56, portrait ? unit * 8.4 : unit * 3.7)}px`,
@@ -344,7 +344,13 @@ function CenterStatus({
           </div>
         );
       });
-    content = <div className="result">{lines}</div>;
+    const nextIn = state.nextHandAt ? Math.max(0, Math.ceil((state.nextHandAt - now) / 1000)) : 0;
+    content = (
+      <div className="result">
+        {lines}
+        {nextIn > 0 && <div className="result__next">Next hand in {nextIn}s</div>}
+      </div>
+    );
   } else if (state.phase === 'waiting') {
     const seated = state.seats.filter(Boolean).length;
     key = state.nextHandAt ? 'starting' : `waiting-${seated}`;

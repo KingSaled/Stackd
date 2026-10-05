@@ -164,5 +164,6 @@ npm test
 | "Server is not configured" when acting | `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_URL` is missing for Functions. Check the variable scopes in Netlify. |
 | Guest button says guest play is disabled | Enable anonymous sign-ins in Supabase Auth. |
 | Sign-up says "check your inbox" | Email confirmation is on. Confirm the email, or turn it off in Supabase Auth. |
+| "Email rate limit exceeded" on sign-up | Supabase's built-in mailer only sends a few emails per hour. Turn off "Confirm email", or add your own SMTP provider under Auth settings. |
 | Table never updates live | Make sure `schema.sql` ran completely. It adds the tables to the `supabase_realtime` publication. |
 | "Game server not found" locally | Run `npx netlify dev` instead of `npm run dev`. |
