@@ -37,7 +37,8 @@ export interface HandEval {
 const BASE = 16;
 const CATEGORY_WEIGHT = BASE ** 5;
 
-function encode(category: number, ranks: number[]): number {
+/** Pack a category and up to five tie-break ranks into one comparable integer. */
+export function encode(category: number, ranks: number[]): number {
   let score = category * CATEGORY_WEIGHT;
   for (let i = 0; i < 5; i++) score += (ranks[i] ?? 0) * BASE ** (4 - i);
   return score;

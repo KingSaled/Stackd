@@ -7,6 +7,7 @@
 import { randomInt } from 'node:crypto';
 import {
   GameError,
+  isBotId,
   addChips,
   applyAction,
   closeTable,
@@ -65,6 +66,12 @@ export function buildCommit(s: EngineState, fx: Effects): CommitPayload {
   const seats: CommitPayload['seats'] = [];
   s.seats.forEach((seat, i) => {
     if (!seat) return;
+    if (seat.isBot) {
+      // Bots never touch the database; a player waiting for this seat already paid their buy-in.
+      const r = seat.reservedFor;
+      if (r) seats.push({ user_id: r.userId, seat: i, stack: r.buyIn });
+      return;
+    }
     // Chips a live player has in the pot are still "theirs" for broke checks; a folder's are dead money.
     const inPot = isBettingPhase(s.phase) && seat.inHand && !seat.folded ? seat.committed : 0;
     seats.push({ user_id: seat.userId, seat: i, stack: seat.stack + seat.pendingTopUp + inPot });
@@ -77,9 +84,11 @@ export function buildCommit(s: EngineState, fx: Effects): CommitPayload {
       ? privateCards(s).map((c) => ({ user_id: c.userId, hand_no: c.handNo, seat: c.seat, cards: c.cards }))
       : null,
     wallet: Object.entries(fx.wallet)
-      .filter(([, d]) => d !== 0)
+      .filter(([id, d]) => d !== 0 && !isBotId(id))
       .map(([user_id, delta]) => ({ user_id, delta })),
-    stats: Object.entries(fx.stats).map(([user_id, st]) => ({
+    stats: Object.entries(fx.stats)
+      .filter(([id]) => !isBotId(id))
+      .map(([user_id, st]) => ({
       user_id,
       played: st.played,
       won: st.won,
@@ -260,6 +269,7 @@ export async function tableOp(
             op.seat,
             op.buyIn,
             now,
+            rng,
           );
           return true;
         }

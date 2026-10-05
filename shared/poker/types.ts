@@ -21,6 +21,8 @@ export interface TableConfig {
   maxBuyIn: number;
   /** Seconds a player has to act before the automatic check/fold. */
   turnSeconds: number;
+  /** Keep every open seat filled with bots (players can claim a bot's seat). */
+  bots?: boolean;
 }
 
 export interface SeatActionLabel {
@@ -63,6 +65,19 @@ export interface Seat {
   /** Chips bought while in a hand; added to the stack before the next deal. */
   pendingTopUp: number;
   joinedAt: number;
+  /** Computer-controlled player (no wallet, no stats). */
+  isBot?: boolean;
+  /** A real player who claimed this bot's seat; they replace the bot when the hand ends. */
+  reservedFor?: SeatReservation | null;
+}
+
+export interface SeatReservation {
+  userId: string;
+  name: string;
+  avatar: string;
+  color: string;
+  /** Already taken from the player's wallet. */
+  buyIn: number;
 }
 
 export interface Pot {
@@ -150,6 +165,16 @@ export interface SecretState {
   deck: Card[];
   /** Hole cards by seat index (stringified). */
   hole: Record<string, Card[]>;
+  /** Hidden skill/personality of each bot, by bot user id. */
+  bots?: Record<string, BotBrainData>;
+}
+
+export interface BotBrainData {
+  level: 'easy' | 'medium' | 'hard';
+  tight: number;
+  aggr: number;
+  bluff: number;
+  iters: number;
 }
 
 export type EngineState = PublicState & SecretState;
@@ -168,10 +193,12 @@ export interface Effects {
   stats: Record<string, StatDelta>;
   /** A new hand was dealt; private hole cards must be re-published. */
   dealt: boolean;
+  /** Net chips that entered play through bots (bot stacks created minus removed). Diagnostic only. */
+  botChips: number;
 }
 
 export function newEffects(): Effects {
-  return { wallet: {}, stats: {}, dealt: false };
+  return { wallet: {}, stats: {}, dealt: false, botChips: 0 };
 }
 
 export interface LegalActions {

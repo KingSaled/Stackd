@@ -26,11 +26,27 @@ interface Props {
   walletChips: number;
   /** The viewer's hole cards, echoed in the raise panel (which can cover the table on small screens). */
   myCards?: string[] | null;
+  /** Seat claimed from a bot, waiting for the current hand to end. */
+  claim?: { botName: string; buyIn: number } | null;
+  onCancelClaim?: () => void;
 }
 
 export function ActionBar(props: Props) {
   const { state, mySeat, legal } = props;
   const seat = mySeat >= 0 ? state.seats[mySeat] : null;
+
+  if (!seat && props.claim) {
+    return (
+      <div className="actionbar actionbar--idle">
+        <div className="actionbar__hint">
+          <span className="dot dot--live" /> You're taking {props.claim.botName}'s seat — you'll be dealt in when this hand ends
+        </div>
+        <button className="btn btn--ghost btn--sm" onClick={props.onCancelClaim} disabled={props.busy}>
+          Cancel
+        </button>
+      </div>
+    );
+  }
 
   if (!seat) {
     return (

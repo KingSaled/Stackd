@@ -236,8 +236,13 @@ describe('schema', () => {
   });
 
   it('leaderboard and cleanup run', async () => {
+    const G = '00000000-0000-0000-0000-0000000000d1';
+    await db.query(`insert into auth.users (id, is_anonymous, raw_user_meta_data) values ($1, true, '{"display_name":"Guesty"}')`, [G]);
+    await db.query('update public.profiles set chips = 999999, hands_played = 5 where id = $1', [G]);
     const board = await as<{ display_name: string }>(B, 'select display_name from public.leaderboard()');
     expect(board.length).toBeGreaterThan(0);
+    // Guests never appear on the leaderboard, however many chips they have.
+    expect(board.map((r) => r.display_name)).not.toContain('Guesty');
     const [res] = await as<{ r: { tables_deleted: number } }>(null, 'select public.cleanup_stale_data() as r');
     expect(res.r.tables_deleted).toBe(0);
     const [t] = await as<{ t: number }>(A, 'select public.server_time() as t');

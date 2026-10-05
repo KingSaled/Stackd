@@ -9,9 +9,10 @@
  * Time is always injected (`now`, epoch ms) and randomness is injected (`rng`),
  * which keeps the engine deterministic and fully testable.
  */
-import { freshDeck, shuffle, cardToText, type Card, type Rng } from './cards';
+import { freshDeck, shuffle, cardToText, seededRng, type Card, type Rng } from './cards';
 import { evaluateHand } from './evaluator';
 import { computePots, splitPot } from './pots';
+import { botThinkMs, createBotBrain, createBotIdentity, decideBotAction, isBotId } from './bot';
 import {
   BETTING_PHASES,
   type Effects,
@@ -23,6 +24,7 @@ import {
   type PlayerAction,
   type PotResult,
   type Seat,
+  type SeatReservation,
   type ShownHand,
   type StatDelta,
   type TableConfig,
@@ -100,7 +102,7 @@ export function sanitizeConfig(input: Partial<TableConfig>): TableConfig {
   if (minBuyIn > maxBuyIn) throw new GameError('bad_config', 'Minimum buy-in exceeds maximum buy-in');
   const turnSeconds = int(input.turnSeconds ?? 30, 'turn timer');
   if (turnSeconds < 10 || turnSeconds > 120) throw new GameError('bad_config', 'Turn timer must be 10-120 seconds');
-  return { smallBlind, bigBlind, maxSeats, minBuyIn, maxBuyIn, turnSeconds };
+  return { smallBlind, bigBlind, maxSeats, minBuyIn, maxBuyIn, turnSeconds, bots: input.bots === true };
 }
 
 export function createInitialState(config: TableConfig, now: number): EngineState {
@@ -129,6 +131,7 @@ export function createInitialState(config: TableConfig, now: number): EngineStat
     updatedAt: now,
     deck: [],
     hole: {},
+    bots: {},
   };
 }
 
@@ -155,12 +158,24 @@ function addLog(s: EngineState, kind: LogKind, text: string, now: number) {
 }
 
 function walletDelta(fx: Effects, userId: string, delta: number) {
-  if (!delta) return;
+  if (!delta || isBotId(userId)) return; // bots have no wallet
   fx.wallet[userId] = (fx.wallet[userId] ?? 0) + delta;
 }
 
 function stat(fx: Effects, userId: string): StatDelta {
-  return (fx.stats[userId] ??= { played: 0, won: 0, biggestPot: 0, bestHand: -1 });
+  const blank = { played: 0, won: 0, biggestPot: 0, bestHand: -1 };
+  if (isBotId(userId)) return blank; // bots don't keep stats
+  return (fx.stats[userId] ??= blank);
+}
+
+/** Real (non-bot) players seated, optionally excluding ones on their way out. */
+function humanSeats(s: EngineState, includeLeaving = true): Seat[] {
+  return s.seats.filter((x): x is Seat => !!x && !x.isBot && (includeLeaving || !x.leaving));
+}
+
+/** The seat a user has claimed from a bot (they join when the current hand ends). */
+export function reservationOf(s: { seats: (Seat | null)[] }, userId: string): number {
+  return s.seats.findIndex((seat) => seat?.reservedFor?.userId === userId);
 }
 
 function seatAt(s: EngineState, i: number): Seat {
@@ -187,8 +202,10 @@ function isEligibleForDeal(seat: Seat | null): seat is Seat {
   return !!seat && !seat.sittingOut && !seat.leaving && seat.stack > 0;
 }
 
-function eligibleCount(s: EngineState): number {
-  return s.seats.filter(isEligibleForDeal).length;
+/** A hand is only dealt when at least two players can play and at least one of them is human. */
+function canDeal(s: EngineState): boolean {
+  const eligible = s.seats.filter(isEligibleForDeal);
+  return eligible.length >= 2 && eligible.some((x) => !x.isBot);
 }
 
 function nextIndex(s: EngineState, from: number, pred: (seat: Seat | null, i: number) => boolean): number {
@@ -250,7 +267,14 @@ function findNextToAct(s: EngineState, from: number): number {
 function setTurn(s: EngineState, i: number, now: number) {
   s.toAct = i;
   s.turnStartedAt = now;
-  s.actionDeadline = now + s.config.turnSeconds * 1000;
+  const seat = s.seats[i];
+  if (seat?.isBot) {
+    // Bots "think" briefly; a client tick then asks the server to play their move.
+    const humansLive = s.seats.some((x) => x && !x.isBot && x.inHand && !x.folded);
+    s.actionDeadline = now + botThinkMs(s, i, humansLive);
+  } else {
+    s.actionDeadline = now + s.config.turnSeconds * 1000;
+  }
 }
 
 function clearTurn(s: EngineState) {
@@ -262,7 +286,7 @@ function clearTurn(s: EngineState) {
 /** When the table is idle, (re)arm or cancel the countdown to the first hand. */
 function scheduleIfReady(s: EngineState, now: number) {
   if (s.phase !== 'waiting') return;
-  if (eligibleCount(s) >= 2) {
+  if (canDeal(s)) {
     if (s.nextHandAt == null) s.nextHandAt = now + TIMING.startDelayMs;
   } else {
     s.nextHandAt = null;
@@ -273,38 +297,26 @@ function removeSeat(s: EngineState, fx: Effects, i: number, now: number, reason?
   const seat = s.seats[i];
   if (!seat) return;
   const cashOut = seat.stack + seat.pendingTopUp;
-  walletDelta(fx, seat.userId, cashOut);
   s.seats[i] = null;
+  if (seat.isBot) {
+    fx.botChips -= cashOut;
+    if (s.bots) delete s.bots[seat.userId];
+    // A player who had claimed this seat gets their buy-in back.
+    if (seat.reservedFor) walletDelta(fx, seat.reservedFor.userId, seat.reservedFor.buyIn);
+    addLog(s, 'info', `${seat.name} ${reason ?? 'left the table'}`, now);
+    return;
+  }
+  walletDelta(fx, seat.userId, cashOut);
   addLog(s, 'info', `${seat.name} ${reason ?? 'left the table'}${cashOut ? ` (${formatChips(cashOut)} cashed out)` : ''}`, now);
 }
 
-/* ------------------------------------------------------------------------ */
-/* Seating                                                                   */
-/* ------------------------------------------------------------------------ */
-
-export function sitDown(
-  s: EngineState,
-  fx: Effects,
-  player: PlayerIdentity,
-  seatIndex: number,
-  buyIn: number,
-  now: number,
-) {
-  if (seatIndexOf(s, player.userId) >= 0) throw new GameError('already_seated', 'You already have a seat at this table');
-  if (!Number.isInteger(seatIndex) || seatIndex < 0 || seatIndex >= s.seats.length)
-    throw new GameError('bad_seat', 'That seat does not exist');
-  if (s.seats[seatIndex]) throw new GameError('seat_taken', 'That seat was just taken');
-  if (!Number.isInteger(buyIn) || buyIn < s.config.minBuyIn || buyIn > s.config.maxBuyIn)
-    throw new GameError(
-      'bad_buyin',
-      `Buy-in must be between ${formatChips(s.config.minBuyIn)} and ${formatChips(s.config.maxBuyIn)}`,
-    );
-  s.seats[seatIndex] = {
+function newSeat(player: PlayerIdentity, stack: number, now: number, isBot = false): Seat {
+  return {
     userId: player.userId,
     name: player.name,
     avatar: player.avatar,
     color: player.color,
-    stack: buyIn,
+    stack,
     bet: 0,
     committed: 0,
     inHand: false,
@@ -320,13 +332,104 @@ export function sitDown(
     timeouts: 0,
     pendingTopUp: 0,
     joinedAt: now,
+    ...(isBot ? { isBot: true, reservedFor: null } : {}),
   };
+}
+
+/** Seat a bot with a random personality and a random buy-in in seat `i`. */
+function addBot(s: EngineState, fx: Effects, i: number, now: number, rng: Rng) {
+  const taken = new Set(s.seats.filter(Boolean).map((x) => x!.name));
+  const identity = createBotIdentity(rng, taken);
+  const { minBuyIn, maxBuyIn, bigBlind } = s.config;
+  const span = Math.max(0, maxBuyIn - minBuyIn);
+  // Average of two rolls: buy-ins cluster toward the middle of the range.
+  const raw = minBuyIn + ((rng(1001) + rng(1001)) / 2000) * span;
+  const stack = Math.max(minBuyIn, Math.min(maxBuyIn, Math.round(raw / bigBlind) * bigBlind));
+  s.seats[i] = newSeat(identity, stack, now, true);
+  (s.bots ??= {})[identity.userId] = createBotBrain(rng);
+  fx.botChips += stack;
+}
+
+/** Keep every open seat filled with bots while at least one real player is seated. */
+function fillBots(s: EngineState, fx: Effects, now: number, rng: Rng) {
+  if (!s.config.bots || humanSeats(s, false).length === 0) return;
+  let added = 0;
+  for (let i = 0; i < s.seats.length; i++) {
+    if (!s.seats[i]) {
+      addBot(s, fx, i, now, rng);
+      added++;
+    }
+  }
+  if (added) addLog(s, 'info', `${added} bot${added === 1 ? '' : 's'} joined the table`, now);
+}
+
+/** Replace a bot whose seat was claimed with the waiting player. */
+function seatReservation(s: EngineState, fx: Effects, i: number, now: number) {
+  const bot = s.seats[i];
+  if (!bot?.isBot || !bot.reservedFor) return;
+  const r: SeatReservation = bot.reservedFor;
+  fx.botChips -= bot.stack + bot.pendingTopUp;
+  if (s.bots) delete s.bots[bot.userId];
+  s.seats[i] = newSeat(r, r.buyIn, now);
+  addLog(s, 'info', `${r.name} took ${bot.name}'s seat with ${formatChips(r.buyIn)}`, now);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Seating                                                                   */
+/* ------------------------------------------------------------------------ */
+
+export function sitDown(
+  s: EngineState,
+  fx: Effects,
+  player: PlayerIdentity,
+  seatIndex: number,
+  buyIn: number,
+  now: number,
+  rng: Rng = seededRng(now),
+) {
+  if (isBotId(player.userId)) throw new GameError('bad_seat', 'Invalid player');
+  if (seatIndexOf(s, player.userId) >= 0) throw new GameError('already_seated', 'You already have a seat at this table');
+  if (reservationOf(s, player.userId) >= 0)
+    throw new GameError('already_seated', 'You already claimed a seat — you join when this hand ends');
+  if (!Number.isInteger(seatIndex) || seatIndex < 0 || seatIndex >= s.seats.length)
+    throw new GameError('bad_seat', 'That seat does not exist');
+  if (!Number.isInteger(buyIn) || buyIn < s.config.minBuyIn || buyIn > s.config.maxBuyIn)
+    throw new GameError(
+      'bad_buyin',
+      `Buy-in must be between ${formatChips(s.config.minBuyIn)} and ${formatChips(s.config.maxBuyIn)}`,
+    );
+  const occupant = s.seats[seatIndex];
+  if (occupant && !occupant.isBot) throw new GameError('seat_taken', 'That seat was just taken');
+  if (occupant?.isBot) {
+    if (occupant.reservedFor) throw new GameError('seat_taken', 'Someone already claimed that seat');
+    if (isBettingPhase(s.phase) && occupant.inHand) {
+      // The bot finishes the current hand; the player takes over when it ends.
+      occupant.reservedFor = { userId: player.userId, name: player.name, avatar: player.avatar, color: player.color, buyIn };
+      walletDelta(fx, player.userId, -buyIn);
+      addLog(s, 'info', `${player.name} will take ${occupant.name}'s seat after this hand`, now);
+      finalize(s, fx, now);
+      return;
+    }
+    removeSeat(s, fx, seatIndex, now, 'gave up the seat');
+  }
+  s.seats[seatIndex] = newSeat(player, buyIn, now);
   walletDelta(fx, player.userId, -buyIn);
   addLog(s, 'info', `${player.name} sat down with ${formatChips(buyIn)}`, now);
+  fillBots(s, fx, now, rng);
   finalize(s, fx, now);
 }
 
 export function standUp(s: EngineState, fx: Effects, userId: string, now: number) {
+  const claimed = reservationOf(s, userId);
+  if (claimed >= 0) {
+    const bot = seatAt(s, claimed);
+    const r = bot.reservedFor!;
+    bot.reservedFor = null;
+    walletDelta(fx, userId, r.buyIn);
+    addLog(s, 'info', `${r.name} changed their mind about ${bot.name}'s seat`, now);
+    finalize(s, fx, now);
+    return;
+  }
   const i = seatIndexOf(s, userId);
   if (i < 0) throw new GameError('not_seated', 'You are not seated at this table');
   const seat = seatAt(s, i);
@@ -453,6 +556,16 @@ export function startHand(s: EngineState, fx: Effects, now: number, rng: Rng) {
       removeSeat(s, fx, i, now);
       continue;
     }
+    if (seat.isBot) {
+      if (seat.reservedFor) {
+        seatReservation(s, fx, i, now); // a real player claimed this seat
+      } else if (seat.stack + seat.pendingTopUp <= 0) {
+        removeSeat(s, fx, i, now, 'busted out');
+      } else {
+        resetSeatForHand(seat);
+      }
+      continue;
+    }
     if (seat.pendingTopUp > 0) {
       seat.stack += seat.pendingTopUp;
       seat.pendingTopUp = 0;
@@ -480,9 +593,10 @@ export function startHand(s: EngineState, fx: Effects, now: number, rng: Rng) {
   s.deck = [];
   s.hole = {};
   clearTurn(s);
+  fillBots(s, fx, now, rng);
 
   const eligible = s.seats.map((seat, i) => (isEligibleForDeal(seat) ? i : -1)).filter((i) => i >= 0);
-  if (eligible.length < 2) {
+  if (!canDeal(s)) {
     s.phase = 'waiting';
     s.sbSeat = -1;
     s.bbSeat = -1;
@@ -831,6 +945,36 @@ function autoAct(s: EngineState, fx: Effects, i: number, now: number, timedOut: 
   advanceFrom(s, fx, i, now);
 }
 
+const DEFAULT_BRAIN = { level: 'medium', tight: 0.5, aggr: 0.5, bluff: 0.1, iters: 160 } as const;
+
+/** Let the bot in seat `i` make its move. */
+function botAct(s: EngineState, fx: Effects, i: number, now: number, rng: Rng) {
+  const seat = seatAt(s, i);
+  const brain = s.bots?.[seat.userId] ?? { ...DEFAULT_BRAIN };
+  try {
+    performAction(s, i, decideBotAction(s, i, brain, rng), now, false);
+  } catch {
+    // Never let a bot stall the table: fall back to the safest legal move.
+    performAction(s, i, { type: seat.bet >= s.currentBet ? 'check' : 'fold' }, now, false);
+  }
+  advanceFrom(s, fx, i, now);
+}
+
+/**
+ * Every real player has left (or is leaving): play the rest of the hand out
+ * instantly and release the departing seats so their chips are cashed out
+ * and the table can close.
+ */
+function finishAbandonedHand(s: EngineState, fx: Effects, now: number) {
+  if (humanSeats(s, false).length > 0 || humanSeats(s).length === 0) return;
+  const rng = seededRng(s.handNo * 7919 + s.logSeq);
+  for (let guard = 0; guard < 500 && isBettingPhase(s.phase) && s.toAct >= 0; guard++) {
+    if (s.seats[s.toAct]?.isBot) botAct(s, fx, s.toAct, now, rng);
+    else autoAct(s, fx, s.toAct, now, false);
+  }
+  if (s.phase === 'showdown') startHand(s, fx, now, rng);
+}
+
 /** Players marked away (or leaving) act instantly so the table never waits on them. */
 function driveAutomatic(s: EngineState, fx: Effects, now: number) {
   for (let guard = 0; guard < 200; guard++) {
@@ -843,6 +987,7 @@ function driveAutomatic(s: EngineState, fx: Effects, now: number) {
 
 function finalize(s: EngineState, fx: Effects, now: number) {
   driveAutomatic(s, fx, now);
+  finishAbandonedHand(s, fx, now);
   scheduleIfReady(s, now);
   s.updatedAt = now;
 }
@@ -855,7 +1000,8 @@ export function tick(s: EngineState, fx: Effects, now: number, rng: Rng): boolea
   let changed = false;
   for (let guard = 0; guard < 50; guard++) {
     if (isBettingPhase(s.phase) && s.toAct >= 0 && s.actionDeadline != null && now >= s.actionDeadline) {
-      autoAct(s, fx, s.toAct, now, true);
+      if (s.seats[s.toAct]?.isBot) botAct(s, fx, s.toAct, now, rng);
+      else autoAct(s, fx, s.toAct, now, true);
       driveAutomatic(s, fx, now);
       changed = true;
       continue;

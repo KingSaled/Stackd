@@ -46,6 +46,18 @@ function build(scene: string, seats: number, seed: number): EngineState {
   );
   const fx = newEffects();
   const full = new URLSearchParams(window.location.search).has('full');
+  if (scene === 'bots') {
+    const b = createInitialState(
+      sanitizeConfig({ smallBlind: 25, bigBlind: 50, maxSeats: seats, minBuyIn: 1000, maxBuyIn: 10000, turnSeconds: 30, bots: true }),
+      now,
+    );
+    const bfx = newEffects();
+    sitDown(b, bfx, { userId: 'u0', name: 'You', avatar: '🦊', color: '#f5c451' }, 0, 3000, now, rng);
+    tick(b, bfx, now + 5000, rng);
+    // Let bots play until it's the hero's turn (or a few moves pass).
+    for (let i = 0; i < 12 && b.toAct >= 0 && b.seats[b.toAct]?.isBot; i++) tick(b, bfx, (b.actionDeadline ?? now) + 1, rng);
+    return b;
+  }
   const count = scene === 'waiting' ? 1 : seats === 9 && !full ? 8 : seats;
   for (let i = 0; i < count; i++)
     sitDown(s, fx, { userId: `u${i}`, name: NAMES[i], avatar: AVATARS[(i * 5) % AVATARS.length], color: COLORS[(i * 3) % COLORS.length] }, i, 2000 + i * 650, now);
@@ -96,7 +108,7 @@ export default function Playground() {
   const pub = useMemo(() => toPublicState(state), [state]);
   const pres = usePresentation(pub, 'u0');
   const wide = useMediaQuery('(min-width: 1100px)');
-  const me = 'u0';
+  const me = params.has('viewer') ? 'viewer' : 'u0';
   const mySeat = seatIndexOf(pub, me);
   const legal = getLegalActions(pub, mySeat);
   const myCards = mySeat >= 0 && state.hole['0'] ? { handNo: state.handNo, seat: 0, cards: state.hole['0'] } : null;
@@ -171,7 +183,7 @@ export default function Playground() {
             reactions={reactions}
             pres={pres}
             metrics={metrics}
-            canSit={false}
+            canSit={me === 'viewer'}
             onSeatClick={() => undefined}
           />
         </div>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { motion } from 'framer-motion';
-import { ArrowRight, Crown, Plus, RefreshCw, Users, Gift, Flame, Armchair, Lock } from 'lucide-react';
+import { ArrowRight, Bot, Crown, Plus, RefreshCw, Users, Gift, Flame, Armchair, Lock } from 'lucide-react';
 import clsx from 'clsx';
 import { TopNav } from '../components/TopNav';
 import { CreateTableDialog } from '../components/CreateTableDialog';
@@ -38,6 +38,7 @@ interface OpenTable {
   player_count: number;
   status: string;
   updated_at: string;
+  bots?: boolean;
 }
 
 interface Leader {
@@ -210,6 +211,11 @@ export function LobbyPage() {
                       <Link href={`/t/${t.id}`} className="table-row">
                         <span className="table-row__name">
                           {t.name} <span className="table-row__code">{t.id}</span>
+                          {t.bots && (
+                            <span className="table-row__tag">
+                              <Bot size={12} /> Bots
+                            </span>
+                          )}
                         </span>
                         <span className="table-row__meta">
                           {blindsLabel(t.small_blind, t.big_blind)} · buy-in {chipsShort(t.min_buy_in)}–{chipsShort(t.max_buy_in)} ·{' '}

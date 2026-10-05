@@ -249,7 +249,7 @@ export function useTable(roomId: string, userId: string) {
     const order: string[] = [];
     for (let k = 0; k < n; k++) {
       const seat = state.seats[(start + k) % n];
-      if (seat && (!online || online.has(seat.userId))) order.push(seat.userId);
+      if (seat && !seat.isBot && (!online || online.has(seat.userId))) order.push(seat.userId);
     }
     let rank = order.indexOf(userId);
     if (rank < 0) rank = order.length + 1 + Math.floor(Math.random() * 3);

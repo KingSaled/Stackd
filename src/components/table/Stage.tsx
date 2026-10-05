@@ -264,7 +264,9 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
             handNo={state.handNo}
             mine={mine}
             revealed={revealed}
-            offline={online != null && !online.has(seat.userId)}
+            offline={online != null && !seat.isBot && !online.has(seat.userId)}
+            canClaim={canSit && !!seat.isBot && !seat.reservedFor}
+            onClaim={() => onSeatClick(i)}
             winAmount={resultVisible ? payouts.get(i) ?? 0 : 0}
             displayStack={seat.stack - (resultVisible ? 0 : payouts.get(i) ?? 0)}
             dealDelays={pres.dealHand === state.handNo ? pres.dealDelays[i] ?? null : null}
@@ -457,6 +459,9 @@ function EmptySeat({ pos, canSit, onClick, index }: { pos: Point; canSit: boolea
 }
 
 interface SeatViewProps {
+  /** The viewer may take over this bot's seat. */
+  canClaim: boolean;
+  onClaim: () => void;
   seat: Seat;
   index: number;
   pos: Point;
@@ -601,7 +606,14 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
 
       <div className="seat__avatar">
         <Emoji char={seat.avatar} className="seat__emoji" />
-        {isTurn && turnStartedAt && deadline && <TimerRing startedAt={turnStartedAt} deadline={deadline} />}
+        {isTurn && turnStartedAt && deadline && !seat.isBot && <TimerRing startedAt={turnStartedAt} deadline={deadline} />}
+        {isTurn && seat.isBot && (
+          <span className="seat__thinking" aria-label="Thinking">
+            <i />
+            <i />
+            <i />
+          </span>
+        )}
         {offline && (
           <span className="seat__badge seat__badge--offline" title="Disconnected">
             <WifiOff size={12} />
@@ -619,7 +631,19 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
         )}
       </div>
 
+      {seat.isBot && (seat.reservedFor || props.canClaim) && (
+          seat.reservedFor ? (
+            <span className="seat__claim seat__claim--reserved">
+              <Emoji char={seat.reservedFor.avatar} /> next hand
+            </span>
+          ) : (
+            <button className="seat__claim" onClick={props.onClaim} aria-label={`Take ${seat.name}'s seat`}>
+              <Plus size={13} /> Sit
+            </button>
+          )
+        )}
       <div className="seat__plate">
+        {seat.isBot && <span className="seat__bot">BOT</span>}
         <span className={clsx('seat__name', plateTone && `seat__name--${plateTone}`)}>{plateLine}</span>
         <span className="seat__stack">{seat.allIn && displayStack === 0 ? 'ALL-IN' : chips(displayStack)}</span>
       </div>

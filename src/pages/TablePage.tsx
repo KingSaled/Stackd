@@ -19,7 +19,7 @@ import { InviteButton } from '../components/table/InviteButton';
 import { TableSettings } from '../components/table/TableSettings';
 import { SoundControl } from '../components/SoundControl';
 import { Logo } from '../components/Logo';
-import { getLegalActions, isBettingPhase, seatIndexOf } from '../../shared/poker/engine';
+import { getLegalActions, isBettingPhase, reservationOf, seatIndexOf } from '../../shared/poker/engine';
 import type { PlayerAction } from '../../shared/poker/types';
 import type { TableAction } from '../lib/api';
 import { ApiError } from '../lib/api';
@@ -202,6 +202,9 @@ function TableRoom({ roomId }: { roomId: string }) {
 
   const mySeat = state ? seatIndexOf(state, me) : -1;
   const seat = mySeat >= 0 && state ? state.seats[mySeat] : null;
+  // Seat claimed from a bot: the player joins when the current hand ends.
+  const claimIdx = state ? reservationOf(state, me) : -1;
+  const claimedFrom = claimIdx >= 0 && state ? state.seats[claimIdx] : null;
   const legal = useMemo(
     () =>
       state && mySeat >= 0
@@ -317,7 +320,9 @@ function TableRoom({ roomId }: { roomId: string }) {
   };
 
   const leave = async () => {
-    if (seat) {
+    if (claimedFrom) {
+      if (await run({ type: 'stand' })) toast.info('Seat released — your buy-in is back in your wallet');
+    } else if (seat) {
       const inHand = state && isBettingPhase(state.phase) && seat.inHand && !seat.folded;
       if (inHand && !window.confirm('Leave the table? Your hand will be folded.')) return;
       const ok = await run({ type: 'stand' });
@@ -343,7 +348,8 @@ function TableRoom({ roomId }: { roomId: string }) {
 
   const config = state?.config;
   const name = t.meta?.name ?? 'Table';
-  const seatedCount = state?.seats.filter(Boolean).length ?? 0;
+  const seatedCount = state?.seats.filter((x) => x && !x.isBot).length ?? 0;
+  const botCount = state?.seats.filter((x) => x?.isBot).length ?? 0;
 
   const chat = (
     <ChatPanel
@@ -381,7 +387,9 @@ function TableRoom({ roomId }: { roomId: string }) {
           </span>
           <span className="table-top__meta">
             <span className={clsx('dot', t.connection === 'live' ? 'dot--live' : 'dot--warn')} />
-            {config ? `${blindsLabel(config.smallBlind, config.bigBlind)} · ${seatedCount}/${config.maxSeats} seated` : 'Connecting…'}
+            {config
+              ? `${blindsLabel(config.smallBlind, config.bigBlind)} · ${seatedCount}/${config.maxSeats} players${botCount ? ` · ${botCount} bot${botCount === 1 ? '' : 's'}` : ''}`
+              : 'Connecting…'}
             {state && state.handNo > 0 && <span className="table-top__hand"> · Hand #{state.handNo}</span>}
           </span>
         </div>
@@ -410,7 +418,7 @@ function TableRoom({ roomId }: { roomId: string }) {
               reactions={t.reactions}
               pres={pres}
               metrics={metrics}
-              canSit={mySeat < 0}
+              canSit={mySeat < 0 && claimIdx < 0}
               onSeatClick={onSeatClick}
             />
           ) : (
@@ -440,6 +448,10 @@ function TableRoom({ roomId }: { roomId: string }) {
           }}
           walletChips={profile?.chips ?? 0}
           myCards={t.myCards && t.myCards.handNo === state.handNo ? t.myCards.cards : null}
+          claim={claimedFrom ? { botName: claimedFrom.name, buyIn: claimedFrom.reservedFor?.buyIn ?? 0 } : null}
+          onCancelClaim={async () => {
+            if (await run({ type: 'stand' })) toast.info('Seat released — your buy-in is back in your wallet');
+          }}
         />
       )}
 
@@ -473,6 +485,13 @@ function TableRoom({ roomId }: { roomId: string }) {
           config={config}
           wallet={profile?.chips ?? 0}
           current={seat ? seat.stack + seat.pendingTopUp : 0}
+          note={(() => {
+            const target = buyIn?.mode === 'sit' && buyIn.seat != null ? state?.seats[buyIn.seat] : null;
+            if (!target?.isBot) return undefined;
+            return state && isBettingPhase(state.phase) && target.inHand
+              ? `You'll replace ${target.name} (a bot) as soon as this hand ends.`
+              : `You'll replace ${target.name} (a bot) right away.`;
+          })()}
           busy={busy}
           onClose={() => setBuyIn(null)}
           onConfirm={async (amount) => {
@@ -481,6 +500,9 @@ function TableRoom({ roomId }: { roomId: string }) {
                 ? await run({ type: 'sit', seat: buyIn.seat ?? 0, buyIn: amount })
                 : await run({ type: 'addchips', amount });
             if (ok) {
+              const target = buyIn?.mode === 'sit' && buyIn.seat != null ? state?.seats[buyIn.seat] : null;
+              if (target?.isBot && state && isBettingPhase(state.phase) && target.inHand)
+                toast.info(`Seat claimed — you'll be dealt in when this hand ends`);
               setBuyIn(null);
               sound.play('chips', { count: 6 });
               if (buyIn?.mode === 'topup') toast.success(`Added ${chips(amount)} chips`);

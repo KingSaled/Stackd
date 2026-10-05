@@ -16,6 +16,13 @@ Everything runs on free tiers: **Netlify** (static site + serverless functions) 
 - A configurable turn timer that auto-checks or auto-folds. After two timeouts in a row a player is marked away, sits out, and acts instantly so the table never waits.
 - All-in run-outs reveal every hand and deal the remaining board with dramatic pauses.
 
+**Bots**
+- When creating a table you can tick **Fill empty seats with bots**. Every open seat is then kept filled with a bot as long as at least one real player is seated.
+- Each bot gets a random, hidden skill level (easy, medium or hard) and its own personality (how tight, aggressive and bluff-happy it is), so there's no reliable "free money" seat. In simulations, hard bots beat easy ones by a wide margin.
+- Bots only see what a real player would: their own cards, the board and the betting. They decide from simulated win chances, pot odds, position and bet pressure.
+- Anyone who isn't seated sees a **Sit** button on every bot. Picking one replaces that bot right away, or, if the bot is in the middle of a hand, when the hand ends. The buy-in is held until then and refunded if you cancel.
+- Bots have no wallet and no stats, are never written to the database, and hands are never dealt with only bots at the table. If every real player leaves, the table closes.
+
 **Rooms & social**
 - Private tables with custom blinds, 2–9 seats, buy-in range, turn timer, optional password and optional lobby listing.
 - One-click invite links (`/t/ROOMID`). These use the native share sheet on mobile, and the host's link can carry the password in the URL fragment (`#key=…`).
@@ -29,7 +36,7 @@ Everything runs on free tiers: **Netlify** (static site + serverless functions) 
 - 10,000 starting chips.
 - A daily bonus (2,000 chips, plus 500 per consecutive day up to a 7-day streak) every 24 hours.
 - An emergency reload: if your wallet plus the chips you have at tables drop below 1,000, you can top back up to 2,500. It has a 60-minute cooldown.
-- Leaderboard.
+- Leaderboard of saved accounts (guest accounts are left off).
 
 **Session recovery**
 - All game state lives in Postgres. If you refresh, lose your connection or switch devices, you get your seat, cards and turn back.

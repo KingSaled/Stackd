@@ -378,8 +378,9 @@ as $$
    order by t.updated_at desc;
 $$;
 
+drop function if exists public.list_open_tables();
 create or replace function public.list_open_tables()
-returns table (id text, name text, small_blind bigint, big_blind bigint, max_seats integer, min_buy_in bigint, max_buy_in bigint, player_count integer, status text, updated_at timestamptz)
+returns table (id text, name text, small_blind bigint, big_blind bigint, max_seats integer, min_buy_in bigint, max_buy_in bigint, player_count integer, status text, updated_at timestamptz, bots boolean)
 language sql
 stable
 security definer
@@ -388,7 +389,7 @@ as $$
   select t.id, t.name,
          (t.config ->> 'smallBlind')::bigint, (t.config ->> 'bigBlind')::bigint, (t.config ->> 'maxSeats')::int,
          (t.config ->> 'minBuyIn')::bigint, (t.config ->> 'maxBuyIn')::bigint,
-         t.player_count, t.status, t.updated_at
+         t.player_count, t.status, t.updated_at, coalesce((t.config ->> 'bots')::boolean, false)
     from public.tables t
    where t.listed and not t.has_password and t.player_count > 0 and t.updated_at > now() - interval '2 days'
    order by t.player_count desc, t.updated_at desc
@@ -406,7 +407,8 @@ as $$
          p.chips + coalesce((select sum(s.stack) from public.table_seats s where s.user_id = p.id), 0) as total_chips,
          p.hands_played, p.hands_won, p.biggest_pot
     from public.profiles p
-   where p.hands_played > 0 or p.chips <> 10000
+   where not p.is_guest -- only saved accounts; guests can share names and come and go
+     and (p.hands_played > 0 or p.chips <> 10000)
    order by total_chips desc, p.hands_won desc
    limit 25;
 $$;

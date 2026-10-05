@@ -13,11 +13,13 @@ interface Props {
   /** Chips already at the table (for top-ups). */
   current?: number;
   busy: boolean;
+  /** Extra context shown above the confirm button (e.g. replacing a bot). */
+  note?: string;
   onClose: () => void;
   onConfirm: (amount: number) => void;
 }
 
-export function BuyInDialog({ open, mode, config, wallet, current = 0, busy, onClose, onConfirm }: Props) {
+export function BuyInDialog({ open, mode, config, wallet, current = 0, busy, note, onClose, onConfirm }: Props) {
   const min = mode === 'sit' ? config.minBuyIn : 1;
   const maxAllowed = mode === 'sit' ? config.maxBuyIn : Math.max(0, config.maxBuyIn - current);
   const max = Math.min(maxAllowed, wallet);
@@ -72,6 +74,7 @@ export function BuyInDialog({ open, mode, config, wallet, current = 0, busy, onC
             Wallet: {chips(wallet)} · Blinds {chips(config.smallBlind)}/{chips(bb)}
             {mode === 'sit' && ` · Buy-in ${chips(config.minBuyIn)}–${chips(config.maxBuyIn)}`}
           </p>
+          {note && <p className="form-notice">{note}</p>}
           <button className="btn btn--gold btn--block" disabled={busy || amount < min || amount > max} onClick={() => onConfirm(amount)}>
             {mode === 'sit' ? `Sit down with ${chips(amount)}` : `Add ${chips(amount)}`}
           </button>

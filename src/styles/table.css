@@ -1330,3 +1330,97 @@
     min-height: 36px;
   }
 }
+
+/* ---------------------------------------------------------------- Bots */
+
+.seat__bot {
+  position: absolute;
+  top: -11px;
+  right: -6px;
+  padding: 0 5px;
+  border-radius: 6px;
+  font-size: 0.62em;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.5;
+  color: #cfe0ff;
+  background: #24324f;
+  border: 1px solid rgba(140, 170, 255, 0.45);
+}
+
+.seat__thinking {
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  translate: -50% 0;
+  z-index: 6;
+  display: flex;
+  gap: 3px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(10, 14, 26, 0.92);
+  border: 1px solid rgba(62, 240, 168, 0.45);
+}
+
+.seat__thinking i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--mint);
+  animation: think 1s ease-in-out infinite;
+}
+
+.seat__thinking i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.seat__thinking i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes think {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+/* "Sit" on a bot's seat: the viewer takes it over when the current hand ends. */
+.seat__claim {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--avatar) * 0.5);
+  translate: -50% -50%;
+  z-index: 7;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 224, 143, 0.8);
+  background: linear-gradient(180deg, #ffe08f, #f5c451 50%, #d9a237);
+  color: #2a1d02;
+  font-weight: 800;
+  font-size: 0.8em;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  animation: pulse-glow 1.8s ease-in-out infinite;
+}
+
+.seat__claim--reserved {
+  background: rgba(10, 14, 26, 0.92);
+  color: var(--gold-2);
+  border-color: rgba(245, 196, 81, 0.5);
+  animation: none;
+  font-size: 0.72em;
+}
+
+.seat__claim .emoji {
+  width: 1.3em;
+  height: 1.3em;
+}

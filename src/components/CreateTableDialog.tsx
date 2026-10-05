@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import clsx from 'clsx';
-import { Lock, Globe2 } from 'lucide-react';
+import { Lock, Globe2, Bot } from 'lucide-react';
 import { Modal } from './Modal';
 import { BLIND_PRESETS } from '../../shared/economy';
 import { blindsLabel, chips } from '../lib/format';
@@ -28,6 +28,7 @@ export function CreateTableDialog({ open, onClose }: { open: boolean; onClose: (
   const [timer, setTimer] = useState(30);
   const [password, setPassword] = useState('');
   const [listed, setListed] = useState(false);
+  const [bots, setBots] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const b = BLIND_PRESETS[blind];
@@ -42,7 +43,7 @@ export function CreateTableDialog({ open, onClose }: { open: boolean; onClose: (
     try {
       const res = await createRoom({
         name: name.trim(),
-        config: { smallBlind: b.sb, bigBlind: b.bb, maxSeats: seats, minBuyIn, maxBuyIn, turnSeconds: timer },
+        config: { smallBlind: b.sb, bigBlind: b.bb, maxSeats: seats, minBuyIn, maxBuyIn, turnSeconds: timer, bots },
         password: password || undefined,
         listed: listed && !password,
       });
@@ -145,6 +146,19 @@ export function CreateTableDialog({ open, onClose }: { open: boolean; onClose: (
             </span>
           </label>
         </div>
+
+        <label className="switch bots-switch">
+          <input type="checkbox" checked={bots} onChange={(e) => setBots(e.target.checked)} />
+          <span className="switch__track" />
+          <span className="bots-switch__text">
+            <strong>
+              <Bot size={14} /> Fill empty seats with bots
+            </strong>
+            <em className="muted">
+              Bots of mixed, hidden skill levels. Friends who join take a bot's seat when the current hand ends.
+            </em>
+          </span>
+        </label>
 
         {!affordable && (
           <p className="form-warn">

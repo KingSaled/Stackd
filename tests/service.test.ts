@@ -236,6 +236,34 @@ describe('table service (with real SQL)', () => {
     expect(await chips(A)).toBe(walletA + 500);
   });
 
+  it('bot tables: bots fill seats, stay out of the database, and a player can claim a bot seat', async () => {
+    const { roomId } = await createRoom(repo, A, { config: { bigBlind: 10, maxSeats: 4, bots: true } }, opts);
+    const r = await tableOp(repo, A, roomId, { type: 'sit', seat: 0, buyIn: 500 }, opts);
+    expect(r.state!.seats.filter((x) => x?.isBot)).toHaveLength(3);
+    expect(JSON.stringify(r.state)).not.toContain('"iters"');
+    const row = await db.query<{ player_count: number }>('select player_count from public.tables where id = $1', [roomId]);
+    expect(row.rows[0].player_count).toBe(1);
+    const seats = await db.query('select user_id from public.table_seats where table_id = $1', [roomId]);
+    expect(seats.rows).toHaveLength(1);
+    // Deal and let the bots play a few moves through ticks.
+    for (let i = 0; i < 6; i++) {
+      const t = (await repo.loadTable(roomId))!;
+      clock = Math.max(clock + 100, (t.state.actionDeadline ?? t.state.nextHandAt ?? clock) + 1);
+      await tableOp(repo, C, roomId, { type: 'tick' }, opts);
+    }
+    const t = (await repo.loadTable(roomId))!;
+    const botSeat = t.state.seats.findIndex((x) => x?.isBot);
+    const walletB = await chips(B);
+    await tableOp(repo, B, roomId, { type: 'sit', seat: botSeat, buyIn: 400 }, opts);
+    expect(await chips(B)).toBe(walletB - 400);
+    const after = await db.query<{ player_count: number }>('select player_count from public.tables where id = $1', [roomId]);
+    expect(after.rows[0].player_count).toBe(2);
+    // Both players leave: the table closes and every chip goes back.
+    await tableOp(repo, B, roomId, { type: 'stand' }, opts);
+    await tableOp(repo, A, roomId, { type: 'stand' }, opts);
+    expect(await repo.loadTable(roomId)).toBeNull();
+  });
+
   it('password rooms require membership to sit', async () => {
     const { roomId } = await createRoom(repo, A, { config: { bigBlind: 10 }, password: 'secret' }, opts);
     await expect(tableOp(repo, B, roomId, { type: 'sit', seat: 1, buyIn: 500 }, opts)).rejects.toThrow(/password/);
