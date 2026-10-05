@@ -65,3 +65,54 @@ export function lerp(a: Point, b: Point, t: number): Point {
 export function delta(from: Point, to: Point, w: number, h: number) {
   return { x: ((to.x - from.x) / 100) * w, y: ((to.y - from.y) / 100) * h };
 }
+
+/* ------------------------------------------------------------------------ */
+/* Portrait (phone) layout                                                   */
+/* ------------------------------------------------------------------------ */
+
+/** Where a seat's hole cards sit relative to its avatar. */
+export type CardMode = 'toward' | 'up' | 'left' | 'right' | 'hero';
+
+export interface PortraitSlot {
+  pos: Point;
+  bet: Point;
+  cards: CardMode;
+  /** Which side of the avatar the dealer button goes on. */
+  dealerSide: -1 | 1;
+}
+
+/**
+ * Hand-placed seat slots for tall phone screens. Seats stay out of the
+ * horizontal band occupied by the board (~40–52% height) so nothing ever
+ * covers community cards, and every seat has room for its cards and bet.
+ * Listed clockwise from the bottom (the viewer's own seat).
+ */
+const P_SLOTS: Record<string, PortraitSlot> = {
+  H: { pos: { x: 50, y: 88 }, bet: { x: 50, y: 66.5 }, cards: 'hero', dealerSide: -1 },
+  BL: { pos: { x: 18, y: 88 }, bet: { x: 25, y: 75.5 }, cards: 'up', dealerSide: 1 },
+  LL: { pos: { x: 12.5, y: 64.5 }, bet: { x: 30, y: 64.5 }, cards: 'up', dealerSide: 1 },
+  LU: { pos: { x: 12.5, y: 27 }, bet: { x: 30, y: 29.5 }, cards: 'up', dealerSide: 1 },
+  TL: { pos: { x: 29, y: 10 }, bet: { x: 33, y: 24 }, cards: 'right', dealerSide: -1 },
+  T: { pos: { x: 50, y: 10 }, bet: { x: 50, y: 24 }, cards: 'right', dealerSide: -1 },
+  TR: { pos: { x: 71, y: 10 }, bet: { x: 67, y: 24 }, cards: 'left', dealerSide: 1 },
+  RU: { pos: { x: 87.5, y: 27 }, bet: { x: 70, y: 29.5 }, cards: 'up', dealerSide: -1 },
+  RL: { pos: { x: 87.5, y: 64.5 }, bet: { x: 70, y: 64.5 }, cards: 'up', dealerSide: -1 },
+  BR: { pos: { x: 82, y: 88 }, bet: { x: 75, y: 75.5 }, cards: 'up', dealerSide: -1 },
+};
+
+const P_SETS: Record<number, string[]> = {
+  2: ['H', 'T'],
+  3: ['H', 'LU', 'RU'],
+  4: ['H', 'LU', 'T', 'RU'],
+  5: ['H', 'LL', 'TL', 'TR', 'RL'],
+  6: ['H', 'LL', 'LU', 'T', 'RU', 'RL'],
+  7: ['H', 'LL', 'LU', 'TL', 'TR', 'RU', 'RL'],
+  8: ['H', 'BL', 'LL', 'LU', 'T', 'RU', 'RL', 'BR'],
+  9: ['H', 'BL', 'LL', 'LU', 'TL', 'TR', 'RU', 'RL', 'BR'],
+};
+
+/** Slots indexed by display position (0 = bottom/viewer, clockwise). */
+export function portraitSlots(n: number): PortraitSlot[] {
+  const set = P_SETS[Math.max(2, Math.min(9, n))];
+  return set.map((k) => P_SLOTS[k]);
+}

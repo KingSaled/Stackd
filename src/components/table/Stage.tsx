@@ -5,12 +5,13 @@ import { memo, useMemo } from 'react';
 import type { PublicState, Seat } from '../../../shared/poker/types';
 import { seatIndexOf } from '../../../shared/poker/engine';
 import { describeHolding } from '../../../shared/poker/evaluator';
-import { seatPositions, stageGeometry, lerp, type Point } from '../../lib/layout';
+import { seatPositions, stageGeometry, lerp, portraitSlots, type CardMode, type Point } from '../../lib/layout';
 import { chips, chipsShort } from '../../lib/format';
 import type { StageMetrics } from '../../hooks/useStage';
 import type { MyCards, ReactionEvent } from '../../hooks/useTable';
 import type { Presentation } from '../../hooks/usePresentation';
 import { FlipCard } from '../FlipCard';
+import { Emoji } from '../Emoji';
 import { ChipStack } from '../Chips';
 import { TimerRing } from '../TimerRing';
 import { useSettings } from '../../store/settings';
@@ -78,9 +79,13 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
   const mySeat = seatIndexOf(state, me);
   const rotation = mySeat >= 0 ? mySeat : 0;
   const positions = seatPositions(n, portrait, aspect);
-  const posOf = (i: number) => positions[(i - rotation + n) % n];
+  const slots = portrait ? portraitSlots(n) : null;
   const center = stageGeometry(portrait).center;
   const cPx = px(center, w, h);
+  const posOf = (i: number): Point => {
+    const d = (i - rotation + n) % n;
+    return slots ? slots[d].pos : positions[d];
+  };
 
   const result = state.phase === 'showdown' ? state.result : null;
   const resultVisible = pres.resultVisible;
@@ -106,16 +111,55 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
 
   const sizes = useMemo(() => {
     const unit = w / 100;
+    const vu = h / 100;
+    // Portrait sizes are bounded by both width and height so short phone
+    // screens (browser toolbars visible) never overlap rows of seats.
+    const card = (wPct: number, hPct: number, max: number) => Math.min(max, unit * wPct, (vu * hPct) / 1.4);
     return {
-      '--card-board': `${Math.min(92, portrait ? unit * (n > 6 ? 11.6 : 12.8) : unit * 5.9)}px`,
-      '--card-seat': `${Math.min(56, portrait ? unit * 8.4 : unit * 3.7)}px`,
-      '--card-hero': `${Math.min(96, portrait ? unit * 16.5 : unit * 6.2)}px`,
-      '--avatar': `${Math.min(84, portrait ? unit * 13.5 : unit * 5.9)}px`,
-      '--fs': `${Math.max(10, Math.min(15, portrait ? unit * 3.3 : unit * 1.25))}px`,
+      '--card-board': `${portrait ? card(12.2, 11.5, 92) : Math.min(92, unit * 5.9)}px`,
+      '--card-seat': `${portrait ? card(8.6, 8.8, 56) : Math.min(56, unit * 3.7)}px`,
+      '--card-hero': `${portrait ? card(15, 12.5, 110) : Math.min(110, unit * 6.2)}px`,
+      '--avatar': `${Math.min(84, portrait ? Math.min(unit * (n > 6 ? 11.5 : 12.5), vu * 8.5) : unit * 5.9)}px`,
+      '--fs': `${Math.max(10.5, Math.min(15, portrait ? unit * 3.2 : unit * 1.25))}px`,
     } as React.CSSProperties;
-  }, [w, portrait, n]);
+  }, [w, h, portrait, n]);
 
   const avatarPx = parseFloat(String(sizes['--avatar' as keyof typeof sizes]));
+
+  /** Card placement, bet spot and dealer-button spot for a seat. */
+  const layoutOf = (i: number, isMe: boolean) => {
+    const d = (i - rotation + n) % n;
+    const pos = posOf(i);
+    const s = px(pos, w, h);
+    if (slots) {
+      const slot = slots[d];
+      const cardMode: CardMode = isMe ? 'hero' : slot.cards === 'hero' ? 'up' : slot.cards;
+      return {
+        pos,
+        bet: slot.bet,
+        cardMode,
+        cardOffset: { x: 0, y: 0 },
+        dealer: { x: s.x + slot.dealerSide * avatarPx * 0.78, y: s.y + avatarPx * 0.18 },
+      };
+    }
+    const geo = seatGeometry(pos, center, portrait, w, h, avatarPx);
+    // Landscape: dealer button on the left-hand side (the hero's cards sit to the right).
+    const c = cPx;
+    const dv = { x: c.x - s.x, y: c.y - s.y };
+    const len = Math.hypot(dv.x, dv.y) || 1;
+    const u = { x: dv.x / len, y: dv.y / len };
+    const perp = { x: u.y, y: -u.x };
+    return {
+      pos,
+      bet: geo.betPos,
+      cardMode: (isMe ? 'hero' : 'toward') as CardMode,
+      cardOffset: geo.cardOffset,
+      dealer: {
+        x: s.x + u.x * avatarPx * 0.55 + perp.x * avatarPx * 0.92,
+        y: s.y + u.y * avatarPx * 0.55 + perp.y * avatarPx * 0.92,
+      },
+    };
+  };
 
   if (!w || !h) return null;
 
@@ -206,7 +250,7 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
         const revealed = shown.get(i) ?? null;
         const sPx = px(pos, w, h);
         const toCenter = { x: cPx.x - sPx.x, y: cPx.y - sPx.y };
-        const geo = seatGeometry(pos, center, portrait, w, h, avatarPx);
+        const lay = layoutOf(i, isMe);
         return (
           <SeatView
             key={`${i}-${seat.userId}`}
@@ -225,9 +269,10 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
             displayStack={seat.stack - (resultVisible ? 0 : payouts.get(i) ?? 0)}
             dealDelays={pres.dealHand === state.handNo ? pres.dealDelays[i] ?? null : null}
             toCenter={toCenter}
-            cardOffset={geo.cardOffset}
+            cardOffset={lay.cardOffset}
+            cardMode={lay.cardMode}
+            compact={portrait}
             highlight={highlightActive ? winningCards : null}
-            isDealer={state.dealer === i && state.phase !== 'waiting'}
             board={state.board}
             showdown={state.phase === 'showdown'}
           />
@@ -239,7 +284,7 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
         {state.seats.map((seat, i) => {
           if (!seat || seat.bet <= 0) return null;
           const pos = posOf(i);
-          const betPos = seatGeometry(pos, center, portrait, w, h, avatarPx).betPos;
+          const betPos = layoutOf(i, seat.userId === me).bet;
           const from = px(pos, w, h);
           const to = px(betPos, w, h);
           return (
@@ -262,7 +307,7 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
 
       {/* Dealer button */}
       {state.dealer >= 0 && state.seats[state.dealer] && state.phase !== 'waiting' && (
-        <DealerButton pos={posOf(state.dealer)} center={center} w={w} h={h} avatar={avatarPx} />
+        <DealerButton at={layoutOf(state.dealer, state.seats[state.dealer]!.userId === me).dealer} />
       )}
 
       {/* Winnings flying from the pot */}
@@ -303,7 +348,7 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
                 animate={{ opacity: [0, 1, 1, 0], y: -avatarPx * 1.8, scale: [0.3, 1.4, 1.2, 1] }}
                 transition={{ duration: 2.4, times: [0, 0.15, 0.75, 1], ease: 'easeOut' }}
               >
-                <span>{r.emoji}</span>
+                <Emoji char={r.emoji} />
               </motion.div>
             );
           })}
@@ -383,21 +428,12 @@ function CenterStatus({
   );
 }
 
-function DealerButton({ pos, center, w, h, avatar }: { pos: Point; center: Point; w: number; h: number; avatar: number }) {
-  const s = px(pos, w, h);
-  const c = px(center, w, h);
-  const d = { x: c.x - s.x, y: c.y - s.y };
-  const len = Math.hypot(d.x, d.y) || 1;
-  const u = { x: d.x / len, y: d.y / len };
-  // Perpendicular on the left-hand side (the hero's cards sit to the right of the avatar).
-  const perp = { x: u.y, y: -u.x };
-  const x = s.x + u.x * avatar * 0.55 + perp.x * avatar * 0.92;
-  const y = s.y + u.y * avatar * 0.55 + perp.y * avatar * 0.92;
+function DealerButton({ at }: { at: { x: number; y: number } }) {
   return (
     <motion.div
       className="dealer-btn"
       initial={false}
-      animate={{ left: x, top: y }}
+      animate={{ left: at.x, top: at.y }}
       transition={{ type: 'spring', stiffness: 120, damping: 18 }}
     >
       D
@@ -437,8 +473,10 @@ interface SeatViewProps {
   dealDelays: [number, number] | null;
   toCenter: { x: number; y: number };
   cardOffset: { x: number; y: number };
+  cardMode: CardMode;
+  /** Phone layout: action label shown inside the name plate instead of a floating tag. */
+  compact: boolean;
   highlight: Set<string> | null;
-  isDealer: boolean;
   board: string[];
   showdown: boolean;
 }
@@ -460,6 +498,8 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
     dealDelays,
     toCenter,
     cardOffset,
+    cardMode,
+    compact,
     highlight,
     board,
     showdown,
@@ -477,9 +517,22 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
       ? chipsShort(seat.lastAction.amount)
       : '';
 
-  const cardStyle: React.CSSProperties = isMe
-    ? {}
-    : { transform: `translate(calc(-50% + ${cardOffset.x}px), calc(-50% + ${cardOffset.y}px))` };
+  const cardStyle: React.CSSProperties =
+    cardMode === 'toward'
+      ? { transform: `translate(calc(-50% + ${cardOffset.x}px), calc(-50% + ${cardOffset.y}px))` }
+      : {};
+  const actionText = label ? `${label}${labelAmount ? ` ${labelAmount}` : ''}` : null;
+  // In the compact (phone) plate the first line shows what matters most right now.
+  const plateLine = compact ? status ?? (strength && !seat.folded ? strength.name : null) ?? actionText ?? seat.name : seat.name;
+  const plateTone = compact
+    ? status
+      ? 'status'
+      : strength && !seat.folded
+        ? 'strength'
+        : actionText
+          ? seat.lastAction?.type
+          : null
+    : null;
 
   return (
     <div
@@ -495,14 +548,17 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
       )}
       style={{ left: `${pos.x}%`, top: `${pos.y}%`, '--c': seat.color } as React.CSSProperties}
     >
-      <div className={clsx('seat__cards', isMe ? 'seat__cards--hero' : 'seat__cards--other')} style={cardStyle}>
+      <div
+        className={clsx('seat__cards', `seat__cards--${cardMode === 'toward' ? 'other' : cardMode}`, revealed && 'has-revealed')}
+        style={cardStyle}
+      >
         <AnimatePresence initial={false}>
           {cardsVisible &&
             [0, 1].map((k) => {
               const card = faceCards?.[k] ?? null;
               const delay = dealDelays ? dealDelays[k] : 0;
-              const fromX = isMe ? toCenter.x : toCenter.x - cardOffset.x;
-              const fromY = isMe ? toCenter.y : toCenter.y - cardOffset.y;
+              const fromX = cardMode === 'toward' ? toCenter.x - cardOffset.x : toCenter.x;
+              const fromY = cardMode === 'toward' ? toCenter.y - cardOffset.y : toCenter.y;
               return (
                 <motion.div
                   key={`${handNo}-${k}`}
@@ -530,7 +586,7 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
               );
             })}
         </AnimatePresence>
-        {strength && !seat.folded && (
+        {strength && !seat.folded && !compact && (
           <motion.div
             key={strength.name}
             className="seat__strength"
@@ -544,8 +600,7 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
       </div>
 
       <div className="seat__avatar">
-        <span className="seat__avatar-ring" />
-        <span className="seat__emoji">{seat.avatar}</span>
+        <Emoji char={seat.avatar} className="seat__emoji" />
         {isTurn && turnStartedAt && deadline && <TimerRing startedAt={turnStartedAt} deadline={deadline} />}
         {offline && (
           <span className="seat__badge seat__badge--offline" title="Disconnected">
@@ -565,12 +620,12 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
       </div>
 
       <div className="seat__plate">
-        <span className="seat__name">{seat.name}</span>
+        <span className={clsx('seat__name', plateTone && `seat__name--${plateTone}`)}>{plateLine}</span>
         <span className="seat__stack">{seat.allIn && displayStack === 0 ? 'ALL-IN' : chips(displayStack)}</span>
       </div>
 
       <AnimatePresence>
-        {(status || label) && (
+        {!compact && (status || label) && (
           <motion.span
             key={status ?? `${label}-${labelAmount}`}
             className={clsx('seat__tag', label && `seat__tag--${seat.lastAction?.type}`, status && 'seat__tag--status')}

@@ -45,7 +45,8 @@ function build(scene: string, seats: number, seed: number): EngineState {
     now,
   );
   const fx = newEffects();
-  const count = scene === 'waiting' ? 1 : seats === 9 ? 8 : seats;
+  const full = new URLSearchParams(window.location.search).has('full');
+  const count = scene === 'waiting' ? 1 : seats === 9 && !full ? 8 : seats;
   for (let i = 0; i < count; i++)
     sitDown(s, fx, { userId: `u${i}`, name: NAMES[i], avatar: AVATARS[(i * 5) % AVATARS.length], color: COLORS[(i * 3) % COLORS.length] }, i, 2000 + i * 650, now);
   if (scene === 'waiting') return s;
@@ -203,6 +204,7 @@ export default function Playground() {
         onAddChips={() => undefined}
         onStand={() => undefined}
         walletChips={12000}
+        myCards={myCards?.cards ?? null}
       />
     </div>
   );

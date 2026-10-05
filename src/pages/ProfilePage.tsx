@@ -4,6 +4,7 @@ import clsx from 'clsx';
 import { LogOut, Save, ShieldCheck, Trophy, Layers, Percent, Coins, Gem, Hand } from 'lucide-react';
 import { TopNav } from '../components/TopNav';
 import { Avatar } from '../components/Avatar';
+import { Emoji } from '../components/Emoji';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toast';
@@ -103,7 +104,7 @@ export function ProfilePage() {
             <div className="avatar-grid">
               {AVATARS.map((a) => (
                 <button key={a} className={clsx('avatar-pick', a === avatar && 'is-on')} onClick={() => setAvatar(a)} aria-label={`Avatar ${a}`}>
-                  {a}
+                  <Emoji char={a} />
                 </button>
               ))}
             </div>

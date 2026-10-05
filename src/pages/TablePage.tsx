@@ -439,6 +439,7 @@ function TableRoom({ roomId }: { roomId: string }) {
             if (await run({ type: 'stand' })) toast.info('You stood up — chips are back in your wallet');
           }}
           walletChips={profile?.chips ?? 0}
+          myCards={t.myCards && t.myCards.handNo === state.handNo ? t.myCards.cards : null}
         />
       )}
 

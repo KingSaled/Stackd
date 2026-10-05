@@ -152,6 +152,10 @@ npm test
 
 - New free-plan Netlify sites show a "Powered by Netlify" badge in the bottom-right corner, which covers the action buttons on phones. Turn it off under **Project configuration → General → Powered by Netlify badge**. No redeploy is needed.
 
+## Credits
+
+Avatar and reaction images are [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) by Microsoft (MIT license, see `public/emoji/LICENSE.txt`). They are bundled as images so every player sees the same picture on any device.
+
 ## Security model
 
 - Clients can only **read** what row-level security allows. They can only **write** through a short list of validated `SECURITY DEFINER` functions (profile edits, daily bonus, emergency reload, joining a room) and chat inserts. Chat inserts are checked by a trigger that stamps the sender's identity and rate-limits messages.

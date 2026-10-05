@@ -7,6 +7,7 @@ import { potTotal } from '../../../shared/poker/engine';
 import { chips } from '../../lib/format';
 import { serverNow } from '../../lib/clock';
 import { sound, vibrate } from '../../lib/sound';
+import { PlayingCard } from '../PlayingCard';
 
 export type PreAction = 'checkfold' | 'check' | 'callany' | null;
 
@@ -23,6 +24,8 @@ interface Props {
   onAddChips: () => void;
   onStand: () => void;
   walletChips: number;
+  /** The viewer's hole cards, echoed in the raise panel (which can cover the table on small screens). */
+  myCards?: string[] | null;
 }
 
 export function ActionBar(props: Props) {
@@ -106,7 +109,7 @@ function PreToggle({ label, active, onClick }: { label: string; active: boolean;
   );
 }
 
-function TurnControls({ state, mySeat, legal, busy, onAct }: Props) {
+function TurnControls({ state, mySeat, legal, busy, onAct, myCards }: Props) {
   const seat = state.seats[mySeat]!;
   const [raising, setRaising] = useState(false);
   const bb = state.config.bigBlind;
@@ -185,9 +188,10 @@ function TurnControls({ state, mySeat, legal, busy, onAct }: Props) {
         {raising && legal.canRaise && (
           <motion.div
             className="raise"
-            initial={{ opacity: 0, y: 16, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: 'auto' }}
-            exit={{ opacity: 0, y: 10, height: 0 }}
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 32 }}
           >
             <div className="raise__presets">
               {presets.map((p) => (
@@ -204,6 +208,12 @@ function TurnControls({ state, mySeat, legal, busy, onAct }: Props) {
               ))}
             </div>
             <div className="raise__slider">
+              {myCards && myCards.length === 2 && (
+                <span className="raise__hand" aria-label="Your cards">
+                  <PlayingCard card={myCards[0]} size="mini" />
+                  <PlayingCard card={myCards[1]} size="mini" />
+                </span>
+              )}
               <button className="icon-btn icon-btn--round" aria-label="Decrease" onClick={() => setAmount((v) => clamp(v - bb))}>
                 <Minus size={16} />
               </button>

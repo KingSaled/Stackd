@@ -1,4 +1,5 @@
 import clsx from 'clsx';
+import { Emoji } from './Emoji';
 
 export function Avatar({
   emoji,
@@ -17,7 +18,7 @@ export function Avatar({
   const fontSize = typeof size === 'number' ? `${Math.round(size * 0.56)}px` : `calc(${size} * 0.56)`;
   return (
     <span className={clsx('avatar', className)} style={{ '--c': color, width: s, height: s, fontSize } as React.CSSProperties}>
-      <span className="avatar__emoji">{emoji}</span>
+      <Emoji char={emoji} className="avatar__emoji" />
       {children}
     </span>
   );

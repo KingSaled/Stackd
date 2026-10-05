@@ -722,9 +722,27 @@ input[type='range']::-moz-range-thumb {
   flex: none;
 }
 
-.avatar__emoji {
-  font-size: 1em;
+/* Bundled emoji images (see components/Emoji.tsx); size follows font-size. */
+.emoji {
+  display: block;
+  width: 1em;
+  height: 1em;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+
+.emoji--text {
+  width: auto;
+  height: auto;
   line-height: 1;
+  text-align: center;
+}
+
+.avatar__emoji {
+  width: 1.15em;
+  height: 1.15em;
 }
 
 .avatar--glow {

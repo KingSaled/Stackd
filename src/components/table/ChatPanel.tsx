@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { LogEntry } from '../../../shared/poker/types';
 import type { ChatMessage } from '../../hooks/useTable';
 import { REACTIONS } from '../../../shared/economy';
+import { Emoji } from '../Emoji';
 
 interface Props {
   chat: ChatMessage[];
@@ -56,7 +57,7 @@ export function ChatPanel({ chat, log, me, onSend, onReact, canChat }: Props) {
             chat.map((m) => (
               <div key={m.id} className={clsx('msg', m.user_id === me && 'msg--me')}>
                 <span className="msg__avatar" style={{ '--c': m.color } as React.CSSProperties}>
-                  {m.avatar}
+                  <Emoji char={m.avatar} />
                 </span>
                 <div className="msg__body">
                   <span className="msg__name" style={{ color: m.color }}>
@@ -78,7 +79,7 @@ export function ChatPanel({ chat, log, me, onSend, onReact, canChat }: Props) {
       <div className="chat__reactions">
         {REACTIONS.map((r) => (
           <button key={r} className="react-btn" onClick={() => onReact(r)} disabled={!canChat} aria-label={`React ${r}`}>
-            {r}
+            <Emoji char={r} />
           </button>
         ))}
       </div>

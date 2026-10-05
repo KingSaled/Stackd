@@ -274,7 +274,7 @@
 }
 
 .stage--portrait .center-status {
-  max-width: 64%;
+  max-width: 60%;
 }
 
 .status-pill {
@@ -364,9 +364,15 @@
 }
 
 .seat__emoji {
+  width: 66%;
+  height: 66%;
   font-size: calc(var(--avatar) * 0.52);
-  line-height: 1;
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
+}
+
+.seat__emoji.emoji--text {
+  width: auto;
+  height: auto;
 }
 
 .seat.is-turn .seat__avatar {
@@ -572,6 +578,56 @@
   transform: translateY(-12%) scale(1.05);
 }
 
+/* Phone layout: cards peek out above the avatar, or sit beside it on the top row. */
+.seat__cards--up {
+  left: 50%;
+  top: calc(var(--avatar) * 0.34);
+  transform: translate(-50%, -100%);
+}
+
+.seat__cards--right,
+.seat__cards--left {
+  top: calc(var(--avatar) * 0.5);
+  transform: translateY(-50%);
+}
+
+.seat__cards--right {
+  left: calc(50% + var(--avatar) * 0.56);
+}
+
+.seat__cards--left {
+  right: calc(50% + var(--avatar) * 0.56);
+}
+
+.seat__cards--up .seat__card + .seat__card,
+.seat__cards--left .seat__card + .seat__card,
+.seat__cards--right .seat__card + .seat__card {
+  margin-left: calc(var(--card-seat) * -0.42);
+}
+
+.seat__cards--up .seat__card--0 .pcard,
+.seat__cards--left .seat__card--0 .pcard,
+.seat__cards--right .seat__card--0 .pcard {
+  transform: rotate(-7deg);
+}
+
+.seat__cards--up .seat__card--1 .pcard,
+.seat__cards--left .seat__card--1 .pcard,
+.seat__cards--right .seat__card--1 .pcard {
+  transform: rotate(7deg) translateY(1px);
+}
+
+/* Revealed cards come in front of the avatar so they can be read. */
+.seat__cards.has-revealed {
+  z-index: 5;
+}
+
+.seat__cards--up .pcard.is-highlight,
+.seat__cards--left .pcard.is-highlight,
+.seat__cards--right .pcard.is-highlight {
+  transform: translateY(-12%) scale(1.05);
+}
+
 .seat__cards--hero {
   left: calc(50% + var(--avatar) * 0.55);
   bottom: calc(100% - var(--avatar) * 1.15);
@@ -589,6 +645,82 @@
 
 .seat__cards--hero .pcard.is-highlight {
   transform: translateY(-8%);
+}
+
+/* Phone layout: the viewer's cards sit centered above their avatar, large and clear. */
+.stage--portrait .seat__cards--hero {
+  left: 50%;
+  bottom: auto;
+  top: -3px;
+  gap: 4px;
+  transform: translate(-50%, -100%);
+}
+
+.stage--portrait .seat__cards--hero .seat__card--0 .pcard {
+  transform: rotate(-3deg);
+}
+
+.stage--portrait .seat__cards--hero .seat__card--1 .pcard {
+  transform: rotate(3deg);
+}
+
+/* Compact name plate: first line shows hand strength / last action / status. */
+.seat__name--strength {
+  color: var(--mint);
+  font-weight: 700;
+}
+
+.seat__name--status {
+  color: var(--text-faint);
+}
+
+.seat__name--fold {
+  color: #ff9fb1;
+  font-weight: 700;
+}
+
+.seat__name--check {
+  color: #b8d8ff;
+  font-weight: 700;
+}
+
+.seat__name--call {
+  color: #a6ffd9;
+  font-weight: 700;
+}
+
+.seat__name--bet,
+.seat__name--raise,
+.seat__name--sb,
+.seat__name--bb {
+  color: #ffe9a8;
+  font-weight: 700;
+}
+
+.seat__name--allin {
+  color: #d3c2ff;
+  font-weight: 800;
+}
+
+.stage--portrait .seat__plate {
+  max-width: calc(var(--avatar) * 1.9);
+  min-width: calc(var(--avatar) * 1.55);
+  padding: 2px 6px 3px;
+}
+
+.stage--portrait .seat__name {
+  font-size: 0.86em;
+}
+
+.stage--portrait .seat--me .seat__plate {
+  max-width: calc(var(--avatar) * 2.8);
+}
+
+.raise__hand {
+  display: flex;
+  gap: 3px;
+  flex: none;
+  --card-mini: 26px;
 }
 
 .seat__strength {
@@ -680,9 +812,11 @@
   line-height: 1;
 }
 
-.reaction-float > span {
+.reaction-float > .emoji {
   position: absolute;
   translate: -50% -50%;
+  width: 1.2em;
+  height: 1.2em;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
 }
 
@@ -836,14 +970,22 @@
   }
 }
 
+/* Floats above the action bar so opening it never resizes the table. */
 .raise {
-  max-width: 760px;
-  width: 100%;
-  margin: 0 auto;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  padding: 10px max(14px, calc((100% - 760px) / 2));
   display: flex;
   flex-direction: column;
   gap: 8px;
   overflow: hidden;
+  background: linear-gradient(180deg, rgba(12, 17, 30, 0.94), rgba(10, 14, 26, 0.98));
+  border-top: 1px solid rgba(245, 196, 81, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.4);
 }
 
 .raise__presets {
@@ -985,7 +1127,7 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 15px;
+  font-size: 18px;
   background: var(--bg-3);
   box-shadow: 0 0 0 2px var(--c);
   flex: none;
@@ -1050,8 +1192,8 @@
 .react-btn {
   border: none;
   background: transparent;
-  font-size: 20px;
-  padding: 4px 6px;
+  font-size: 26px;
+  padding: 4px 5px;
   border-radius: 8px;
   transition: transform 0.12s;
   flex: none;
