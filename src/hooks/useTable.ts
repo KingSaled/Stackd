@@ -164,6 +164,10 @@ export function useTable(roomId: string, userId: string) {
           applyState(row.state, row.version);
         },
       )
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tables' }, (payload) => {
+        // DELETE events can't be filtered server-side; only the primary key is included.
+        if ((payload.old as { id?: string } | undefined)?.id === roomId) setNotFound(true);
+      })
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'player_cards', filter: `table_id=eq.${roomId}` },

@@ -102,7 +102,8 @@ describe('schema', () => {
     );
     // Password rooms are never listed publicly.
     const listed = await as<{ id: string }>(B, 'select id from public.list_open_tables()');
-    expect(listed.map((r) => r.id)).toEqual(['OPEN01']);
+    // Empty tables are not shown in the lobby.
+    expect(listed.map((r) => r.id)).toEqual([]);
 
     // Host can read, Bob cannot until he joins.
     expect(await as(A, `select id from public.tables where id = 'ROOM01'`)).toHaveLength(1);
@@ -241,5 +242,26 @@ describe('schema', () => {
     expect(res.r.tables_deleted).toBe(0);
     const [t] = await as<{ t: number }>(A, 'select public.server_time() as t');
     expect(Math.abs(Number(t.t) - Date.now())).toBeLessThan(60_000);
+  });
+
+  it('lists occupied tables and deletes a table when the last player leaves', async () => {
+    const listed = await as<{ id: string }>(C, 'select id from public.list_open_tables()');
+    expect(listed.map((r) => r.id)).toEqual(['OPEN01']);
+    const [{ r }] = await as<{ r: { version: number } }>(null, `select public.load_table('OPEN01') as r`);
+    const before = await db.query<{ chips: string }>('select chips from public.profiles where id = $1', [A]);
+    await as(null, `select public.commit_table('OPEN01', $1, '{}', '{}', '[]', null, $2, '[]', 'waiting', 0)`, [
+      r.version,
+      JSON.stringify([{ user_id: A, delta: 1000 }]),
+    ]);
+    expect(await db.query(`select id from public.tables where id = 'OPEN01'`).then((x) => x.rows)).toHaveLength(0);
+    expect(await db.query(`select 1 from public.chat_messages where table_id = 'OPEN01'`).then((x) => x.rows)).toHaveLength(0);
+    const after = await db.query<{ chips: string }>('select chips from public.profiles where id = $1', [A]);
+    expect(Number(after.rows[0].chips)).toBe(Number(before.rows[0].chips) + 1000);
+  });
+
+  it('cleans up tables nobody ever sat at', async () => {
+    await db.query(`update public.tables set updated_at = now() - interval '1 hour' where player_count = 0`);
+    const [res] = await as<{ r: { tables_deleted: number } }>(null, 'select public.cleanup_stale_data() as r');
+    expect(res.r.tables_deleted).toBeGreaterThan(0);
   });
 });

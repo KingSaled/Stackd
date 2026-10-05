@@ -332,6 +332,7 @@ function TableRoom({ roomId }: { roomId: string }) {
       <div className="page page--center">
         <div className="card gate">
           <h2>Table closed</h2>
+          <p className="muted">Everyone left, so this table was closed. Any chips at the table are back in your wallet.</p>
           <Link className="btn btn--gold" href="/">
             Back to lobby
           </Link>

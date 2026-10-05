@@ -219,9 +219,21 @@ describe('table service (with real SQL)', () => {
     const res = await runJanitor(repo, { ...opts, now: () => Date.now() });
     expect(res.closed).toBe(1);
     expect((await chips(A)) + (await chips(C))).toBe(walletsBefore + onTable);
-    const after = (await repo.loadTable(room))!;
-    expect(after.state.seats.every((s) => s === null)).toBe(true);
+    // With everyone cashed out, the table is closed entirely.
+    expect(await repo.loadTable(room)).toBeNull();
     expect(JANITOR.idleCloseMs).toBeGreaterThan(0);
+  });
+
+  it('closes a table as soon as the last player stands up', async () => {
+    const { roomId } = await createRoom(repo, A, { config: { bigBlind: 10 } }, opts);
+    await tableOp(repo, A, roomId, { type: 'sit', seat: 0, buyIn: 500 }, opts);
+    await tableOp(repo, B, roomId, { type: 'sit', seat: 1, buyIn: 500 }, opts);
+    const walletA = await chips(A);
+    await tableOp(repo, A, roomId, { type: 'stand' }, opts);
+    expect(await repo.loadTable(roomId)).not.toBeNull();
+    await tableOp(repo, B, roomId, { type: 'stand' }, opts);
+    expect(await repo.loadTable(roomId)).toBeNull();
+    expect(await chips(A)).toBe(walletA + 500);
   });
 
   it('password rooms require membership to sit', async () => {

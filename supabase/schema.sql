@@ -390,7 +390,7 @@ as $$
          (t.config ->> 'minBuyIn')::bigint, (t.config ->> 'maxBuyIn')::bigint,
          t.player_count, t.status, t.updated_at
     from public.tables t
-   where t.listed and not t.has_password and t.updated_at > now() - interval '2 days'
+   where t.listed and not t.has_password and t.player_count > 0 and t.updated_at > now() - interval '2 days'
    order by t.player_count desc, t.updated_at desc
    limit 40;
 $$;
@@ -585,8 +585,11 @@ set search_path = public
 as $$
 declare
   v_version integer;
+  v_prev_count integer;
   r record;
 begin
+  select player_count into v_prev_count from public.tables where id = p_id for update;
+
   update public.tables
      set state = p_state,
          version = version + 1,
@@ -642,6 +645,13 @@ begin
    where exists (select 1 from public.profiles p where p.id = x.user_id)
   on conflict do nothing;
 
+  -- The last player left: close the table (cascades to secrets, seats, cards, chat, members).
+  -- Wallets were already credited above, in this same transaction.
+  if p_player_count = 0 and coalesce(v_prev_count, 0) > 0 then
+    delete from public.tables where id = p_id;
+    return v_version;
+  end if;
+
   if p_cards is not null then
     delete from public.player_cards
      where table_id = p_id
@@ -669,8 +679,9 @@ declare
   v_tables integer;
   v_chat integer;
 begin
+  -- Tables that were opened but never had anyone sit down.
   delete from public.tables
-   where player_count = 0 and updated_at < now() - interval '24 hours';
+   where player_count = 0 and updated_at < now() - interval '30 minutes';
   get diagnostics v_tables = row_count;
   delete from public.chat_messages where created_at < now() - interval '3 days';
   get diagnostics v_chat = row_count;

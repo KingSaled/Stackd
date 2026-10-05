@@ -150,6 +150,8 @@ npm test
 - **Supabase free plan:** 500 MB database, 2 million Realtime messages a month, 200 concurrent Realtime connections. That is plenty for friends' games.
 - Supabase pauses free projects after about a week of inactivity. The hourly janitor function touches the database, which usually keeps the project awake. If it does get paused, restore it from the Supabase dashboard.
 
+- New free-plan Netlify sites show a "Powered by Netlify" badge in the bottom-right corner, which covers the action buttons on phones. Turn it off under **Project configuration → General → Powered by Netlify badge**. No redeploy is needed.
+
 ## Security model
 
 - Clients can only **read** what row-level security allows. They can only **write** through a short list of validated `SECURITY DEFINER` functions (profile edits, daily bonus, emergency reload, joining a room) and chat inserts. Chat inserts are checked by a trigger that stamps the sender's identity and rate-limits messages.

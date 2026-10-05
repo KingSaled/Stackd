@@ -708,41 +708,6 @@ input[type='range']::-moz-range-thumb {
   font-size: 2.6rem;
 }
 
-.logo__mark {
-  position: relative;
-  width: 0.95em;
-  height: 0.95em;
-  display: inline-block;
-}
-
-.logo__mark span {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 0.3em;
-  border-radius: 50% / 50%;
-  background: linear-gradient(180deg, #ffe08f, #d9a237);
-  box-shadow:
-    0 1px 0 #7a5410,
-    inset 0 0 0 1.5px rgba(255, 255, 255, 0.35);
-}
-
-.logo__mark span:nth-child(1) {
-  bottom: 0;
-  background: linear-gradient(180deg, #ff7189, #b4203e);
-  box-shadow: 0 1px 0 #5c0a1c;
-}
-
-.logo__mark span:nth-child(2) {
-  bottom: 0.3em;
-  background: linear-gradient(180deg, #7cf7c6, #19b97c);
-  box-shadow: 0 1px 0 #0a5a3c;
-}
-
-.logo__mark span:nth-child(3) {
-  bottom: 0.6em;
-}
-
 /* ---------------------------------------------------------------- Avatar */
 
 .avatar {
