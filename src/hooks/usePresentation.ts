@@ -15,6 +15,8 @@ import type { SoundName } from '../lib/sound';
 export interface SoundCue {
   sound: SoundName;
   delay: number;
+  /** Seat the sound comes from (used to pan it left/right). */
+  seat?: number;
   count?: number;
 }
 
@@ -62,9 +64,9 @@ function compute(prev: PublicState | null, next: PublicState, before: Presentati
       const d1 = 0.12 + j * 0.085;
       const d2 = 0.12 + (order.length + j) * 0.085;
       p.dealDelays[seat] = [d1, d2];
-      cues.push({ sound: 'deal', delay: d1 }, { sound: 'deal', delay: d2 });
+      cues.push({ sound: 'deal', delay: d1, seat }, { sound: 'deal', delay: d2, seat });
     });
-    cues.push({ sound: 'chip', delay: 0.05 });
+    cues.push({ sound: 'shuffle', delay: 0 });
   }
 
   // Board reveals.
@@ -93,7 +95,7 @@ function compute(prev: PublicState | null, next: PublicState, before: Presentati
       const before = prev.seats[i];
       if (!seat) return;
       if (!before || before.userId !== seat.userId) {
-        cues.push({ sound: 'join', delay: 0 });
+        cues.push({ sound: 'join', delay: 0, seat: i });
         return;
       }
       const a = seat.lastAction;
@@ -101,25 +103,25 @@ function compute(prev: PublicState | null, next: PublicState, before: Presentati
       if (!a || (b && a.type === b.type && a.amount === b.amount)) return;
       switch (a.type) {
         case 'check':
-          cues.push({ sound: 'check', delay: 0 });
+          cues.push({ sound: 'check', delay: 0, seat: i });
           break;
         case 'call':
-          cues.push({ sound: 'chips', delay: 0, count: 3 });
+          cues.push({ sound: 'chips', delay: 0, count: 3, seat: i });
           break;
         case 'bet':
         case 'raise':
-          cues.push({ sound: 'chips', delay: 0, count: 5 });
+          cues.push({ sound: 'chips', delay: 0, count: 5, seat: i });
           break;
         case 'allin':
-          cues.push({ sound: 'allin', delay: 0 });
+          cues.push({ sound: 'allin', delay: 0, seat: i });
           break;
         case 'fold':
-          cues.push({ sound: 'fold', delay: 0 });
+          cues.push({ sound: 'fold', delay: 0, seat: i });
           break;
       }
     });
     const prevBets = prev.seats.reduce((a, s) => a + (s?.bet ?? 0), 0);
-    if (prev.phase !== next.phase && prevBets > 0) cues.push({ sound: 'chips', delay: 0.15, count: 4 });
+    if (prev.phase !== next.phase && prevBets > 0) cues.push({ sound: 'collect', delay: 0.05 });
   }
 
   // Results.
@@ -134,9 +136,9 @@ function compute(prev: PublicState | null, next: PublicState, before: Presentati
     const mine = next.result.payouts.find((x) => x.userId === myUserId);
     if (mine) {
       const big = mine.amount >= next.config.bigBlind * 50;
-      cues.push({ sound: big ? 'bigwin' : 'win', delay: wait + 0.1 });
+      cues.push({ sound: big ? 'bigwin' : 'win', delay: wait + 0.1, seat: mine.seat });
     } else {
-      cues.push({ sound: 'pot', delay: wait + 0.1 });
+      cues.push({ sound: 'pot', delay: wait + 0.1, seat: next.result.payouts[0]?.seat });
     }
   }
 

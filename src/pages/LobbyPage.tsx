@@ -5,6 +5,7 @@ import { ArrowRight, Bot, Crown, Plus, RefreshCw, Users, Gift, Flame, Armchair, 
 import clsx from 'clsx';
 import { TopNav } from '../components/TopNav';
 import { CreateTableDialog } from '../components/CreateTableDialog';
+import { ChangelogModal } from '../components/ChangelogModal';
 import { BrokeHelp } from '../components/BrokeHelp';
 import { Avatar } from '../components/Avatar';
 import { PlayingCard } from '../components/PlayingCard';
@@ -290,6 +291,7 @@ export function LobbyPage() {
         </section>
       </main>
       <CreateTableDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+      <ChangelogModal />
     </div>
   );
 }

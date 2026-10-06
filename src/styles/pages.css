@@ -662,3 +662,85 @@
   font-style: normal;
   font-size: 0.82rem;
 }
+
+/* ---------------------------------------------------------------- Update banner & changelog */
+
+.update-banner {
+  position: fixed;
+  left: 50%;
+  top: calc(64px + var(--safe-top));
+  translate: -50% 0;
+  z-index: 150;
+  width: min(620px, calc(100% - 20px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 10px 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(30, 24, 8, 0.97), rgba(14, 11, 4, 0.98));
+  border: 1px solid rgba(241, 213, 138, 0.55);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.update-banner > svg {
+  color: var(--gold);
+  flex: none;
+}
+
+.update-banner span {
+  flex: 1;
+}
+
+.update-banner strong {
+  color: var(--gold-2);
+}
+
+.changelog {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.changelog__title {
+  background: linear-gradient(180deg, var(--gold-2), var(--gold) 60%, var(--gold-deep));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.changelog__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.changelog__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.changelog__list li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.changelog__icon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line);
+}

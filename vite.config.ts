@@ -1,4 +1,17 @@
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
+
+// Unique id of this build: Netlify's commit hash when available, otherwise a timestamp.
+const BUILD_ID = (process.env.COMMIT_REF || '').slice(0, 12) || `local-${Date.now()}`;
+
+/** Emits /version.json so open tabs can tell when a newer build has been deployed. */
+function versionFile(): Plugin {
+  return {
+    name: 'stackd-version-file',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ build: BUILD_ID }) });
+    },
+  };
+}
 import react from '@vitejs/plugin-react';
 
 // Only the public Supabase URL and anon/publishable key are embedded in the client bundle.
@@ -22,8 +35,9 @@ export default defineConfig(({ mode }) => {
     'SUPABASE_PUBLISHABLE_KEY',
   );
   return {
-    plugins: [react()],
+    plugins: [react(), versionFile()],
     define: {
+      __BUILD_ID__: JSON.stringify(BUILD_ID),
       __SUPABASE_URL__: JSON.stringify(url),
       __SUPABASE_ANON_KEY__: JSON.stringify(key),
     },

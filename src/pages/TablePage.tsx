@@ -23,7 +23,7 @@ import { getLegalActions, isBettingPhase, reservationOf, seatIndexOf } from '../
 import type { PlayerAction } from '../../shared/poker/types';
 import type { TableAction } from '../lib/api';
 import { ApiError } from '../lib/api';
-import { sound, vibrate } from '../lib/sound';
+import { seatPan, sound, vibrate } from '../lib/sound';
 import { blindsLabel, chips } from '../lib/format';
 import { recallRoomPassword, rememberRoomPassword } from '../lib/storage';
 
@@ -215,7 +215,7 @@ function TableRoom({ roomId }: { roomId: string }) {
 
   // Sounds staged with the animations.
   useEffect(() => {
-    for (const c of pres.cues) sound.play(c.sound, { delay: c.delay, count: c.count });
+    for (const c of pres.cues) sound.play(c.sound, { delay: c.delay, count: c.count, pan: seatPan(c.seat) });
     if (pres.cues.some((c) => c.sound === 'turn')) vibrate([40, 60, 40]);
   }, [pres.cueId]); // eslint-disable-line react-hooks/exhaustive-deps
 

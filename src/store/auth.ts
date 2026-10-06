@@ -19,6 +19,8 @@ export interface Profile {
   reload_count: number;
   is_guest: boolean;
   created_at: string;
+  /** Newest changelog entry this player has dismissed (null until the schema adds it). */
+  last_seen_changelog?: string | null;
 }
 
 interface AuthState {

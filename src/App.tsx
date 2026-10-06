@@ -4,6 +4,7 @@ import { isConfigured } from './lib/config';
 import { useAuth } from './store/auth';
 import { sound } from './lib/sound';
 import { Toaster } from './components/Toaster';
+import { UpdateBanner } from './components/UpdateBanner';
 import { Logo } from './components/Logo';
 import { AuthPage } from './pages/AuthPage';
 import { LobbyPage } from './pages/LobbyPage';
@@ -62,6 +63,7 @@ export function App() {
     <>
       <Routes />
       <Toaster />
+      <UpdateBanner />
     </>
   );
 }

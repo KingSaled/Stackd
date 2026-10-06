@@ -12,7 +12,7 @@ import type { MyCards, ReactionEvent } from '../../hooks/useTable';
 import type { Presentation } from '../../hooks/usePresentation';
 import { FlipCard } from '../FlipCard';
 import { Emoji } from '../Emoji';
-import { ChipStack } from '../Chips';
+import { Chip, ChipStack, chipBreakdown } from '../Chips';
 import { TimerRing } from '../TimerRing';
 import { useSettings } from '../../store/settings';
 import { useServerNow } from '../../hooks/useNow';
@@ -125,6 +125,7 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
   }, [w, h, portrait, n]);
 
   const avatarPx = parseFloat(String(sizes['--avatar' as keyof typeof sizes]));
+  const boardPx = parseFloat(String(sizes['--card-board' as keyof typeof sizes]));
 
   /** Card placement, bet spot and dealer-button spot for a seat. */
   const layoutOf = (i: number, isMe: boolean) => {
@@ -171,7 +172,10 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
       <div className="table-rail">
         <div className="table-felt">
           <div className="felt-pattern" />
-          <div className="felt-logo">STACKD</div>
+          <div className="felt-logo">
+            STACKD
+            <small>♠ ♥ ♦ ♣</small>
+          </div>
         </div>
       </div>
 
@@ -186,10 +190,13 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
                   <motion.div
                     key={`${state.handNo}-${card}`}
                     className="board__card"
-                    initial={{ opacity: 0, y: -28, scale: 0.75 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8, y: -10, transition: { duration: 0.25 } }}
-                    transition={{ type: 'spring', stiffness: 260, damping: 22, delay: pres.boardDelays[i] ?? 0 }}
+                    initial={{ opacity: 0, x: (2 - i) * boardPx * 1.1, y: -boardPx * 0.5, scale: 0.86, rotate: (2 - i) * 4 }}
+                    animate={{ opacity: 1, x: 0, y: 0, scale: 1, rotate: 0 }}
+                    exit={{ opacity: 0, scale: 0.85, y: -boardPx * 0.3, transition: { duration: 0.22, ease: 'easeIn' } }}
+                    transition={{
+                      default: { duration: 0.42, ease: [0.16, 1, 0.3, 1], delay: pres.boardDelays[i] ?? 0 },
+                      opacity: { duration: 0.12, delay: pres.boardDelays[i] ?? 0 },
+                    }}
                   >
                     <FlipCard
                       card={card}
@@ -219,7 +226,16 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
             >
               <ChipStack amount={potAmount} label={false} max={7} />
               <span className="pot__label">
-                Pot <strong>{chips(potAmount)}</strong>
+                Pot{' '}
+                <motion.strong
+                  key={potAmount}
+                  initial={{ scale: 1.3, color: '#ffe08f' }}
+                  animate={{ scale: 1, color: '#ffffff' }}
+                  transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                  style={{ display: 'inline-block' }}
+                >
+                  {chips(potAmount)}
+                </motion.strong>
               </span>
             </motion.div>
           )}
@@ -294,14 +310,20 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
               key={`bet-${state.handNo}-${state.phase}-${i}`}
               className="bet"
               style={{ left: `${betPos.x}%`, top: `${betPos.y}%` }}
-              initial={{ x: from.x - to.x, y: from.y - to.y, opacity: 0, scale: 0.6 }}
+              initial={{ x: from.x - to.x, y: from.y - to.y, opacity: 0, scale: 0.7 }}
               animate={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-              exit={{ x: cPx.x - to.x, y: cPx.y - (POT_OFFSET(portrait) / 100) * h - to.y, opacity: 0, scale: 0.7, transition: { duration: 0.45, ease: 'easeIn' } }}
-              transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+              exit={{
+                x: cPx.x - to.x,
+                y: cPx.y - (POT_OFFSET(portrait) / 100) * h - to.y,
+                opacity: [1, 1, 0],
+                scale: 0.6,
+                transition: { duration: 0.42, ease: [0.55, 0, 0.75, 0.35], times: [0, 0.75, 1] },
+              }}
+              transition={{ default: { duration: 0.38, ease: [0.16, 1, 0.3, 1] }, opacity: { duration: 0.1 } }}
             >
-              <motion.span key={seat.bet} initial={{ scale: 1.25 }} animate={{ scale: 1 }} className="bet__inner">
+              <span key={seat.bet} className="bet__inner bet__toss">
                 <ChipStack amount={seat.bet} />
-              </motion.span>
+              </span>
             </motion.div>
           );
         })}
@@ -321,16 +343,40 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
             const a = px(potPos, w, h);
             const b = px(seatPos, w, h);
             return (
-              <motion.div
-                key={`payout-${result.handNo}-${p.seat}`}
-                className="payout-fly"
-                style={{ left: `${potPos.x}%`, top: `${potPos.y}%` }}
-                initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-                animate={{ x: b.x - a.x, y: b.y - a.y, opacity: [1, 1, 0], scale: [1, 1.05, 0.7] }}
-                transition={{ duration: 0.9, ease: [0.3, 0.7, 0.4, 1], times: [0, 0.75, 1] }}
-              >
-                <ChipStack amount={p.amount} label={false} max={7} />
-              </motion.div>
+              <div key={`payout-${result.handNo}-${p.seat}`}>
+                <motion.div
+                  className="payout-fly"
+                  style={{ left: `${potPos.x}%`, top: `${potPos.y}%` }}
+                  initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+                  animate={{ x: b.x - a.x, y: b.y - a.y, opacity: [1, 1, 0], scale: [1, 1.08, 0.75] }}
+                  transition={{ duration: 0.75, ease: [0.45, 0, 0.2, 1], times: [0, 0.8, 1] }}
+                >
+                  <ChipStack amount={p.amount} label={false} max={7} />
+                </motion.div>
+                {chipBreakdown(p.amount, 6).map((c, j) => {
+                  const lift = Math.min(70, Math.hypot(b.x - a.x, b.y - a.y) * 0.25);
+                  return (
+                    <motion.div
+                      key={j}
+                      className="payout-fly"
+                      style={{ left: `${potPos.x}%`, top: `${potPos.y}%` }}
+                      initial={{ x: 0, y: 0, opacity: 0, scale: 0.8 }}
+                      animate={{
+                        x: [0, (b.x - a.x) * 0.5 + (j - 2.5) * 6, b.x - a.x],
+                        y: [0, (b.y - a.y) * 0.5 - lift, b.y - a.y],
+                        opacity: [0, 1, 1, 0],
+                        scale: [0.8, 1.15, 0.9],
+                      }}
+                      transition={{
+                        default: { duration: 0.62, delay: 0.08 + j * 0.055, ease: 'easeInOut', times: [0, 0.5, 1] },
+                        opacity: { duration: 0.62, delay: 0.08 + j * 0.055, times: [0, 0.1, 0.85, 1] },
+                      }}
+                    >
+                      <Chip color={c.color} edge={c.edge} className="chip--solo" />
+                    </motion.div>
+                  );
+                })}
+              </div>
             );
           })}
       </AnimatePresence>
@@ -551,6 +597,7 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
         offline && 'is-offline',
         seat.allIn && 'is-allin',
       )}
+      data-seat={props.index}
       style={{ left: `${pos.x}%`, top: `${pos.y}%`, '--c': seat.color } as React.CSSProperties}
     >
       <div
@@ -568,18 +615,22 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
                 <motion.div
                   key={`${handNo}-${k}`}
                   className={clsx('seat__card', `seat__card--${k}`)}
-                  initial={dealDelays ? { x: fromX, y: fromY, opacity: 0, rotate: k ? 140 : -140, scale: 0.5 } : false}
+                  initial={dealDelays ? { x: fromX, y: fromY, opacity: 0, rotate: k ? 200 : -200, scale: 0.62 } : false}
                   animate={{ x: 0, y: 0, opacity: keepMine && !hasCards ? 0.45 : 1, rotate: 0, scale: 1 }}
                   exit={{
-                    x: (fromX * 0.6),
-                    y: (fromY * 0.6),
+                    x: fromX * 0.7,
+                    y: fromY * 0.7,
                     opacity: 0,
-                    scale: 0.4,
-                    rotate: k ? 60 : -60,
-                    transition: { duration: 0.4, ease: 'easeIn' },
+                    scale: 0.45,
+                    rotate: k ? 90 : -90,
+                    transition: { duration: 0.34, ease: [0.55, 0, 0.8, 0.35] },
                   }}
-                  transition={{ type: 'spring', stiffness: 210, damping: 24, delay }}
+                  transition={{
+                    default: { duration: 0.46, ease: [0.16, 1, 0.3, 1], delay },
+                    opacity: { duration: 0.12, delay },
+                  }}
                 >
+                  <div className={dealDelays ? 'deal-arc' : undefined} style={dealDelays ? { animationDelay: `${delay}s` } : undefined}>
                   <FlipCard
                     card={card}
                     revealDelay={dealDelays ? (delay + 0.4) * 1000 : 0}
@@ -587,6 +638,7 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
                     highlight={!!(highlight && card && highlight.has(card))}
                     dim={!!(highlight && card && !highlight.has(card) && showdown)}
                   />
+                  </div>
                 </motion.div>
               );
             })}

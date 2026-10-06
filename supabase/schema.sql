@@ -38,6 +38,8 @@ create table if not exists public.profiles (
   updated_at        timestamptz not null default now()
 );
 
+alter table public.profiles add column if not exists last_seen_changelog text;
+
 create table if not exists public.tables (
   id            text primary key,
   name          text not null,
@@ -276,6 +278,18 @@ begin
   returning * into v_row;
   return v_row;
 end;
+$$;
+
+-- Remember which release notes a player has dismissed (shown once per player).
+create or replace function public.mark_changelog_seen(p_version text)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update public.profiles
+     set last_seen_changelog = left(p_version, 32)
+   where id = auth.uid();
 $$;
 
 create or replace function public.claim_daily_bonus()
@@ -710,6 +724,8 @@ grant execute on function public.commit_table(text, integer, jsonb, jsonb, jsonb
 grant execute on function public.cleanup_stale_data() to service_role;
 
 revoke execute on function public.update_profile(text, text, text) from public, anon;
+revoke execute on function public.mark_changelog_seen(text) from public, anon;
+grant execute on function public.mark_changelog_seen(text) to authenticated;
 revoke execute on function public.claim_daily_bonus() from public, anon;
 revoke execute on function public.emergency_reload() from public, anon;
 revoke execute on function public.my_tables() from public, anon;
@@ -757,3 +773,12 @@ insert into public.profiles (id, display_name)
 select u.id, left(coalesce(nullif(u.raw_user_meta_data ->> 'display_name', ''), split_part(coalesce(u.email, 'Player'), '@', 1)), 20)
   from auth.users u
  where not exists (select 1 from public.profiles p where p.id = u.id);
+
+-- Re-sync the guest flag from Supabase Auth for every existing account, so all
+-- guest (anonymous) accounts are kept off the leaderboard and upgraded guests
+-- (who added an email + password) are shown.
+update public.profiles p
+   set is_guest = coalesce((to_jsonb(u) ->> 'is_anonymous')::boolean, false)
+  from auth.users u
+ where u.id = p.id
+   and p.is_guest is distinct from coalesce((to_jsonb(u) ->> 'is_anonymous')::boolean, false);

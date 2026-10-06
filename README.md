@@ -159,6 +159,11 @@ npm test
 
 - New free-plan Netlify sites show a "Powered by Netlify" badge in the bottom-right corner, which covers the action buttons on phones. Turn it off under **Project configuration → General → Powered by Netlify badge**. No redeploy is needed.
 
+## Releasing updates
+
+- **Players with the game open:** every build writes a `version.json`. Open tabs check it every few minutes and show a "new version ready" banner with a Refresh button. Nobody is reloaded mid-hand, and game state lives in the database, so refreshing is always safe.
+- **Changelog:** add a new entry at the top of `src/changelog.ts` with a new `version`. Each player sees the newest entry once (tracked on their account by `mark_changelog_seen`); accounts created after that release skip it.
+
 ## Credits
 
 Avatar and reaction images are [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) by Microsoft (MIT license, see `public/emoji/LICENSE.txt`). They are bundled as images so every player sees the same picture on any device.

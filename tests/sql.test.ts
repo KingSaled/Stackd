@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
-import { createDb } from './pglite';
+import { createDb, schemaSql } from './pglite';
 
 const schema = readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8');
 
@@ -50,6 +50,15 @@ describe('schema', () => {
     expect(rows.rows[2].is_guest).toBe(true);
   });
 
+  it('backfills the guest flag from auth when the schema is re-run', async () => {
+    const X = '00000000-0000-0000-0000-0000000000e1';
+    await db.query(`insert into auth.users (id, is_anonymous) values ($1, true)`, [X]);
+    await db.query('update public.profiles set is_guest = false where id = $1', [X]);
+    await db.exec(schemaSql);
+    const r = await db.query<{ is_guest: boolean }>('select is_guest from public.profiles where id = $1', [X]);
+    expect(r.rows[0].is_guest).toBe(true);
+  });
+
   it('upgrades a guest when the auth user becomes permanent', async () => {
     await db.query('update auth.users set is_anonymous = false, email = $2 where id = $1', [C, 'carol@example.com']);
     const r = await db.query<{ is_guest: boolean }>('select is_guest from public.profiles where id = $1', [C]);
@@ -79,6 +88,13 @@ describe('schema', () => {
     const [cool] = await as<{ r: { ok: boolean; reason: string } }>(B, 'select public.emergency_reload() as r');
     expect(cool.r).toMatchObject({ ok: false, reason: 'cooldown' });
     await db.query('update public.profiles set chips = 10000, last_reload_at = null where id = $1', [B]);
+  });
+
+  it('remembers which changelog a player has seen', async () => {
+    await as(A, `select public.mark_changelog_seen('2026-10-06')`);
+    const r = await db.query<{ v: string }>('select last_seen_changelog as v from public.profiles where id = $1', [A]);
+    expect(r.rows[0].v).toBe('2026-10-06');
+    await expect(as(null, `select public.mark_changelog_seen('x')`)).resolves.toBeDefined();
   });
 
   it('validates profile updates and blocks direct writes', async () => {

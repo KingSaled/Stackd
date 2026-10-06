@@ -1,6 +1,6 @@
 import clsx from 'clsx';
-import { Send, ScrollText, MessageCircle } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { ArrowDown, Send, ScrollText, MessageCircle } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { LogEntry } from '../../../shared/poker/types';
 import type { ChatMessage } from '../../hooks/useTable';
 import { REACTIONS } from '../../../shared/economy';
@@ -20,11 +20,44 @@ export function ChatPanel({ chat, log, me, onSend, onReact, canChat }: Props) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  // Stay pinned to the newest line unless the reader has scrolled up to look back.
+  const pinned = useRef(true);
+  const [unseen, setUnseen] = useState(false);
+  const lastId = tab === 'chat' ? chat[chat.length - 1]?.id ?? 0 : log[log.length - 1]?.id ?? 0;
 
+  const toBottom = (smooth = false) => {
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    pinned.current = true;
+    setUnseen(false);
+  };
+
+  // New content: follow it if pinned, otherwise show a "new messages" button.
+  useLayoutEffect(() => {
+    if (pinned.current) toBottom();
+    else setUnseen(true);
+  }, [lastId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Switching tabs always jumps to the latest entries.
+  useLayoutEffect(() => toBottom(), [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Late layout changes (emoji images loading, panel resizing, sheet opening) keep the pin.
   useEffect(() => {
     const el = listRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [chat.length, log.length, tab]);
+    if (!el) return;
+    const ro = new ResizeObserver(() => pinned.current && (el.scrollTop = el.scrollHeight));
+    ro.observe(el);
+    for (const child of Array.from(el.children)) ro.observe(child);
+    return () => ro.disconnect();
+  }, [lastId, tab]);
+
+  const onScroll = () => {
+    const el = listRef.current;
+    if (!el) return;
+    pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+    if (pinned.current) setUnseen(false);
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +82,7 @@ export function ChatPanel({ chat, log, me, onSend, onReact, canChat }: Props) {
           <ScrollText size={15} /> Hand log
         </button>
       </div>
-      <div className="chat__list" ref={listRef}>
+      <div className="chat__list" ref={listRef} onScroll={onScroll}>
         {tab === 'chat' ? (
           chat.length === 0 ? (
             <div className="chat__empty">Say hi to the table 👋</div>
@@ -76,6 +109,11 @@ export function ChatPanel({ chat, log, me, onSend, onReact, canChat }: Props) {
           ))
         )}
       </div>
+      {unseen && (
+        <button className="chat__jump" onClick={() => toBottom(true)}>
+          <ArrowDown size={14} /> New {tab === 'chat' ? 'messages' : 'activity'}
+        </button>
+      )}
       <div className="chat__reactions">
         {REACTIONS.map((r) => (
           <button key={r} className="react-btn" onClick={() => onReact(r)} disabled={!canChat} aria-label={`React ${r}`}>

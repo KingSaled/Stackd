@@ -26,7 +26,7 @@ import { ChatPanel } from '../components/table/ChatPanel';
 import { useStage } from '../hooks/useStage';
 import { usePresentation } from '../hooks/usePresentation';
 import { useMediaQuery } from '../hooks/useMediaQuery';
-import { sound } from '../lib/sound';
+import { seatPan, sound } from '../lib/sound';
 import { serverNow } from '../lib/clock';
 import { useEffect } from 'react';
 import type { ReactionEvent } from '../hooks/useTable';
@@ -114,7 +114,7 @@ export default function Playground() {
   const myCards = mySeat >= 0 && state.hole['0'] ? { handNo: state.handNo, seat: 0, cards: state.hole['0'] } : null;
 
   useEffect(() => {
-    for (const c of pres.cues) sound.play(c.sound, { delay: c.delay, count: c.count });
+    for (const c of pres.cues) sound.play(c.sound, { delay: c.delay, count: c.count, pan: seatPan(c.seat) });
   }, [pres.cueId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const mutate = (fn: (s: EngineState) => void) => {
