@@ -1,6 +1,6 @@
 # Stackd
 
-**Real-time multiplayer Texas Hold'em for friends.** Create a private table, share the link, and play No-Limit Hold'em on any desktop or phone browser. Stackd has accounts (or one-tap guest play), chips and stats that follow you between devices, animated cards and chips, and sound effects synthesized in the browser.
+**Real-time multiplayer Texas Hold'em and blackjack for friends.** Create a private table, share the link, and play No-Limit Hold'em or blackjack against the house on any desktop or phone browser. Stackd has accounts (or one-tap guest play), chips and stats that follow you between devices, animated cards and chips, and sound effects synthesized in the browser.
 
 Everything runs on free tiers: **Netlify** (static site + serverless functions) and **Supabase** (Postgres, Auth, Realtime).
 
@@ -9,6 +9,7 @@ Everything runs on free tiers: **Netlify** (static site + serverless functions) 
 ## Features
 
 **Gameplay**
+- Blackjack against the house at tables of up to 6 players: six-deck shoe, blackjack pays 3:2, dealer peeks and stands on all 17s, double on any two cards, split pairs up to four hands. Bets come straight from the wallet (no buy-in). Switch games with the Hold'em / Blackjack pills in the lobby header.
 - Server-side No-Limit Hold'em engine that decides every outcome: blinds, button rotation (with heads-up rules), pre-flop/flop/turn/river, showdown and payout.
 - Check, call, bet, raise, fold and all-in, with full minimum-raise validation. A short all-in does not re-open betting, unless several short all-ins together add up to a full raise.
 - Side pots for any number of all-ins of different sizes. Folded chips stay in the pot as dead money. Uncalled bets are returned, and odd chips in a split pot go left of the button.
@@ -91,12 +92,14 @@ Everything runs on free tiers: **Netlify** (static site + serverless functions) 
 
 ```
 shared/poker/        Poker engine: cards, evaluator, side pots, state machine, projections
+shared/blackjack/    Blackjack engine: shoe, betting, dealing, dealer play, payouts, timers
 shared/economy.ts    Economy constants, avatars, colors, blind presets
 server/              Table service (load → apply → commit with retries), Supabase repo, auth
 netlify/functions/   api.mts (game API) and janitor.mts (hourly scheduled cleanup)
 supabase/schema.sql  Full database schema: tables, RLS, RPCs, triggers, realtime publication
 src/                 React app (pages, table UI, hooks, sound engine, styles)
-src/dev/Playground   Dev-only table playground at /dev (local engine, no backend)
+src/dev/             Dev-only playgrounds (local engines, no backend): /dev (hold'em),
+                     /dev/blackjack and /dev/cosmetics
 tests/               Engine, evaluator, side-pot, SQL (PGlite) and service integration tests
 ```
 

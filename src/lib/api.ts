@@ -1,4 +1,5 @@
 import type { PlayerAction, PublicState, TableConfig } from '../../shared/poker/types';
+import type { BjAction, BjPublicState } from '../../shared/blackjack/types';
 import { API_URL } from './config';
 import { sampleClock } from './clock';
 import { supabase } from './supabase';
@@ -78,4 +79,38 @@ export function createRoom(req: CreateRoomRequest) {
 /** Permanently delete the signed-in account (leaves all tables first). */
 export async function deleteAccount(): Promise<void> {
   await call({ op: 'deleteAccount', confirm: 'DELETE' });
+}
+
+/* ------------------------------------------------------------------------ */
+/* Blackjack                                                                 */
+/* ------------------------------------------------------------------------ */
+
+export type BlackjackAction =
+  | { type: 'sit'; seat: number }
+  | { type: 'stand' }
+  | { type: 'bet'; amount: number }
+  | { type: 'clear' }
+  | { type: 'act'; action: BjAction; round: number }
+  | { type: 'tick' };
+
+export interface BlackjackActionResponse {
+  ok: true;
+  changed: boolean;
+  version: number;
+  state?: BjPublicState;
+}
+
+export function blackjackAction(roomId: string, action: BlackjackAction) {
+  return call<BlackjackActionResponse>({ op: 'table', game: 'blackjack', roomId, action });
+}
+
+export function createBlackjackRoom(req: { name: string; turnSeconds: number; password?: string; listed: boolean }) {
+  return call<{ ok: true; roomId: string }>({
+    op: 'create',
+    game: 'blackjack',
+    name: req.name,
+    config: { turnSeconds: req.turnSeconds },
+    password: req.password,
+    listed: req.listed,
+  });
 }

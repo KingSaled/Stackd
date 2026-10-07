@@ -98,8 +98,12 @@ export class SupabaseRepo implements Repo {
       version: data.version,
       hasPassword: !!data.has_password,
       state: data.state,
-      // Keep the bots' hidden skill levels: dropping them made every bot play the default brain.
-      secret: { deck: secret.deck ?? [], hole: secret.hole ?? {}, bots: secret.bots ?? {} },
+      // Blackjack keeps its shoe and hole card as-is. For poker, keep the bots' hidden skill
+      // levels: dropping them made every bot play the default brain.
+      secret:
+        data.state?.game === 'blackjack'
+          ? (data.secret ?? {})
+          : { deck: secret.deck ?? [], hole: secret.hole ?? {}, bots: secret.bots ?? {} },
     };
   }
 

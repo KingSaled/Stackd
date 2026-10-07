@@ -25,13 +25,14 @@ function Terms() {
       <p className="legal__meta">Last updated {LEGAL_UPDATED}</p>
 
       <div className="legal__callout">
-        <strong>The short version:</strong> Stackd is a free poker game for adults ({MIN_AGE}+) played with virtual chips that
+        <strong>The short version:</strong> Stackd is a free card game site (Texas Hold'em and blackjack) for adults ({MIN_AGE}+) played with virtual chips that
         have no cash value. You can't buy chips, and you can't cash them out. Play fair, be decent in chat, and have fun.
       </div>
 
       <h2>1. Agreeing to these Terms</h2>
       <p>
-        Stackd ("Stackd", "we", "us") is an online Texas Hold'em game played with virtual, play-money chips. By creating an
+        Stackd ("Stackd", "we", "us") is an online card game site offering Texas Hold'em against other players and blackjack
+        against the house, played with virtual, play-money chips. By creating an
         account, playing as a guest or otherwise using Stackd, you agree to these Terms of Service and to our{' '}
         <Link href="/privacy">Privacy Policy</Link>. If you don't agree, please don't use Stackd.
       </p>
@@ -39,7 +40,7 @@ function Terms() {
       <h2>2. You must be {MIN_AGE} or older</h2>
       <p>
         Stackd is only for people who are at least {MIN_AGE} years old, or the age of majority where they live if that is
-        higher. By using Stackd you confirm that you meet this requirement and that playing a social poker game with virtual
+        higher. By using Stackd you confirm that you meet this requirement and that playing social card games with virtual
         chips is allowed where you live. We may close any account we reasonably believe belongs to someone who is too young.
       </p>
 

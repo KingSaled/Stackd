@@ -5,6 +5,8 @@ import { ArrowRightIcon, RobotIcon, CaretRightIcon, PlusIcon, ArrowsClockwiseIco
 import clsx from 'clsx';
 import { TopNav } from '../components/TopNav';
 import { CreateTableDialog } from '../components/CreateTableDialog';
+import { CreateBlackjackDialog } from '../components/CreateBlackjackDialog';
+import { useGameMode } from '../store/game';
 import { ChangelogModal } from '../components/ChangelogModal';
 import { LegalFooter } from '../components/LegalFooter';
 import { BrokeHelp } from '../components/BrokeHelp';
@@ -30,6 +32,7 @@ interface MyTable {
   player_count: number;
   max_seats: number;
   updated_at: string;
+  game?: string;
 }
 
 interface OpenTable {
@@ -44,7 +47,11 @@ interface OpenTable {
   status: string;
   updated_at: string;
   bots?: boolean;
+  game?: string;
+  turn_seconds?: number;
 }
+
+const gameOf = (t: { game?: string }) => (t.game === 'blackjack' ? 'blackjack' : 'holdem');
 
 export function LobbyPage() {
   const profile = useAuth((s) => s.profile);
@@ -57,6 +64,10 @@ export function LobbyPage() {
   const [leaders, setLeaders] = useState<Leader[]>([]);
   const [loading, setLoading] = useState(true);
   const econ = useEconomy();
+  const mode = useGameMode((s) => s.mode);
+  const bj = mode === 'blackjack';
+  const openHere = open.filter((t) => gameOf(t) === mode);
+  const heroCards = bj ? ['Kh', 'As'] : ['As', 'Ks', 'Qs', 'Js', 'Ts'];
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -128,13 +139,17 @@ export function LobbyPage() {
           </div>
 
           <div className="home-hero__art" aria-hidden>
-            <div className="fan">
-              {['As', 'Ks', 'Qs', 'Js', 'Ts'].map((c, i) => (
+            <div className={clsx('fan', bj && 'fan--bj')} key={mode}>
+              {heroCards.map((c, i) => (
                 <motion.div
                   key={c}
                   className="fan__card"
                   initial={{ rotate: 0, y: 40, opacity: 0 }}
-                  animate={{ rotate: (i - 2) * 11, y: Math.abs(i - 2) * 8, opacity: 1 }}
+                  animate={{
+                    rotate: (i - (heroCards.length - 1) / 2) * (bj ? 14 : 11),
+                    y: Math.abs(i - (heroCards.length - 1) / 2) * 8,
+                    opacity: 1,
+                  }}
                   transition={{ delay: 0.1 + i * 0.07, type: 'spring', stiffness: 160, damping: 16 }}
                 >
                   <PlayingCard card={c} size="hero" />
@@ -155,8 +170,8 @@ export function LobbyPage() {
                 <PlusIcon size={24} weight="bold" />
               </span>
               <span className="home-action__text">
-                <strong>Create table</strong>
-                <span>Your blinds, your rules. Invite friends with a link.</span>
+                <strong>{bj ? 'Open a blackjack table' : 'Create table'}</strong>
+                <span>{bj ? 'Up to 6 players against the house. Invite friends with a link.' : 'Your blinds, your rules. Invite friends with a link.'}</span>
               </span>
               <CaretRightIcon className="home-action__go" size={22} />
             </button>
@@ -212,19 +227,19 @@ export function LobbyPage() {
                 </h2>
               </header>
               {mine.length === 0 ? (
-                <p className="muted empty">You're not seated anywhere. Create a table or pick an open one.</p>
+                <p className="muted empty">You're not seated anywhere. {bj ? 'Open a blackjack table' : 'Create a table'} or pick an open one.</p>
               ) : (
                 <ul className="table-list">
                   {mine.map((t) => (
                     <li key={t.table_id}>
                       <Link href={`/t/${t.table_id}`} className="table-row table-row--mine">
-                        <Stakes sb={t.small_blind} bb={t.big_blind} />
+                        {gameOf(t) === 'blackjack' ? <BlackjackBadge /> : <Stakes sb={t.small_blind} bb={t.big_blind} />}
                         <span className="table-row__main">
                           <span className="table-row__name">{t.name}</span>
                           <span className="table-row__meta">
-                            <span>{blindsLabel(t.small_blind, t.big_blind)} blinds</span>
+                            <span>{gameOf(t) === 'blackjack' ? 'Blackjack' : `${blindsLabel(t.small_blind, t.big_blind)} blinds`}</span>
                             <SeatMeter count={t.player_count} max={t.max_seats} />
-                            <span className="table-row__stack">{chips(t.stack)} at the table</span>
+                            {Number(t.stack) > 0 && <span className="table-row__stack">{chips(t.stack)} at the table</span>}
                           </span>
                         </span>
                         <span className="btn btn--mint btn--sm">Rejoin</span>
@@ -238,21 +253,41 @@ export function LobbyPage() {
             <section className="panel home-panel home-panel--open">
               <header className="home-panel__head">
                 <h2 className="home-panel__title">
-                  <UsersIcon size={18} /> Open tables
-                  {open.length > 0 && <span className="home-panel__count">{open.length}</span>}
+                  <UsersIcon size={18} /> {bj ? 'Open blackjack tables' : 'Open tables'}
+                  {openHere.length > 0 && <span className="home-panel__count">{openHere.length}</span>}
                 </h2>
                 <button className="icon-btn" onClick={load} aria-label="Refresh tables" title="Refresh">
                   <ArrowsClockwiseIcon size={16} className={clsx(loading && 'spin')} />
                 </button>
               </header>
-              {open.length === 0 ? (
+              {openHere.length === 0 ? (
                 <p className="muted empty">
-                  No public tables right now. Tables are private by default — tick "List in the lobby" when creating one to show it here.
+                  No public {bj ? 'blackjack ' : ''}tables right now. Tables are private by default — tick "List in the lobby" when
+                  creating one to show it here.
                 </p>
               ) : (
                 <ul className="table-list">
-                  {open.map((t) => {
+                  {openHere.map((t) => {
                     const full = t.player_count >= t.max_seats;
+                    if (gameOf(t) === 'blackjack')
+                      return (
+                        <li key={t.id}>
+                          <Link href={`/t/${t.id}`} className="table-row">
+                            <BlackjackBadge />
+                            <span className="table-row__main">
+                              <span className="table-row__name">{t.name}</span>
+                              <span className="table-row__meta">
+                                <span>Blackjack · 3:2</span>
+                                <SeatMeter count={t.player_count} max={t.max_seats} />
+                                {t.turn_seconds ? <span>{t.turn_seconds}s turns</span> : null}
+                                <span className="table-row__code">{t.id}</span>
+                                <span className="table-row__ago">{timeAgo(t.updated_at)}</span>
+                              </span>
+                            </span>
+                            <span className={clsx('btn btn--sm', full ? 'btn--ghost' : 'btn--gold')}>{full ? 'Watch' : 'Join'}</span>
+                          </Link>
+                        </li>
+                      );
                     return (
                       <li key={t.id}>
                         <Link href={`/t/${t.id}`} className="table-row">
@@ -338,7 +373,8 @@ export function LobbyPage() {
         </div>
         <LegalFooter />
       </main>
-      <CreateTableDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+      <CreateTableDialog open={createOpen && !bj} onClose={() => setCreateOpen(false)} />
+      <CreateBlackjackDialog open={createOpen && bj} onClose={() => setCreateOpen(false)} />
       <ChangelogModal />
     </div>
   );
@@ -351,6 +387,16 @@ function Stakes({ sb, bb }: { sb: number; bb: number }) {
     <span className={clsx('stakes', `stakes--${tier}`, stake(bb).length > 3 && 'is-wide')} title={`Blinds ${blindsLabel(sb, bb)}`}>
       <span className="stakes__value">{stake(bb)}</span>
       <span className="stakes__label">BB</span>
+    </span>
+  );
+}
+
+/** Blackjack tables get a "21" chip in place of the stakes chip. */
+function BlackjackBadge() {
+  return (
+    <span className="stakes stakes--bj" title="Blackjack">
+      <span className="stakes__value">21</span>
+      <span className="stakes__label">BJ</span>
     </span>
   );
 }

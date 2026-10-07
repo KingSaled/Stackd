@@ -1,7 +1,7 @@
 {
-  "name": "Stackd — Hold'em with friends",
+  "name": "Stackd — Hold'em & Blackjack with friends",
   "short_name": "Stackd",
-  "description": "Real-time Texas Hold'em with friends in your browser.",
+  "description": "Real-time Texas Hold'em and blackjack with friends in your browser.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",

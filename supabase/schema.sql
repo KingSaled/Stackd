@@ -64,6 +64,8 @@ create table if not exists public.tables (
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );
+-- Which game a table plays ('holdem' or 'blackjack'), taken from its config.
+alter table public.tables add column if not exists game text generated always as (coalesce(config ->> 'game', 'holdem')) stored;
 create index if not exists tables_listed_idx on public.tables (listed, updated_at desc);
 create index if not exists tables_updated_idx on public.tables (updated_at);
 
@@ -776,8 +778,9 @@ end;
 $$;
 
 -- Chips currently sitting on tables for the caller (for broke checks in the UI).
+drop function if exists public.my_tables();
 create or replace function public.my_tables()
-returns table (table_id text, name text, seat smallint, stack bigint, big_blind bigint, small_blind bigint, player_count integer, max_seats integer, updated_at timestamptz)
+returns table (table_id text, name text, seat smallint, stack bigint, big_blind bigint, small_blind bigint, player_count integer, max_seats integer, updated_at timestamptz, game text)
 language sql
 stable
 security definer
@@ -785,7 +788,7 @@ set search_path = public
 as $$
   select t.id, t.name, s.seat, s.stack,
          (t.config ->> 'bigBlind')::bigint, (t.config ->> 'smallBlind')::bigint,
-         t.player_count, (t.config ->> 'maxSeats')::int, t.updated_at
+         t.player_count, (t.config ->> 'maxSeats')::int, t.updated_at, t.game
     from public.table_seats s
     join public.tables t on t.id = s.table_id
    where s.user_id = auth.uid()
@@ -794,7 +797,7 @@ $$;
 
 drop function if exists public.list_open_tables();
 create or replace function public.list_open_tables()
-returns table (id text, name text, small_blind bigint, big_blind bigint, max_seats integer, min_buy_in bigint, max_buy_in bigint, player_count integer, status text, updated_at timestamptz, bots boolean)
+returns table (id text, name text, small_blind bigint, big_blind bigint, max_seats integer, min_buy_in bigint, max_buy_in bigint, player_count integer, status text, updated_at timestamptz, bots boolean, game text, turn_seconds integer)
 language sql
 stable
 security definer
@@ -803,7 +806,8 @@ as $$
   select t.id, t.name,
          (t.config ->> 'smallBlind')::bigint, (t.config ->> 'bigBlind')::bigint, (t.config ->> 'maxSeats')::int,
          (t.config ->> 'minBuyIn')::bigint, (t.config ->> 'maxBuyIn')::bigint,
-         t.player_count, t.status, t.updated_at, coalesce((t.config ->> 'bots')::boolean, false)
+         t.player_count, t.status, t.updated_at, coalesce((t.config ->> 'bots')::boolean, false),
+         t.game, (t.config ->> 'turnSeconds')::int
     from public.tables t
    where t.listed and not t.has_password and t.player_count > 0 and t.updated_at > now() - interval '2 days'
    order by t.player_count desc, t.updated_at desc

@@ -4,7 +4,6 @@
  * optimistic concurrency (version check + retry), so two players acting at the
  * same instant can never corrupt a hand.
  */
-import { randomInt } from 'node:crypto';
 import {
   GameError,
   isBotId,
@@ -30,35 +29,15 @@ import {
   type HandRecord,
   type PlayerAction,
   type PublicState,
-  type Rng,
   type TableConfig,
 } from '../shared/poker';
 import { VersionConflict } from './errors';
 import type { CommitPayload, ProfileInfo, Repo, StoredTable } from './repo';
 import { handPayload, type HandPayload } from './hands';
+import { cryptoRng, generateRoomId, isBlackjackTable, normalizeRoomId, type ServiceOptions } from './common';
+import { closeBlackjackTable, leaveBlackjack } from './blackjack';
 
-export const cryptoRng: Rng = (n) => randomInt(n);
-
-const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
-export function generateRoomId(rng: Rng = cryptoRng, length = 6): string {
-  let id = '';
-  for (let i = 0; i < length; i++) id += ROOM_ALPHABET[rng(ROOM_ALPHABET.length)];
-  return id;
-}
-
-export function normalizeRoomId(raw: unknown): string {
-  const id = String(raw ?? '')
-    .trim()
-    .toUpperCase();
-  if (!/^[A-Z0-9]{4,12}$/.test(id)) throw new GameError('not_found', 'Table not found');
-  return id;
-}
-
-export interface ServiceOptions {
-  rng?: Rng;
-  now?: () => number;
-}
+export { cryptoRng, generateRoomId, normalizeRoomId, isBlackjackTable, type ServiceOptions } from './common';
 
 /* ------------------------------------------------------------------------ */
 /* Commit helpers                                                            */
@@ -114,6 +93,7 @@ type Mutator = (s: EngineState, fx: Effects, now: number, rec: StoredTable) => b
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+
 /** Stats, achievements and abuse checks never get in the way of the game itself. */
 async function recordHands(repo: Repo, roomId: string, hands: HandRecord[]) {
   const payload = hands.map((h) => handPayload(roomId, h)).filter((h): h is HandPayload => h !== null);
@@ -145,6 +125,7 @@ export async function mutateTable(
   for (let attempt = 0; attempt < 8; attempt++) {
     const rec = await repo.loadTable(roomId);
     if (!rec) throw new GameError('not_found', 'Table not found');
+    if (isBlackjackTable(rec)) throw new GameError('wrong_game', 'That is a blackjack table');
     const s = mergeState(rec.state, rec.secret);
     const fx = newEffects();
     const result = await mutator(s, fx, now(), rec);
@@ -351,7 +332,9 @@ export async function tableOp(
 export async function deleteAccount(repo: Repo, userId: string, opts: ServiceOptions = {}) {
   for (const tableId of await repo.tablesOf(userId)) {
     try {
-      await tableOp(repo, userId, tableId, { type: 'stand' }, opts);
+      const rec = await repo.loadTable(tableId);
+      if (rec && isBlackjackTable(rec)) await leaveBlackjack(repo, userId, tableId, opts);
+      else await tableOp(repo, userId, tableId, { type: 'stand' }, opts);
     } catch (e) {
       console.error('[stackd] could not stand up before deletion', tableId, e);
     }
@@ -374,6 +357,11 @@ export async function runJanitor(repo: Repo, opts: ServiceOptions = {}) {
   let closed = 0;
   for (const id of idle) {
     try {
+      const rec = await repo.loadTable(id);
+      if (rec && isBlackjackTable(rec)) {
+        if ((await closeBlackjackTable(repo, id, opts)).changed) closed++;
+        continue;
+      }
       const r = await mutateTable(
         repo,
         id,

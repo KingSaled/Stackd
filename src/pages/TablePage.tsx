@@ -1,11 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeftIcon, LockIcon, ChatCircleIcon, XIcon } from '@phosphor-icons/react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import confetti from 'canvas-confetti';
 import clsx from 'clsx';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../store/auth';
+import { useGameMode } from '../store/game';
 import { toast } from '../store/toast';
 import { useTable } from '../hooks/useTable';
 import { useStage } from '../hooks/useStage';
@@ -27,13 +28,16 @@ import { seatPan, sound, vibrate } from '../lib/sound';
 import { blindsLabel, chips } from '../lib/format';
 import { recallRoomPassword, rememberRoomPassword } from '../lib/storage';
 
+// Blackjack tables load their own (separately downloaded) room.
+const BlackjackRoom = lazy(() => import('./BlackjackRoom'));
+
 interface Preview {
   id: string;
   name: string;
   has_password: boolean;
   player_count: number;
   is_member: boolean;
-  config: { smallBlind: number; bigBlind: number; maxSeats: number };
+  config: { smallBlind: number; bigBlind: number; maxSeats: number; game?: string };
 }
 
 function keyFromHash(): string | null {
@@ -96,7 +100,21 @@ export function TablePage({ id }: { id: string }) {
     };
   }, [roomId, join]);
 
-  if (gate === 'ready') return <TableRoom roomId={roomId} />;
+  if (gate === 'ready') {
+    if (preview?.config?.game === 'blackjack')
+      return (
+        <Suspense
+          fallback={
+            <div className="page page--center">
+              <div className="spinner" aria-label="Loading table" />
+            </div>
+          }
+        >
+          <BlackjackRoom roomId={roomId} />
+        </Suspense>
+      );
+    return <TableRoom roomId={roomId} />;
+  }
 
   return (
     <div className="page page--center">
@@ -155,8 +173,9 @@ export function TablePage({ id }: { id: string }) {
             </div>
             <h2>{preview.name}</h2>
             <p className="muted">
-              Private table · blinds {blindsLabel(preview.config.smallBlind, preview.config.bigBlind)} · {preview.player_count}/
-              {preview.config.maxSeats} seated
+              Private table ·{' '}
+              {preview.config.game === 'blackjack' ? 'blackjack' : `blinds ${blindsLabel(preview.config.smallBlind, preview.config.bigBlind)}`} ·{' '}
+              {preview.player_count}/{preview.config.maxSeats} seated
             </p>
             <input
               className="input"
@@ -188,6 +207,8 @@ function TableRoom({ roomId }: { roomId: string }) {
   const [, navigate] = useLocation();
   const t = useTable(roomId, me);
   const state = t.state;
+  const setMode = useGameMode((s) => s.setMode);
+  useEffect(() => setMode('holdem'), [setMode]);
   const stageWrap = useRef<HTMLDivElement>(null);
   const metrics = useStage(stageWrap);
   const pres = usePresentation(state, me);

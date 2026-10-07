@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { Logo } from './Logo';
 import { Avatar } from './Avatar';
 import { SoundControl } from './SoundControl';
+import { GameSwitch } from './GameSwitch';
 import { useAuth } from '../store/auth';
 import { useEconomy } from '../hooks/useEconomy';
 import { chips, chipsShort } from '../lib/format';
@@ -32,9 +33,12 @@ export function TopNav() {
   const [location] = useLocation();
   return (
     <header className="topnav">
-      <Link href="/" className="topnav__brand" aria-label="Stackd lobby">
-        <Logo size="sm" />
-      </Link>
+      <div className="topnav__left">
+        <Link href="/" className="topnav__brand" aria-label="Stackd lobby">
+          <Logo size="sm" />
+        </Link>
+        {profile && <GameSwitch />}
+      </div>
       <div className="topnav__right">
         {econ.dailyReady && (
           <button className="btn btn--gold btn--sm pulse" onClick={econ.claimDaily} disabled={econ.busy}>

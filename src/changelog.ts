@@ -15,6 +15,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2026-10-07e',
+    date: 'October 7, 2026',
+    title: 'Blackjack is here',
+    items: [
+      { icon: 'Cards', text: "New game: Blackjack against the house. Switch between Hold'em and Blackjack with the pills at the top of the lobby." },
+      { icon: 'Users', text: 'Open your own blackjack table for up to 6 players and invite friends with a link, or join an open table from the lobby.' },
+      { icon: 'Coins', text: 'Bets of 10 to 50,000 come straight from your wallet, with no buy-in. Blackjack pays 3 to 2 and the dealer stands on all 17s.' },
+      { icon: 'Sparkle', text: 'Hit, stand, double and split, with keyboard shortcuts (H, S, D, P) on desktop.' },
+    ],
+  },
+  {
     version: '2026-10-07d',
     date: 'October 7, 2026',
     title: 'A bigger, sharper Cosmetic Shop',

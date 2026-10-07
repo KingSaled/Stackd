@@ -15,7 +15,15 @@ const icons = { weight: 'bold' as const, mirrored: false };
 
 const root = createRoot(document.getElementById('root')!);
 
-if (import.meta.env.DEV && window.location.pathname.startsWith('/dev/cosmetics')) {
+if (import.meta.env.DEV && window.location.pathname.startsWith('/dev/blackjack')) {
+  void import('./dev/BlackjackPlayground').then(({ default: Bj }) =>
+    root.render(
+      <IconContext.Provider value={icons}>
+        <Bj />
+      </IconContext.Provider>,
+    ),
+  );
+} else if (import.meta.env.DEV && window.location.pathname.startsWith('/dev/cosmetics')) {
   void import('./dev/CosmeticsGallery').then(({ default: Gallery }) => root.render(<Gallery />));
 } else if (import.meta.env.DEV && window.location.pathname.startsWith('/dev')) {
   // Local UI playground (never included in production builds).

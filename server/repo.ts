@@ -1,6 +1,11 @@
 import type { PublicState, SecretState } from '../shared/poker/types';
+import type { BjPublicState, BjSecretState } from '../shared/blackjack/types';
 import type { HandPayload } from './hands';
 
+/**
+ * A stored table. `state`/`secret` hold whichever game the table plays
+ * (`state.game === 'blackjack'` for blackjack; poker states have no `game`).
+ */
 export interface StoredTable {
   id: string;
   name: string;
@@ -12,8 +17,8 @@ export interface StoredTable {
 }
 
 export interface CommitPayload {
-  state: PublicState;
-  secret: SecretState;
+  state: PublicState | BjPublicState;
+  secret: SecretState | BjSecretState;
   seats: { user_id: string; seat: number; stack: number }[];
   cards: { user_id: string; hand_no: number; seat: number; cards: string[] }[] | null;
   wallet: { user_id: string; delta: number }[];
@@ -39,8 +44,8 @@ export interface CreateTableInput {
   name: string;
   hostId: string;
   config: unknown;
-  state: PublicState;
-  secret: SecretState;
+  state: PublicState | BjPublicState;
+  secret: SecretState | BjSecretState;
   password: string | null;
   listed: boolean;
 }

@@ -1,7 +1,7 @@
 /**
  * Stackd game API (Netlify Function).
  *
- * POST /.netlify/functions/api  { op: 'create' | 'table' | 'deleteAccount', ... }
+ * POST /.netlify/functions/api  { op: 'create' | 'table' | 'deleteAccount', game?: 'blackjack', ... }
  * Authorization: Bearer <Supabase access token>
  *
  * Every table mutation runs the authoritative poker engine server-side and is
@@ -10,6 +10,7 @@
  */
 import { HttpError, toErrorResponse } from '../../server/errors';
 import { createRoom, deleteAccount, tableOp } from '../../server/service';
+import { blackjackOp, createBlackjackRoom } from '../../server/blackjack';
 import { SupabaseRepo, authenticate, getAdminClient } from '../../server/supabase';
 
 const MAX_BODY = 16 * 1024;
@@ -44,6 +45,15 @@ export default async (req: Request) => {
 
     switch (body.op) {
       case 'create': {
+        if (body.game === 'blackjack') {
+          const result = await createBlackjackRoom(repo, userId, {
+            name: body.name,
+            config: (body.config ?? {}) as Record<string, unknown>,
+            password: body.password,
+            listed: body.listed,
+          });
+          return json(200, { ok: true, ...result, serverNow: Date.now() });
+        }
         const result = await createRoom(repo, userId, {
           name: body.name,
           config: (body.config ?? {}) as Record<string, number>,
@@ -53,7 +63,11 @@ export default async (req: Request) => {
         return json(200, { ok: true, ...result, serverNow: Date.now() });
       }
       case 'table': {
-        const result = await tableOp(repo, userId, body.roomId, body.action);
+        // The client says which game the table plays; each service also checks the stored table.
+        const result =
+          body.game === 'blackjack'
+            ? await blackjackOp(repo, userId, body.roomId, body.action)
+            : await tableOp(repo, userId, body.roomId, body.action);
         return json(200, { ok: true, ...result, serverNow: Date.now() });
       }
       case 'deleteAccount': {

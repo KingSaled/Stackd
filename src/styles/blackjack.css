@@ -1,0 +1,516 @@
+/* =====================================================================
+   Blackjack table: a half-moon of royal-blue felt with the same leather
+   rail, brass trim and card/chip styling as the hold'em table.
+   ===================================================================== */
+
+.bj-stage {
+  position: relative;
+}
+
+/* Geometry (an exact half circle) is set inline from the layout. */
+.bj-table {
+  position: absolute;
+  background:
+    radial-gradient(130% 120% at 50% 0%, rgba(255, 236, 200, 0.12), transparent 45%),
+    radial-gradient(120% 140% at 50% 100%, rgba(0, 0, 0, 0.55), transparent 55%),
+    linear-gradient(180deg, #33231a 0%, #1d140e 48%, #110b07 100%);
+  box-shadow:
+    0 40px 100px rgba(0, 0, 0, 0.7),
+    0 14px 34px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(0, 0, 0, 0.8),
+    inset 0 2px 2px rgba(255, 236, 210, 0.22),
+    inset 0 -8px 18px rgba(0, 0, 0, 0.7);
+}
+
+.bj-felt {
+  position: absolute;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 55% 60% at 50% 18%, rgba(225, 240, 255, 0.16), transparent 70%),
+    radial-gradient(ellipse 85% 110% at 50% 10%, #2f73d6 0%, #1d55ad 40%, #133d82 72%, #0b2654 100%);
+  box-shadow:
+    0 0 0 2px #e6c26a,
+    0 0 0 3.5px #8a6216,
+    inset 0 0 0 1px rgba(0, 0, 0, 0.35),
+    inset 0 0 70px rgba(0, 0, 0, 0.45),
+    inset 0 10px 24px rgba(0, 0, 0, 0.3);
+}
+
+.bj-felt .felt-pattern {
+  opacity: 0.28;
+}
+
+/* Printed rule on the felt */
+.bj-print {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.bj-print__big {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  fill: rgba(241, 213, 138, 0.8);
+}
+
+.bj-print__small {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  fill: rgba(241, 213, 138, 0.55);
+}
+
+.bj-shuffle {
+  position: absolute;
+  translate: -50% 0;
+  z-index: 4;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75em;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #ffe9a8;
+  background: rgba(10, 14, 26, 0.85);
+  border: 1px solid rgba(241, 213, 138, 0.4);
+}
+
+/* Cards: positioned by their centre; framer-motion owns `transform`, so centring uses `translate`. */
+.bj-card {
+  position: absolute;
+  z-index: 3;
+  translate: -50% -50%;
+  will-change: transform;
+}
+
+.bj-card .pcard {
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+  border-radius: calc(var(--w) * 0.11);
+}
+
+.bj-card.is-active .pcard {
+  box-shadow:
+    0 0 0 2px rgba(62, 240, 168, 0.9),
+    0 0 18px rgba(62, 240, 168, 0.55);
+  animation: bj-glow 1.4s ease-in-out infinite;
+}
+
+@keyframes bj-glow {
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(120, 255, 200, 1),
+      0 0 28px rgba(62, 240, 168, 0.8);
+  }
+}
+
+/* Hand totals and results */
+.bj-total {
+  position: absolute;
+  z-index: 5;
+  translate: -50% -50%;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.86em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: linear-gradient(180deg, rgba(10, 14, 22, 0.88), rgba(4, 6, 10, 0.92));
+  border: 1px solid rgba(233, 196, 106, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+.bj-total--small {
+  padding: 1px 6px;
+  font-size: 0.74em;
+}
+
+.bj-total--dealer {
+  font-size: 0.95em;
+  padding: 3px 12px;
+  color: #ffe9a8;
+}
+
+.bj-total.is-active {
+  border-color: rgba(62, 240, 168, 0.8);
+  color: #a6ffd9;
+}
+
+.bj-total.is-blackjack {
+  color: #2a1d02;
+  background: linear-gradient(180deg, #ffe08f, #f5c451 50%, #d9a237);
+  border-color: #fff2c4;
+  box-shadow:
+    0 0 18px rgba(245, 196, 81, 0.7),
+    0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.bj-total.is-win {
+  color: #02261a;
+  background: linear-gradient(180deg, #5ff5bb, #24d695 50%, #12a06d);
+  border-color: rgba(166, 255, 217, 0.8);
+}
+
+.bj-total.is-push {
+  color: #d9e8ff;
+  background: linear-gradient(180deg, #2c4a7a, #1a2e52);
+  border-color: rgba(140, 180, 255, 0.5);
+}
+
+.bj-total.is-lose,
+.bj-total.is-bust {
+  color: #ffd0d8;
+  background: linear-gradient(180deg, #6a1f2e, #3e111b);
+  border-color: rgba(255, 113, 137, 0.5);
+}
+
+/* Betting circles */
+.bj-circle {
+  position: absolute;
+  z-index: 2;
+  translate: -50% -50%;
+  width: calc(var(--card-seat) * 1.02);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid rgba(241, 213, 138, 0.45);
+  box-shadow:
+    inset 0 0 0 4px rgba(0, 0, 0, 0.08),
+    inset 0 0 0 5px rgba(241, 213, 138, 0.15);
+  display: grid;
+  place-items: center;
+  transition: border-color 0.2s;
+}
+
+.bj-circle.is-mine {
+  border-color: rgba(255, 233, 168, 0.85);
+  box-shadow:
+    inset 0 0 0 4px rgba(0, 0, 0, 0.08),
+    0 0 14px rgba(245, 196, 81, 0.35);
+}
+
+.bj-circle.is-ghost .bj-circle__chips {
+  opacity: 0.55;
+}
+
+.bj-circle__chips {
+  --chip-size: calc(var(--card-seat) * 0.46);
+  font-size: 0.8em;
+}
+
+.stage--portrait .bj-circle {
+  width: 30px;
+}
+
+.stage--portrait .bj-circle__chips {
+  --chip-size: 14px;
+  font-size: 0.68em;
+}
+
+.stage--portrait .bj-circle__chips .chipstack__label {
+  padding: 0 5px;
+}
+
+.bj-circle__chips .chipstack {
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Seats reuse the hold'em seat styles. */
+.bj-seat {
+  z-index: 6;
+}
+
+.bj-seat .seat__placeholder {
+  opacity: 0;
+}
+
+/* Phone: a compact tag under the avatar instead of a name plate. */
+.bj-tag {
+  position: relative;
+  z-index: 5;
+  margin-top: -6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.66em;
+  font-weight: 800;
+  white-space: nowrap;
+  color: #fff;
+  background: rgba(10, 14, 26, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.bj-tag.is-me {
+  color: #2a1d02;
+  background: linear-gradient(180deg, #ffe08f, #f5c451);
+  border-color: transparent;
+}
+
+.bj-tag.is-up {
+  color: #02261a;
+  background: linear-gradient(180deg, #5ff5bb, #24d695);
+}
+
+.bj-tag.is-down {
+  color: #ffd0d8;
+  background: #4a1d2a;
+}
+
+.stage--portrait .bj-seat .seat__sit {
+  font-size: 0.66em;
+}
+
+/* Phone: your own hand, large, under the table. */
+.bj-hero {
+  position: absolute;
+  translate: -50% -50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.bj-hero__label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.bj-hero__label--top {
+  position: absolute;
+  translate: -50% -50%;
+  z-index: 2;
+}
+
+.bj-hero__circle {
+  --chip-size: 34px;
+  display: grid;
+  place-items: center;
+  width: 92px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid rgba(241, 213, 138, 0.6);
+  background: radial-gradient(circle, rgba(47, 115, 214, 0.25), rgba(11, 38, 84, 0.2));
+  box-shadow: inset 0 0 0 5px rgba(241, 213, 138, 0.12);
+}
+
+.bj-hero__circle.is-ghost {
+  border-style: dashed;
+}
+
+.bj-hero__circle.is-ghost .chipstack {
+  opacity: 0.6;
+}
+
+.seat__stack.is-up {
+  color: var(--mint);
+}
+
+.seat__stack.is-down {
+  color: #ff9fb1;
+}
+
+.bj-reaction {
+  position: absolute;
+  left: 50%;
+  top: -6px;
+  translate: -50% 0;
+  z-index: 9;
+  font-size: calc(var(--avatar) * 0.6);
+  pointer-events: none;
+}
+
+.bj-reaction .emoji {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+/* ---------------------------------------------------------------- Bar */
+
+.bj-bar__status {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  font-size: 0.9rem;
+}
+
+.bj-bar__status strong {
+  font-family: var(--font-display);
+  color: var(--gold-2);
+}
+
+.bj-actions .btn {
+  gap: 6px;
+}
+
+.bj-bar__right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.bj-bar--bet {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.bj-chiptray {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bj-chipbtn {
+  --chip-size: 38px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 3px;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  font-weight: 800;
+  transition: transform 0.12s;
+}
+
+.bj-chipbtn .chip {
+  width: var(--chip-size);
+  height: var(--chip-size);
+}
+
+.bj-chipbtn:hover:not(:disabled) {
+  transform: translateY(-3px);
+  color: var(--text);
+}
+
+.bj-chipbtn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.95);
+}
+
+.bj-chipbtn:disabled {
+  opacity: 0.35;
+}
+
+.bj-bar__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.bj-betinfo {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  min-width: 96px;
+}
+
+.bj-betinfo small {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.bj-betinfo strong {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--gold-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.bj-betinfo em {
+  font-style: normal;
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.bj-deal {
+  flex: 1;
+  min-height: 46px;
+  font-size: 1.02rem;
+}
+
+.bj-result.is-win {
+  color: var(--mint);
+  font-weight: 800;
+}
+
+.bj-result.is-lose {
+  color: #ff9fb1;
+  font-weight: 700;
+}
+
+.bj-countdown {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .bj-chipbtn {
+    --chip-size: 32px;
+  }
+
+  .bj-bar__row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .bj-betinfo {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .bj-deal {
+    flex: 1 1 100%;
+    order: 10;
+  }
+
+  .bj-bar__status {
+    font-size: 0.82rem;
+  }
+
+  .hide-sm {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bj-card.is-active .pcard {
+    animation: none;
+  }
+}
+
+.bj-hero--intro {
+  gap: 6px;
+  padding: 18px 22px;
+  border-radius: 18px;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(24, 33, 58, 0.6), rgba(14, 20, 36, 0.6));
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  font-size: 0.86rem;
+  white-space: nowrap;
+}
+
+.bj-hero--intro strong {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--gold-2);
+  margin-bottom: 4px;
+}

@@ -8,6 +8,8 @@ import { createDb } from './pglite';
 import { GameError, VersionConflict } from '../server/errors';
 import type { CommitPayload, CreateTableInput, ProfileInfo, Repo, StoredTable } from '../server/repo';
 import { createRoom, deleteAccount, runJanitor, tableOp, JANITOR } from '../server/service';
+import { blackjackOp, createBlackjackRoom } from '../server/blackjack';
+import type { BjPublicState } from '../shared/blackjack';
 import { seededRng, TIMING, type PublicState } from '../shared/poker';
 import type { HandPayload } from '../server/hands';
 
@@ -25,7 +27,10 @@ class PgliteRepo implements Repo {
       version: t.version as number,
       hasPassword: !!t.has_password,
       state: t.state as unknown as PublicState,
-      secret: { deck: secret.deck ?? [], hole: secret.hole ?? {}, bots: secret.bots ?? {} },
+      secret:
+        (t.state as { game?: string }).game === 'blackjack'
+          ? (t.secret as StoredTable['secret'])
+          : { deck: secret.deck ?? [], hole: secret.hole ?? {}, bots: secret.bots ?? {} },
     };
   }
   async commitTable(id: string, version: number, p: CommitPayload): Promise<number> {
@@ -329,5 +334,95 @@ describe('table service (with real SQL)', () => {
     await expect(tableOp(repo, B, roomId, { type: 'sit', seat: 1, buyIn: 500 }, opts)).rejects.toThrow(/password/);
     await tableOp(repo, A, roomId, { type: 'sit', seat: 1, buyIn: 500 }, opts);
     await expect(tableOp(repo, A, 'nope!', { type: 'tick' }, opts)).rejects.toThrow(/not found/i);
+  });
+});
+
+describe('blackjack service (with real SQL)', () => {
+  let room = '';
+  const bj = (user: string, action: Record<string, unknown>) => blackjackOp(repo, user, room, action, opts);
+  const load = async () => (await repo.loadTable(room))!.state as unknown as BjPublicState;
+
+  it('creates a listed blackjack table that the lobby can tell apart', async () => {
+    await db.query('update public.profiles set chips = 10000 where id in ($1, $2)', [A, B]);
+    room = (await createBlackjackRoom(repo, A, { name: 'Twenty-one', config: { turnSeconds: 20 }, listed: true }, opts)).roomId;
+    const r = await db.query<{ game: string; config: { turnSeconds: number; maxSeats: number } }>('select game, config from public.tables where id = $1', [room]);
+    expect(r.rows[0].game).toBe('blackjack');
+    expect(r.rows[0].config.turnSeconds).toBe(20);
+    expect(r.rows[0].config.maxSeats).toBe(6);
+  });
+
+  it('refuses poker moves on a blackjack table and blackjack moves on a poker table', async () => {
+    await expect(tableOp(repo, A, room, { type: 'sit', seat: 0, buyIn: 1000 }, opts)).rejects.toThrow(/blackjack table/);
+    const poker = (await createRoom(repo, B, { config: { smallBlind: 5, bigBlind: 10, maxSeats: 6, minBuyIn: 200, maxBuyIn: 1000, turnSeconds: 30 } }, opts)).roomId;
+    await expect(blackjackOp(repo, B, poker, { type: 'sit', seat: 0 }, opts)).rejects.toThrow(/blackjack/);
+  });
+
+  it('bets come from the wallet and winnings go straight back', async () => {
+    await bj(A, { type: 'sit', seat: 0 });
+    await bj(B, { type: 'sit', seat: 2 });
+    await bj(A, { type: 'bet', amount: 100 });
+    expect(await chips(A)).toBe(9900);
+    const seats = await db.query<{ stack: string }>('select stack from public.table_seats where table_id = $1 and user_id = $2', [room, A]);
+    expect(Number(seats.rows[0].stack)).toBe(100);
+    const open = await db.query<{ game: string }>(`select game from public.list_open_tables() where id = $1`, [room]);
+    expect(open.rows[0]?.game).toBe('blackjack');
+
+    await bj(B, { type: 'bet', amount: 200 });
+    let st = await load();
+    expect(st.roundNo).toBe(1);
+    expect(JSON.stringify(st)).not.toMatch(/"shoe"/);
+    for (let g = 0; g < 20 && st.phase === 'playing'; g++) {
+      const who = st.seats[st.toAct]!.userId;
+      clock += 1000;
+      st = (await bj(who, { type: 'act', action: 'stand', round: st.roundNo })).state!;
+    }
+    expect(st.phase).toBe('settled');
+    const paid = (i: number) => st.seats[i]!.hands.reduce((a, h) => a + h.payout, 0);
+    expect(await chips(A)).toBe(9900 + paid(0));
+    expect(await chips(B)).toBe(9800 + paid(2));
+    const onTable = await db.query<{ s: string }>('select coalesce(sum(stack), 0) as s from public.table_seats where table_id = $1', [room]);
+    expect(Number(onTable.rows[0].s)).toBe(0);
+  });
+
+  it("can't bet more than the wallet holds", async () => {
+    let st = await load();
+    clock = st.nextRoundAt! + 1;
+    await bj(A, { type: 'tick' });
+    await db.query('update public.profiles set chips = 50 where id = $1', [A]);
+    await expect(bj(A, { type: 'bet', amount: 100 })).rejects.toThrow(/chips/);
+    st = await load();
+    expect(st.seats[0]!.bet).toBe(0);
+    expect(await chips(A)).toBe(50);
+    await db.query('update public.profiles set chips = 10000 where id = $1', [A]);
+  });
+
+  it('the inactivity janitor hands back chips left on an abandoned table', async () => {
+    await bj(A, { type: 'bet', amount: 300 });
+    expect(await chips(A)).toBe(9700);
+    // Every chip A has on any table (this one and any poker seat from earlier tests) comes back.
+    const seated = await db.query<{ s: string }>('select coalesce(sum(stack), 0) as s from public.table_seats where user_id = $1', [A]);
+    const expected = 9700 + Number(seated.rows[0].s);
+    await db.query(`update public.tables set updated_at = now() - interval '2 hours' where id = $1`, [room]);
+    clock += JANITOR.idleCloseMs + 1000;
+    const r = await runJanitor(repo, opts);
+    expect(r.closed).toBeGreaterThanOrEqual(1);
+    expect(await chips(A)).toBe(expected);
+    expect((await db.query('select 1 from public.tables where id = $1', [room])).rows).toHaveLength(0);
+  });
+
+  it('the table closes when the last player leaves', async () => {
+    room = (await createBlackjackRoom(repo, A, {}, opts)).roomId;
+    await bj(A, { type: 'sit', seat: 3 });
+    await bj(A, { type: 'stand' });
+    expect((await db.query('select 1 from public.tables where id = $1', [room])).rows).toHaveLength(0);
+  });
+
+  it('deleting an account leaves blackjack tables first', async () => {
+    room = (await createBlackjackRoom(repo, B, {}, opts)).roomId;
+    await bj(B, { type: 'sit', seat: 1 });
+    await bj(A, { type: 'sit', seat: 4 });
+    await deleteAccount(repo, A, opts);
+    const st = await load();
+    expect(st.seats.filter(Boolean).map((x) => x!.userId)).toEqual([B]);
   });
 });
