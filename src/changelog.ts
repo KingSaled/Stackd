@@ -9,21 +9,38 @@ export interface ChangelogEntry {
   version: string;
   date: string;
   title: string;
+  /** `icon` is a Phosphor icon name registered in components/IconSet.tsx. */
   items: { icon: string; text: string }[];
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2026-10-07b',
+    date: 'October 7, 2026',
+    title: 'Achievements, the Cosmetic Shop and portraits',
+    items: [
+      { icon: 'Trophy', text: '23 achievements to collect, each paying a one-time reward of 500 to 50,000 chips. Progress counts from today, so everyone starts fresh.' },
+      { icon: 'Storefront', text: 'The Cosmetic Shop: five borders and five backgrounds, bought with chips. The top border, Mythic Inferno, is fully animated.' },
+      { icon: 'UserCircle', text: '50 pixel-art portraits replace the emoji avatars. Your old avatar was swapped for a portrait automatically; pick a new one any time.' },
+      { icon: 'ChartBar', text: 'A cleaner, more compact profile with new stats: VPIP, PFR, showdown and all-in win rates, net winnings and your biggest win.' },
+      { icon: 'Scales', text: 'Terms of Service and a Privacy Policy, plus a one-time check that you are 18 or older. Stackd is play money only: chips can never be bought or cashed out.' },
+      { icon: 'ShieldCheck', text: 'Fair-play protection: bonuses are limited per device, and unusual chip transfers between players are flagged for review.' },
+      { icon: 'Robot', text: "Fixed: bots now really play at their hidden skill levels. Before, every bot was quietly playing at the same level." },
+      { icon: 'Trash', text: 'You can delete your account and all of its data from your profile.' },
+      { icon: 'Sparkle', text: 'New icons throughout the game.' },
+    ],
+  },
+  {
     version: '2026-10-07',
     date: 'October 7, 2026',
     title: 'A fresh lobby and a crown for the champion',
     items: [
-      { icon: '👑', text: 'The #1 player on the leaderboard gets a champion card with a golden frame, and wears a crown at every table.' },
-      { icon: '🥈', text: "Silver and bronze medals for 2nd and 3rd, and your own rank always shows, even outside the top 10." },
-      { icon: '🏠', text: 'Cleaner home screen: Create table and Join a table sit right at the top, with your seats, daily bonus, open tables and leaderboard below. Everything you used before is still there.' },
-      { icon: '🎲', text: 'Table stakes now show as coloured casino chips, with a seat meter showing how full each table is.' },
-      { icon: '🔑', text: 'Quicker sign-in: Sign in, Sign up and Guest are tabs on one card, and you can show your password while typing.' },
-      { icon: '🧵', text: "The table's leather rail and stitching are now evenly spaced all the way round on phones." },
+      { icon: 'Crown', text: 'The #1 player on the leaderboard gets a champion card with a golden frame, and wears a crown at every table.' },
+      { icon: 'Medal', text: "Silver and bronze medals for 2nd and 3rd, and your own rank always shows, even outside the top 10." },
+      { icon: 'House', text: 'Cleaner home screen: Create table and Join a table sit right at the top, with your seats, daily bonus, open tables and leaderboard below. Everything you used before is still there.' },
+      { icon: 'PokerChip', text: 'Table stakes now show as coloured casino chips, with a seat meter showing how full each table is.' },
+      { icon: 'Key', text: 'Quicker sign-in: Sign in, Sign up and Guest are tabs on one card, and you can show your password while typing.' },
+      { icon: 'CircleDashed', text: "The table's leather rail and stitching are now evenly spaced all the way round on phones." },
     ],
   },
   {
@@ -31,14 +48,14 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: 'October 6, 2026',
     title: 'Bots, a new table and a whole new sound',
     items: [
-      { icon: '🤖', text: 'Play against bots: tick "Fill empty seats with bots" when creating a table. Every bot has a hidden skill level, so watch out for the sharks.' },
-      { icon: '🪑', text: "Friends can take any bot's seat with the Sit button — they're dealt in as soon as the current hand ends." },
-      { icon: '🎰', text: 'Redesigned table: stitched leather rail, brass trim, woven felt, new cards and chips.' },
-      { icon: '✨', text: 'Smoother animations: cards arc in from the deck and lift as they flip, chips toss and settle, winnings stream to the winner.' },
-      { icon: '🎧', text: 'All-new sound design: realistic chips, cards and knocks, with stereo placement by seat.' },
-      { icon: '📱', text: 'Better phone layout for full tables, and the same avatars on every device.' },
-      { icon: '💬', text: 'Chat and the hand log now stay pinned to the newest message.' },
-      { icon: '🏆', text: 'The leaderboard now only ranks saved accounts.' },
+      { icon: 'Robot', text: 'Play against bots: tick "Fill empty seats with bots" when creating a table. Every bot has a hidden skill level, so watch out for the sharks.' },
+      { icon: 'Armchair', text: "Friends can take any bot's seat with the Sit button — they're dealt in as soon as the current hand ends." },
+      { icon: 'Cards', text: 'Redesigned table: stitched leather rail, brass trim, woven felt, new cards and chips.' },
+      { icon: 'Sparkle', text: 'Smoother animations: cards arc in from the deck and lift as they flip, chips toss and settle, winnings stream to the winner.' },
+      { icon: 'Headphones', text: 'All-new sound design: realistic chips, cards and knocks, with stereo placement by seat.' },
+      { icon: 'DeviceMobile', text: 'Better phone layout for full tables, and the same avatars on every device.' },
+      { icon: 'ChatCircleDots', text: 'Chat and the hand log now stay pinned to the newest message.' },
+      { icon: 'Trophy', text: 'The leaderboard now only ranks saved accounts.' },
     ],
   },
 ];

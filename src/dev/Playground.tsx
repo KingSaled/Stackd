@@ -19,7 +19,9 @@ import {
   type EngineState,
   type PlayerAction,
 } from '../../shared/poker';
-import { AVATARS, COLORS } from '../../shared/economy';
+import { COLORS } from '../../shared/economy';
+import { PORTRAITS } from '../../shared/portraits';
+import { BACKDROPS, FRAMES } from '../../shared/cosmetics';
 import { Stage } from '../components/table/Stage';
 import { ActionBar } from '../components/table/ActionBar';
 import { ChatPanel } from '../components/table/ChatPanel';
@@ -53,15 +55,31 @@ function build(scene: string, seats: number, seed: number): EngineState {
       now,
     );
     const bfx = newEffects();
-    sitDown(b, bfx, { userId: 'u0', name: 'You', avatar: '🦊', color: '#f5c451' }, 0, 3000, now, rng);
+    sitDown(b, bfx, { userId: 'u0', name: 'You', avatar: 'p24', color: '#f5c451' }, 0, 3000, now, rng);
     tick(b, bfx, now + 5000, rng);
     // Let bots play until it's the hero's turn (or a few moves pass).
     for (let i = 0; i < 12 && b.toAct >= 0 && b.seats[b.toAct]?.isBot; i++) tick(b, bfx, (b.actionDeadline ?? now) + 1, rng);
     return b;
   }
   const count = scene === 'waiting' ? 1 : seats === 9 && !full ? 8 : seats;
+  // ?cosmetics dresses players in Cosmetic Shop items for visual checks.
+  const dressed = new URLSearchParams(window.location.search).has('cosmetics');
   for (let i = 0; i < count; i++)
-    sitDown(s, fx, { userId: `u${i}`, name: NAMES[i], avatar: AVATARS[(i * 5) % AVATARS.length], color: COLORS[(i * 3) % COLORS.length] }, i, 2000 + i * 650, now);
+    sitDown(
+      s,
+      fx,
+      {
+        userId: `u${i}`,
+        name: NAMES[i],
+        avatar: PORTRAITS[(i * 7) % PORTRAITS.length],
+        color: COLORS[(i * 3) % COLORS.length],
+        frame: dressed ? (FRAMES[i % (FRAMES.length + 1)]?.id ?? null) : null,
+        backdrop: dressed ? (BACKDROPS[(i + 2) % (BACKDROPS.length + 1)]?.id ?? null) : null,
+      },
+      i,
+      2000 + i * 650,
+      now,
+    );
   if (scene === 'waiting') return s;
   s.dealer = seats - 1;
   startHand(s, fx, now, rng);

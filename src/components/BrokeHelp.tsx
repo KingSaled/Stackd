@@ -1,4 +1,4 @@
-import { Gift, LifeBuoy } from 'lucide-react';
+import { GiftIcon, LifebuoyIcon } from '@phosphor-icons/react';
 import clsx from 'clsx';
 import { useEconomy } from '../hooks/useEconomy';
 import { chips, countdown } from '../lib/format';
@@ -10,12 +10,12 @@ export function BrokeHelp({ compact }: { compact?: boolean }) {
   return (
     <div className={clsx('broke-help', compact && 'broke-help--compact')}>
       <button className="btn btn--gold" disabled={!e.dailyReady || e.busy} onClick={e.claimDaily}>
-        <Gift size={16} />
+        <GiftIcon size={16} />
         {e.dailyReady ? `Daily bonus +${chips(e.dailyAmount)}` : `Daily bonus in ${countdown(e.nextDailyAt - e.now)}`}
       </button>
       {e.broke && (
         <button className="btn btn--mint" disabled={!e.reloadReady || e.busy} onClick={e.reload}>
-          <LifeBuoy size={16} />
+          <LifebuoyIcon size={16} />
           {e.reloadReady
             ? `Emergency reload to ${chips(ECONOMY.reloadTarget)}`
             : `Reload in ${countdown(e.nextReloadAt - e.now)}`}

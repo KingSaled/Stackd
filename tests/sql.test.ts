@@ -98,10 +98,13 @@ describe('schema', () => {
   });
 
   it('validates profile updates and blocks direct writes', async () => {
-    const [row] = await as<{ display_name: string; color: string }>(A, `select * from public.update_profile('Alice K', '🐼', '#4DD4FF')`);
-    expect(row).toMatchObject({ display_name: 'Alice K', color: '#4dd4ff' });
-    await expect(as(A, `select public.update_profile('x', '🐼', '#4dd4ff')`)).rejects.toThrow(/2-20/);
-    await expect(as(A, `select public.update_profile('Alice', '🐼', 'red')`)).rejects.toThrow(/color/);
+    const [row] = await as<{ display_name: string; color: string; avatar: string }>(A, `select * from public.update_profile('Alice K', 'p22', '#4DD4FF')`);
+    expect(row).toMatchObject({ display_name: 'Alice K', color: '#4dd4ff', avatar: 'p22' });
+    await expect(as(A, `select public.update_profile('x', 'p22', '#4dd4ff')`)).rejects.toThrow(/2-20/);
+    await expect(as(A, `select public.update_profile('Alice', 'p22', 'red')`)).rejects.toThrow(/color/);
+    // Only portraits from the catalogue are accepted now (old emoji avatars were migrated).
+    await expect(as(A, `select public.update_profile('Alice', '🐼', '#4dd4ff')`)).rejects.toThrow(/avatar/);
+    await expect(as(A, `select public.update_profile('Alice', 'p02', '#4dd4ff')`)).rejects.toThrow(/avatar/);
     await expect(as(A, `update public.profiles set chips = 99999999 where id = '${A}'`)).rejects.toThrow(/permission/);
   });
 

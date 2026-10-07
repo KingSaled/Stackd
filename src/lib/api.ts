@@ -74,3 +74,8 @@ export interface CreateRoomRequest {
 export function createRoom(req: CreateRoomRequest) {
   return call<{ ok: true; roomId: string }>({ op: 'create', ...req });
 }
+
+/** Permanently delete the signed-in account (leaves all tables first). */
+export async function deleteAccount(): Promise<void> {
+  await call({ op: 'deleteAccount', confirm: 'DELETE' });
+}

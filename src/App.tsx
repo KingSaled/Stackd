@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Redirect, Route, Switch } from 'wouter';
 import { isConfigured } from './lib/config';
 import { useAuth } from './store/auth';
@@ -9,10 +9,16 @@ import { Logo } from './components/Logo';
 import { AuthPage } from './pages/AuthPage';
 import { LobbyPage } from './pages/LobbyPage';
 import { TablePage } from './pages/TablePage';
-import { ProfilePage } from './pages/ProfilePage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { SetupPage } from './pages/SetupPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { TermsGate } from './components/TermsGate';
+import { AchievementWatcher } from './components/AchievementWatcher';
+
+// Less-visited pages load on demand to keep the first download small.
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const ShopPage = lazy(() => import('./pages/ShopPage').then((m) => ({ default: m.ShopPage })));
+const LegalPage = lazy(() => import('./pages/LegalPage').then((m) => ({ default: m.LegalPage })));
 
 function Splash() {
   return (
@@ -46,14 +52,27 @@ function Routes() {
   if (!ready) return <Splash />;
 
   return (
-    <Switch>
+    <>
+      {session && <TermsGate />}
+      {session && <AchievementWatcher />}
+      <Suspense fallback={<Splash />}>
+      <Switch>
       <Route path="/auth" component={AuthPage} />
       <Route path="/reset" component={ResetPasswordPage} />
+      <Route path="/terms">
+        <LegalPage doc="terms" />
+      </Route>
+      <Route path="/privacy">
+        <LegalPage doc="privacy" />
+      </Route>
+      <Route path="/shop">{session ? <ShopPage /> : <Redirect to={authRedirect()} />}</Route>
       <Route path="/t/:id">{(params) => (session ? <TablePage id={params.id} /> : <Redirect to={authRedirect()} />)}</Route>
       <Route path="/profile">{session ? <ProfilePage /> : <Redirect to={authRedirect()} />}</Route>
       <Route path="/">{session ? <LobbyPage /> : <Redirect to="/auth" />}</Route>
       <Route component={NotFoundPage} />
-    </Switch>
+      </Switch>
+      </Suspense>
+    </>
   );
 }
 

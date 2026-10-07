@@ -354,7 +354,7 @@
   place-items: center;
   background: radial-gradient(circle at 35% 28%, #313d63, #141b30 70%);
   box-shadow:
-    0 0 0 3px var(--c),
+    0 0 0 3px var(--ring, var(--c)),
     0 8px 20px rgba(0, 0, 0, 0.55);
   z-index: 3;
   transition:
@@ -363,42 +363,40 @@
     transform 0.3s;
 }
 
+/* Portrait layers fill the avatar; frames size themselves from --s. */
+.seat__avatar {
+  --s: var(--avatar);
+}
+
+/* A Cosmetic Shop frame replaces the colour ring. */
+.seat__avatar.is-framed {
+  --ring: rgba(0, 0, 0, 0.55);
+}
+
 /* The leaderboard champion's crown, tipped on the avatar. */
 .seat__crown {
   position: absolute;
-  z-index: 6;
-  width: calc(var(--avatar) * 0.44);
-  height: calc(var(--avatar) * 0.44);
-  top: calc(var(--avatar) * -0.27);
-  left: calc(var(--avatar) * -0.06);
+  z-index: 10;
+  width: calc(var(--avatar) * 0.46);
+  height: calc(var(--avatar) * 0.46);
+  top: calc(var(--avatar) * -0.3);
+  left: calc(var(--avatar) * -0.08);
   rotate: -24deg;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
   pointer-events: none;
 }
 
-.seat__emoji {
-  width: 66%;
-  height: 66%;
-  font-size: calc(var(--avatar) * 0.52);
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
-}
-
-.seat__emoji.emoji--text {
-  width: auto;
-  height: auto;
-}
-
 .seat.is-turn .seat__avatar {
   transform: scale(1.06);
   box-shadow:
-    0 0 0 3px var(--c),
+    0 0 0 3px var(--ring, var(--c)),
     0 0 0 7px rgba(62, 240, 168, 0.18),
     0 0 34px rgba(62, 240, 168, 0.55);
 }
 
 .seat.is-turn.is-urgent .seat__avatar {
   box-shadow:
-    0 0 0 3px var(--c),
+    0 0 0 3px var(--ring, var(--c)),
     0 0 0 7px rgba(255, 77, 109, 0.25),
     0 0 34px rgba(255, 77, 109, 0.65);
   animation: shake 0.5s ease-in-out infinite;
@@ -1144,6 +1142,9 @@
 
 .chat__empty {
   margin: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--text-faint);
   font-size: 0.9rem;
 }
@@ -1155,13 +1156,11 @@
 }
 
 .msg__avatar {
+  --s: 28px;
+  position: relative;
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 18px;
-  background: var(--bg-3);
   box-shadow: 0 0 0 2px var(--c);
   flex: none;
 }
@@ -1453,9 +1452,14 @@
   font-size: 0.72em;
 }
 
-.seat__claim .emoji {
-  width: 1.3em;
-  height: 1.3em;
+.seat__claim-face {
+  --s: 1.4em;
+  position: relative;
+  display: inline-block;
+  width: 1.4em;
+  height: 1.4em;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px var(--c);
 }
 
 /* ===================================================================== */
@@ -1689,7 +1693,7 @@
     radial-gradient(circle at 50% 60%, #2a3456, #10162a 75%);
   box-shadow:
     0 0 0 2px rgba(0, 0, 0, 0.55),
-    0 0 0 4px var(--c),
+    0 0 0 4px var(--ring, var(--c)),
     0 0 0 5px rgba(255, 255, 255, 0.18),
     0 10px 24px rgba(0, 0, 0, 0.6);
 }
@@ -1719,7 +1723,7 @@
 .seat.is-turn .seat__avatar {
   box-shadow:
     0 0 0 2px rgba(0, 0, 0, 0.55),
-    0 0 0 4px var(--c),
+    0 0 0 4px var(--ring, var(--c)),
     0 0 0 9px rgba(62, 240, 168, 0.12),
     0 0 36px rgba(62, 240, 168, 0.45),
     0 10px 24px rgba(0, 0, 0, 0.6);

@@ -12,7 +12,8 @@ import type { Rng } from './cards';
 import { estimateEquity } from './fast';
 import { getLegalActions, potTotal } from './engine';
 import type { BotBrainData, EngineState, PlayerAction } from './types';
-import { AVATARS, COLORS } from '../economy';
+import { COLORS } from '../economy';
+import { PORTRAITS } from '../portraits';
 
 export type BotLevel = 'easy' | 'medium' | 'hard';
 
@@ -53,7 +54,7 @@ export function createBotIdentity(rng: Rng, takenNames: Set<string>) {
   return {
     userId: id,
     name: pool[rng(pool.length)],
-    avatar: AVATARS[rng(AVATARS.length)],
+    avatar: PORTRAITS[rng(PORTRAITS.length)],
     color: COLORS[rng(COLORS.length)],
   };
 }

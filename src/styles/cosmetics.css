@@ -1,0 +1,233 @@
+/* =====================================================================
+   Portraits, backdrops and Cosmetic Shop frames.
+   Every avatar circle sets --s (its size) and --c (the player's colour).
+   ===================================================================== */
+
+.portrait {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.portrait__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+/* Pixel art stays crisp at any size. */
+.portrait__img {
+  position: absolute;
+  z-index: 1;
+  left: 6%;
+  bottom: 0;
+  width: 88%;
+  height: 88%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------- Backdrops */
+
+/* Free: a soft glow in the player's colour. */
+.bg-default {
+  background:
+    radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--c, #f5c451) 38%, #26304f) 0%, transparent 70%),
+    linear-gradient(180deg, #212a46, #11172a);
+}
+
+.bg-felt {
+  background:
+    radial-gradient(circle at 50% 22%, rgba(255, 244, 200, 0.35), transparent 55%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.6' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E"),
+    radial-gradient(circle at 50% 45%, #2a9e66, #145c3a 70%, #0b3a24);
+  background-blend-mode: normal, overlay, normal;
+}
+
+.bg-sunset {
+  background:
+    radial-gradient(circle at 50% 78%, #ffd36e 0 16%, rgba(255, 170, 80, 0.6) 17%, transparent 34%),
+    linear-gradient(180deg, #2b1055 0%, #7b2a8c 30%, #e2457a 58%, #ff8c42 78%, #3a1a3f 79%, #1b0f2b 100%);
+}
+
+.bg-ocean {
+  background:
+    repeating-linear-gradient(170deg, rgba(120, 220, 255, 0.12) 0 2px, transparent 2px 9px),
+    radial-gradient(ellipse 80% 40% at 50% 0%, rgba(140, 230, 255, 0.55), transparent 70%),
+    linear-gradient(180deg, #0a6fa8 0%, #07457a 45%, #031d3d 100%);
+}
+
+.bg-velvet {
+  background:
+    radial-gradient(circle at 25% 25%, rgba(245, 196, 81, 0.35) 0 6%, transparent 7%),
+    radial-gradient(circle at 75% 25%, rgba(245, 196, 81, 0.35) 0 6%, transparent 7%),
+    radial-gradient(circle at 50% 50%, rgba(245, 196, 81, 0.28) 0 5%, transparent 6%),
+    radial-gradient(circle at 25% 75%, rgba(245, 196, 81, 0.35) 0 6%, transparent 7%),
+    radial-gradient(circle at 75% 75%, rgba(245, 196, 81, 0.35) 0 6%, transparent 7%),
+    radial-gradient(circle at 50% 30%, #8b3fc9, #4a1478 55%, #21063a);
+  background-size: 50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%, 100% 100%;
+}
+
+/* Animated nebula with drifting, twinkling stars. */
+.bg-galaxy {
+  background:
+    radial-gradient(1px 1px at 20% 30%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 70% 20%, #fff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 40% 70%, #cfe7ff 50%, transparent 51%),
+    radial-gradient(1px 1px at 85% 60%, #fff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 12% 82%, #ffe7fb 50%, transparent 51%),
+    radial-gradient(1px 1px at 58% 45%, #fff 50%, transparent 51%),
+    radial-gradient(ellipse 70% 50% at 30% 35%, rgba(197, 76, 255, 0.55), transparent 70%),
+    radial-gradient(ellipse 60% 60% at 75% 70%, rgba(40, 160, 255, 0.5), transparent 70%),
+    linear-gradient(160deg, #0b0524, #160b3d 50%, #050212);
+  background-size: 140% 140%;
+  animation: galaxy-drift 14s ease-in-out infinite alternate;
+}
+
+.bg-galaxy::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(1.6px 1.6px at 30% 18%, #fff 50%, transparent 51%),
+    radial-gradient(1.6px 1.6px at 78% 40%, #fff 50%, transparent 51%),
+    radial-gradient(1.6px 1.6px at 18% 55%, #fff 50%, transparent 51%);
+  animation: galaxy-twinkle 2.4s ease-in-out infinite;
+}
+
+@keyframes galaxy-drift {
+  from {
+    background-position: 0% 0%;
+  }
+  to {
+    background-position: 100% 100%;
+  }
+}
+
+@keyframes galaxy-twinkle {
+  50% {
+    opacity: 0.15;
+  }
+}
+
+/* ---------------------------------------------------------------- Frames */
+
+.portrait__frame {
+  --t: max(3px, calc(var(--s, 48px) * 0.085));
+  position: absolute;
+  inset: calc(var(--t) * -0.55);
+  z-index: 3;
+  border-radius: 50%;
+  pointer-events: none;
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--t)), #000 calc(100% - var(--t) + 0.6px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - var(--t)), #000 calc(100% - var(--t) + 0.6px));
+}
+
+/* Tier 1: machined steel. */
+.frame-steel {
+  background: conic-gradient(from 20deg, #5b6472, #e8ecf2, #616a78, #c9ced8, #3e4552, #aeb5c2, #5b6472);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+/* Tier 2: polished gold with a black-enamel inner line. */
+.frame-gold {
+  background:
+    radial-gradient(farthest-side, transparent calc(100% - var(--t) * 0.32), #1a1206 calc(100% - var(--t) * 0.32) calc(100% - var(--t) * 0.18), transparent calc(100% - var(--t) * 0.18)),
+    conic-gradient(from 0deg, #8a6216, #ffe9a8, #c8962e, #fff6d8, #9a6b12, #f5c451, #7a520e, #ffe08f, #8a6216);
+  filter: drop-shadow(0 0 calc(var(--t) * 0.8) rgba(245, 196, 81, 0.45));
+}
+
+/* Tier 3: cut ruby facets. */
+.frame-ruby {
+  background:
+    repeating-conic-gradient(from 0deg, #6d0a20 0 11.25deg, #e3355a 11.25deg 18deg, #ffb3c1 18deg 20deg, #9b0c2e 20deg 22.5deg);
+  filter: drop-shadow(0 0 calc(var(--t) * 1.1) rgba(255, 60, 100, 0.55));
+}
+
+/* Tier 4: diamond with a slow travelling glint. */
+.frame-diamond {
+  background:
+    conic-gradient(from var(--glint, 0deg), transparent 0 70%, rgba(255, 255, 255, 0.95) 76%, transparent 82%),
+    repeating-conic-gradient(from 0deg, #dff6ff 0 9deg, #8fd8ff 9deg 15deg, #ffffff 15deg 18deg, #5fb8e8 18deg 22.5deg);
+  filter: drop-shadow(0 0 calc(var(--t) * 1.2) rgba(150, 225, 255, 0.7));
+  animation: diamond-glint 4s linear infinite;
+}
+
+@property --glint {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes diamond-glint {
+  to {
+    --glint: 360deg;
+  }
+}
+
+/* Tier 5: Mythic Inferno — a spinning ring of fire, orbiting embers and a breathing glow. */
+.frame-mythic {
+  -webkit-mask: none;
+  mask: none;
+  inset: calc(var(--t) * -1.1);
+  animation: mythic-glow 1.6s ease-in-out infinite;
+}
+
+.frame-mythic::before,
+.frame-mythic::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+
+.frame-mythic::before {
+  inset: calc(var(--t) * 0.55);
+  background: conic-gradient(from 0deg, #ff2d55, #ff8a00, #ffe14d, #ff8a00, #ff2d55, #c724ff, #ff2d55);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--t) * 1.05), #000 calc(100% - var(--t) * 1.05 + 0.6px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - var(--t) * 1.05), #000 calc(100% - var(--t) * 1.05 + 0.6px));
+  animation: mythic-spin 2.2s linear infinite;
+}
+
+.frame-mythic::after {
+  background:
+    radial-gradient(circle at 50% 2%, #fff3b0 0 2.6%, #ff9a1f 3.5%, transparent 6%),
+    radial-gradient(circle at 98% 50%, #fff3b0 0 2%, #ff4d2d 3%, transparent 5%),
+    radial-gradient(circle at 50% 98%, #ffe7ff 0 2.4%, #c724ff 3.4%, transparent 5.5%),
+    radial-gradient(circle at 2% 50%, #fff3b0 0 1.8%, #ff8a00 2.8%, transparent 4.8%),
+    radial-gradient(circle at 85% 15%, #fff 0 1.4%, transparent 3%),
+    radial-gradient(circle at 15% 85%, #fff 0 1.4%, transparent 3%);
+  animation: mythic-spin 3.6s linear infinite reverse;
+}
+
+@keyframes mythic-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@keyframes mythic-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 calc(var(--t) * 1.2) rgba(255, 110, 30, 0.75)) drop-shadow(0 0 calc(var(--t) * 2.6) rgba(199, 36, 255, 0.35));
+  }
+  50% {
+    filter: drop-shadow(0 0 calc(var(--t) * 2) rgba(255, 170, 40, 0.95)) drop-shadow(0 0 calc(var(--t) * 4) rgba(255, 45, 85, 0.5));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-galaxy,
+  .bg-galaxy::after,
+  .frame-diamond,
+  .frame-mythic,
+  .frame-mythic::before,
+  .frame-mythic::after {
+    animation: none;
+  }
+}

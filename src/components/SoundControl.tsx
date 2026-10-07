@@ -1,4 +1,4 @@
-import { Volume1, Volume2, VolumeX } from 'lucide-react';
+import { SpeakerLowIcon, SpeakerHighIcon, SpeakerXIcon } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { useSettings } from '../store/settings';
 import { sound } from '../lib/sound';
@@ -16,7 +16,7 @@ export function SoundControl() {
     window.addEventListener('pointerdown', onDown);
     return () => window.removeEventListener('pointerdown', onDown);
   }, [open]);
-  const Icon = muted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
+  const Icon = muted || volume === 0 ? SpeakerXIcon : volume < 0.5 ? SpeakerLowIcon : SpeakerHighIcon;
   return (
     <div className="sound-control" ref={ref}>
       <button
@@ -30,7 +30,7 @@ export function SoundControl() {
       {open && (
         <div className="popover sound-control__pop">
           <button className="btn btn--ghost btn--sm" onClick={toggleMute}>
-            {muted ? <VolumeX size={16} /> : <Volume2 size={16} />} {muted ? 'Unmute' : 'Mute'}
+            {muted ? <SpeakerXIcon size={16} /> : <SpeakerHighIcon size={16} />} {muted ? 'Unmute' : 'Mute'}
           </button>
           <input
             type="range"

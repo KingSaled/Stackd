@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import clsx from 'clsx';
-import { Plus, WifiOff, Moon, LogOut } from 'lucide-react';
+import { PlusIcon, WifiSlashIcon, MoonIcon, SignOutIcon } from '@phosphor-icons/react';
 import { memo, useEffect, useMemo } from 'react';
 import type { PublicState, Seat } from '../../../shared/poker/types';
 import { seatIndexOf } from '../../../shared/poker/engine';
@@ -12,6 +12,8 @@ import type { MyCards, ReactionEvent } from '../../hooks/useTable';
 import type { Presentation } from '../../hooks/usePresentation';
 import { FlipCard } from '../FlipCard';
 import { Emoji } from '../Emoji';
+import { Portrait } from '../Avatar';
+import { frameClass } from '../../../shared/cosmetics';
 import { Chip, ChipStack, chipBreakdown } from '../Chips';
 import { TimerRing } from '../TimerRing';
 import { useSettings } from '../../store/settings';
@@ -506,7 +508,7 @@ function EmptySeat({ pos, canSit, onClick, index }: { pos: Point; canSit: boolea
     <div className="seat seat--empty" style={{ left: `${pos.x}%`, top: `${pos.y}%` }}>
       {canSit ? (
         <button className="seat__sit" onClick={onClick} aria-label={`Sit in seat ${index + 1}`}>
-          <Plus size={18} />
+          <PlusIcon size={18} />
           <span>Sit</span>
         </button>
       ) : (
@@ -670,8 +672,8 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
         )}
       </div>
 
-      <div className="seat__avatar">
-        <Emoji char={seat.avatar} className="seat__emoji" />
+      <div className={clsx('seat__avatar', frameClass(seat.frame) && 'is-framed')}>
+        <Portrait avatar={seat.avatar} frame={seat.frame} backdrop={seat.backdrop} />
         {props.champion && <Emoji char="👑" className="seat__crown" label="Leaderboard champion" />}
         {isTurn && turnStartedAt && deadline && !seat.isBot && <TimerRing startedAt={turnStartedAt} deadline={deadline} />}
         {isTurn && seat.isBot && (
@@ -683,17 +685,17 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
         )}
         {offline && (
           <span className="seat__badge seat__badge--offline" title="Disconnected">
-            <WifiOff size={12} />
+            <WifiSlashIcon size={12} />
           </span>
         )}
         {!offline && seat.away && (
           <span className="seat__badge" title="Away">
-            <Moon size={12} />
+            <MoonIcon size={12} />
           </span>
         )}
         {seat.leaving && (
           <span className="seat__badge" title="Leaving">
-            <LogOut size={12} />
+            <SignOutIcon size={12} />
           </span>
         )}
       </div>
@@ -701,11 +703,14 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
       {seat.isBot && (seat.reservedFor || props.canClaim) && (
           seat.reservedFor ? (
             <span className="seat__claim seat__claim--reserved">
-              <Emoji char={seat.reservedFor.avatar} /> next hand
+              <span className="seat__claim-face" style={{ '--c': seat.reservedFor.color } as React.CSSProperties}>
+                <Portrait avatar={seat.reservedFor.avatar} backdrop={seat.reservedFor.backdrop} />
+              </span>{' '}
+              next hand
             </span>
           ) : (
             <button className="seat__claim" onClick={props.onClaim} aria-label={`Take ${seat.name}'s seat`}>
-              <Plus size={13} /> Sit
+              <PlusIcon size={13} /> Sit
             </button>
           )
         )}

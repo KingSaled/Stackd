@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useSearch } from 'wouter';
+import { Link, useLocation, useSearch } from 'wouter';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
-import { UserRound, Mail, KeyRound, Sparkles, Eye, EyeOff, ArrowLeft, Coins, Users, Smartphone } from 'lucide-react';
+import { UserIcon, EnvelopeSimpleIcon, KeyIcon, SparkleIcon, EyeIcon, EyeSlashIcon, ArrowLeftIcon, CoinsIcon, UsersIcon, DeviceMobileIcon } from '@phosphor-icons/react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../store/auth';
 import { Logo } from '../components/Logo';
@@ -10,6 +10,9 @@ import { PlayingCard } from '../components/PlayingCard';
 import { sound } from '../lib/sound';
 import { chips } from '../lib/format';
 import { ECONOMY } from '../../shared/economy';
+import { LegalFooter } from '../components/LegalFooter';
+import { rememberTermsAccepted } from '../lib/terms';
+import { MIN_AGE } from '../legal';
 
 type Mode = 'signin' | 'signup' | 'guest' | 'forgot';
 
@@ -42,6 +45,7 @@ export function AuthPage() {
   const invited = next.startsWith('/t/');
   const [mode, setMode] = useState<Mode>(invited ? 'guest' : 'signin');
   const [showPassword, setShowPassword] = useState(false);
+  const [adult, setAdult] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -78,6 +82,8 @@ export function AuthPage() {
         if (error) throw error;
         go();
       } else if (mode === 'signup') {
+        if (!adult) throw new Error(`Please confirm you are ${MIN_AGE} or older and accept the Terms to create an account.`);
+        rememberTermsAccepted();
         const display = name.trim();
         if (display.length < 2 || display.length > 20) throw new Error('Pick a display name of 2-20 characters');
         if (password.length < 6) throw new Error('Password must be at least 6 characters');
@@ -105,8 +111,13 @@ export function AuthPage() {
   };
 
   const guest = async () => {
+    if (!adult) {
+      setError(`Please confirm you are ${MIN_AGE} or older and accept the Terms to play.`);
+      return;
+    }
     setBusy(true);
     setError('');
+    rememberTermsAccepted();
     try {
       const display = guestName.trim();
       const { error } = await supabase.auth.signInAnonymously(
@@ -142,13 +153,13 @@ export function AuthPage() {
           </div>
           <ul className="auth__perks">
             <li>
-              <Coins size={16} /> {chips(ECONOMY.startingChips)} free chips to start
+              <CoinsIcon size={16} /> {chips(ECONOMY.startingChips)} free chips to start
             </li>
             <li>
-              <Users size={16} /> Private tables with invite links
+              <UsersIcon size={16} /> Private tables with invite links
             </li>
             <li>
-              <Smartphone size={16} /> Real-time on any device, no download
+              <DeviceMobileIcon size={16} /> Real-time on any device, no download
             </li>
           </ul>
           <div className="auth__fan" aria-hidden>
@@ -170,13 +181,13 @@ export function AuthPage() {
         <section className="auth__panel">
           {invited && (
             <div className="invite-note">
-              <Sparkles size={16} /> You've been invited to a table — play as a guest or sign in to take a seat.
+              <SparkleIcon size={16} /> You've been invited to a table — play as a guest or sign in to take a seat.
             </div>
           )}
 
           {mode === 'forgot' ? (
             <button type="button" className="auth__back" onClick={() => setMode('signin')}>
-              <ArrowLeft size={16} /> Back to sign in
+              <ArrowLeftIcon size={16} /> Back to sign in
             </button>
           ) : (
             <div className="segmented segmented--full auth__tabs" role="tablist" aria-label="How do you want to play?">
@@ -217,7 +228,7 @@ export function AuthPage() {
               >
                 <label className="field">
                   <span className="field__label">
-                    <UserRound size={13} /> Name at the table <em>(optional)</em>
+                    <UserIcon size={13} /> Name at the table <em>(optional)</em>
                   </span>
                   <input
                     className="input"
@@ -228,6 +239,14 @@ export function AuthPage() {
                     autoComplete="nickname"
                     autoFocus={finePointer}
                   />
+                </label>
+
+                <label className="check check--consent">
+                  <input type="checkbox" checked={adult} onChange={(e) => setAdult(e.target.checked)} />
+                  <span>
+                    I'm {MIN_AGE} or older and agree to the <Link href="/terms">Terms</Link> and <Link href="/privacy">Privacy Policy</Link>.
+                    Chips are play money with no cash value.
+                  </span>
                 </label>
                 {error && <p className="form-error">{error}</p>}
                 <button className="btn btn--gold btn--block btn--lg" disabled={busy}>
@@ -240,7 +259,7 @@ export function AuthPage() {
                 {mode === 'signup' && (
                   <label className="field">
                     <span className="field__label">
-                      <UserRound size={13} /> Display name
+                      <UserIcon size={13} /> Display name
                     </span>
                     <input
                       className="input"
@@ -255,7 +274,7 @@ export function AuthPage() {
                 )}
                 <label className="field">
                   <span className="field__label">
-                    <Mail size={13} /> Email
+                    <EnvelopeSimpleIcon size={13} /> Email
                   </span>
                   <input
                     className="input"
@@ -272,7 +291,7 @@ export function AuthPage() {
                   <div className="field">
                     <div className="field__row">
                       <label className="field__label" htmlFor="auth-password">
-                        <KeyRound size={13} /> Password
+                        <KeyIcon size={13} /> Password
                       </label>
                       {mode === 'signin' && (
                         <button type="button" className="auth__link" onClick={() => setMode('forgot')}>
@@ -298,16 +317,30 @@ export function AuthPage() {
                         onClick={() => setShowPassword((v) => !v)}
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                       >
-                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        {showPassword ? <EyeSlashIcon size={18} /> : <EyeIcon size={18} />}
                       </button>
                     </div>
                   </div>
+                )}
+                {mode === 'signup' && (
+                  <label className="check check--consent">
+                    <input type="checkbox" checked={adult} onChange={(e) => setAdult(e.target.checked)} />
+                    <span>
+                      I'm {MIN_AGE} or older and agree to the <Link href="/terms">Terms</Link> and <Link href="/privacy">Privacy Policy</Link>.
+                      Chips are play money with no cash value.
+                    </span>
+                  </label>
                 )}
                 {error && <p className="form-error">{error}</p>}
                 {notice && <p className="form-notice">{notice}</p>}
                 <button className="btn btn--gold btn--block btn--lg" disabled={busy}>
                   {submitLabel}
                 </button>
+                {mode === 'signin' && (
+                  <p className="muted small center auth__fine">
+                    By signing in you agree to the <Link href="/terms">Terms</Link> and <Link href="/privacy">Privacy Policy</Link>.
+                  </p>
+                )}
                 {mode === 'signin' && (
                   <p className="muted small center auth__fine">
                     New to Stackd?{' '}
@@ -337,6 +370,7 @@ export function AuthPage() {
           </p>
         </section>
       </main>
+      <LegalFooter className="auth__legal" />
     </div>
   );
 }

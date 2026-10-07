@@ -4,9 +4,14 @@ import '@fontsource-variable/inter';
 import '@fontsource-variable/outfit';
 import './styles/base.css';
 import './styles/components.css';
+import './styles/cosmetics.css';
 import './styles/table.css';
 import './styles/pages.css';
+import { IconContext } from '@phosphor-icons/react';
 import { App } from './App';
+
+/** Phosphor icons app-wide: bold reads crisply at small sizes on the dark UI. */
+const icons = { weight: 'bold' as const, mirrored: false };
 
 const root = createRoot(document.getElementById('root')!);
 
@@ -15,14 +20,18 @@ if (import.meta.env.DEV && window.location.pathname.startsWith('/dev')) {
   void import('./dev/Playground').then(({ default: Playground }) =>
     root.render(
       <StrictMode>
-        <Playground />
+        <IconContext.Provider value={icons}>
+          <Playground />
+        </IconContext.Provider>
       </StrictMode>,
     ),
   );
 } else {
   root.render(
     <StrictMode>
-      <App />
+      <IconContext.Provider value={icons}>
+        <App />
+      </IconContext.Provider>
     </StrictMode>,
   );
 }

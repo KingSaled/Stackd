@@ -6,8 +6,18 @@ import { sound } from '../lib/sound';
 import { chips } from '../lib/format';
 import { ECONOMY, dailyBonusFor } from '../../shared/economy';
 import { useLocalNow } from './useNow';
+import { deviceId } from '../lib/device';
 
 const HOUR = 3_600_000;
+
+/** Bonus RPCs take the device id; fall back to the old signature if the database isn't upgraded yet. */
+async function withDevice(fn: 'claim_daily_bonus' | 'emergency_reload') {
+  const res = await supabase.rpc(fn, { p_device: deviceId() });
+  if (res.error?.code === 'PGRST202') return supabase.rpc(fn);
+  return res;
+}
+
+const DEVICE_LIMIT = 'This device has already collected that bonus on 2 accounts today. Try again tomorrow.';
 
 export function useEconomy() {
   const profile = useAuth((s) => s.profile);
@@ -34,13 +44,15 @@ export function useEconomy() {
     if (busy) return;
     setBusy(true);
     try {
-      const { data, error } = await supabase.rpc('claim_daily_bonus');
+      const { data, error } = await withDevice('claim_daily_bonus');
       if (error) throw error;
-      const r = data as { ok: boolean; amount?: number; chips: number; streak?: number; next_claim_at?: string };
+      const r = data as { ok: boolean; reason?: string; amount?: number; chips: number; streak?: number; next_claim_at?: string };
       if (r.ok) {
         patchProfile({ chips: Number(r.chips), last_daily_claim: new Date().toISOString(), daily_streak: r.streak ?? 1 });
         sound.play('bonus');
         toast.success(`Daily bonus: +${chips(r.amount)} chips${(r.streak ?? 1) > 1 ? ` · ${r.streak}-day streak!` : ''}`);
+      } else if (r.reason === 'device_limit') {
+        toast.info(DEVICE_LIMIT);
       } else {
         toast.info('Your next daily bonus is not ready yet');
       }
@@ -56,7 +68,7 @@ export function useEconomy() {
     setBusy(true);
     try {
       await refreshSeated();
-      const { data, error } = await supabase.rpc('emergency_reload');
+      const { data, error } = await withDevice('emergency_reload');
       if (error) throw error;
       const r = data as { ok: boolean; reason?: string; amount?: number; chips: number };
       if (r.ok) {
@@ -65,6 +77,8 @@ export function useEconomy() {
         toast.success(`Emergency reload: +${chips(r.amount)} chips. Good luck!`);
       } else if (r.reason === 'not_broke') {
         toast.info(`Reloads are for players under ${chips(ECONOMY.reloadThreshold)} chips (including chips at tables)`);
+      } else if (r.reason === 'device_limit') {
+        toast.info(DEVICE_LIMIT);
       } else {
         toast.info('Reload is cooling down');
       }

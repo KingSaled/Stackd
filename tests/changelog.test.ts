@@ -12,6 +12,13 @@ describe('changelog', () => {
     expect([...v].sort().reverse()).toEqual(v);
   });
 
+  it('uses registered Phosphor icons only (no emoji)', async () => {
+    const src = (await import('node:fs')).readFileSync(new URL('../src/components/IconSet.tsx', import.meta.url), 'utf8');
+    const { ACHIEVEMENTS } = await import('../shared/achievements');
+    const names = [...CHANGELOG.flatMap((e) => e.items.map((i) => i.icon)), ...ACHIEVEMENTS.map((a) => a.icon)];
+    for (const n of names) expect(src, n).toMatch(new RegExp(`\\b${n}: ${n}Icon\\b`));
+  });
+
   it('shows only releases after the last one a player saw', () => {
     expect(versions(unseenEntries('2026-10-08', '2026-01-01T00:00:00Z', list))).toEqual(['2026-10-09', '2026-10-08b']);
     expect(unseenEntries('2026-10-09', '2026-01-01T00:00:00Z', list)).toEqual([]);

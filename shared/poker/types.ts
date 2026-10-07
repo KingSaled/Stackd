@@ -69,6 +69,13 @@ export interface Seat {
   isBot?: boolean;
   /** A real player who claimed this bot's seat; they replace the bot when the hand ends. */
   reservedFor?: SeatReservation | null;
+  /** Equipped Cosmetic Shop items (see shared/cosmetics). */
+  frame?: string | null;
+  backdrop?: string | null;
+  /** Put chips in voluntarily before the flop this hand (VPIP). */
+  vpip?: boolean;
+  /** Bet or raised before the flop this hand (PFR). */
+  pfr?: boolean;
 }
 
 export interface SeatReservation {
@@ -76,6 +83,8 @@ export interface SeatReservation {
   name: string;
   avatar: string;
   color: string;
+  frame?: string | null;
+  backdrop?: string | null;
   /** Already taken from the player's wallet. */
   buyIn: number;
 }
@@ -186,6 +195,32 @@ export interface StatDelta {
   bestHand: number;
 }
 
+/** One player's part in a finished hand (feeds stats, achievements and abuse checks). */
+export interface HandSummary {
+  userId: string;
+  isBot: boolean;
+  /** Stack at the start of the hand. */
+  startStack: number;
+  /** Chips put into the pot this hand. */
+  committed: number;
+  /** Chips paid out to the player (0 if they lost). */
+  won: number;
+  folded: boolean;
+  /** Was all-in when the hand ended. */
+  allIn: boolean;
+  /** Hand category shown at showdown, -1 if not shown. */
+  category: number;
+  vpip: boolean;
+  pfr: boolean;
+}
+
+export interface HandRecord {
+  handNo: number;
+  bigBlind: number;
+  uncontested: boolean;
+  players: HandSummary[];
+}
+
 /** Side effects produced by an engine mutation and persisted atomically with the new state. */
 export interface Effects {
   /** userId → chip delta applied to the player's wallet (negative = buy-in). */
@@ -195,10 +230,12 @@ export interface Effects {
   dealt: boolean;
   /** Net chips that entered play through bots (bot stacks created minus removed). Diagnostic only. */
   botChips: number;
+  /** Hands that finished during this mutation. */
+  hands: HandRecord[];
 }
 
 export function newEffects(): Effects {
-  return { wallet: {}, stats: {}, dealt: false, botChips: 0 };
+  return { wallet: {}, stats: {}, dealt: false, botChips: 0, hands: [] };
 }
 
 export interface LegalActions {

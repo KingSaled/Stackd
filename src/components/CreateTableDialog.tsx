@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import clsx from 'clsx';
-import { Lock, Globe2, Bot } from 'lucide-react';
+import { LockIcon, GlobeIcon, RobotIcon } from '@phosphor-icons/react';
 import { Modal } from './Modal';
 import { BLIND_PRESETS } from '../../shared/economy';
 import { blindsLabel, chips } from '../lib/format';
@@ -126,7 +126,7 @@ export function CreateTableDialog({ open, onClose }: { open: boolean; onClose: (
         <div className="field-row">
           <label className="field">
             <span className="field__label">
-              <Lock size={13} /> Password <em className="muted">(optional)</em>
+              <LockIcon size={13} /> Password <em className="muted">(optional)</em>
             </span>
             <input
               className="input"
@@ -142,7 +142,7 @@ export function CreateTableDialog({ open, onClose }: { open: boolean; onClose: (
             <input type="checkbox" checked={listed && !password} disabled={!!password} onChange={(e) => setListed(e.target.checked)} />
             <span className="switch__track" />
             <span>
-              <Globe2 size={13} /> List in the lobby
+              <GlobeIcon size={13} /> List in the lobby
             </span>
           </label>
         </div>
@@ -152,7 +152,7 @@ export function CreateTableDialog({ open, onClose }: { open: boolean; onClose: (
           <span className="switch__track" />
           <span className="bots-switch__text">
             <strong>
-              <Bot size={14} /> Fill empty seats with bots
+              <RobotIcon size={14} /> Fill empty seats with bots
             </strong>
             <em className="muted">
               Bots of mixed, hidden skill levels. Friends who join take a bot's seat when the current hand ends.

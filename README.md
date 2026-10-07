@@ -32,11 +32,23 @@ Everything runs on free tiers: **Netlify** (static site + serverless functions) 
 
 **Accounts & economy**
 - Email/password accounts, password reset, and guest accounts that can be upgraded later.
-- A profile with display name, avatar and color, plus stats: hands played, hands won, win rate, biggest pot and best hand.
+- A compact profile: display name, one of 50 pixel-art portraits, colour, and equipped cosmetics, picked from pop-up menus. Lifetime stats (hands, wins, win rate, biggest pot, best hand) plus play-style stats tracked from launch: net winnings, biggest win, VPIP, PFR, showdown and all-in win rates, steals and best daily streak.
+- Players can delete their account and all of its data from the profile.
 - 10,000 starting chips.
 - A daily bonus (2,000 chips, plus 500 per consecutive day up to a 7-day streak) every 24 hours.
 - An emergency reload: if your wallet plus the chips you have at tables drop below 1,000, you can top back up to 2,500. It has a 60-minute cooldown.
 - Leaderboard of saved accounts (guest accounts are left off); the #1 player gets a champion card and wears a crown at every table.
+
+**Achievements & Cosmetic Shop**
+- 23 achievements (bronze to platinum) for milestones such as hands played, pots won, all-in wins, premium hands and daily streaks. Each pays a one-time chip reward (500 to 50,000, about 142,500 in total). Progress only counts from launch; nothing is awarded retroactively. Unlocks pop up live, wherever the player is.
+- The **Cosmetic Shop** (the pill in the top bar) sells five avatar borders (5,000 to 250,000 chips; the top one, Mythic Inferno, is animated) and five backgrounds (3,000 to 120,000). Items are bought with play chips only, show at tables, in the lobby and on the leaderboard, and act as a chip sink.
+- To change achievements or shop items, edit `shared/achievements.ts` / `shared/cosmetics.ts` **and** the matching `insert` in `supabase/schema.sql`; a test fails if they drift apart.
+
+**Legal & fair play**
+- Terms of Service (`/terms`) and Privacy Policy (`/privacy`), linked from the sign-in screen, the lobby, profile, shop and table settings, with a "Play money only · 18+" notice.
+- New players tick an "I'm 18 or older and agree" box when signing up or playing as a guest. Existing players get a one-time "Before you play" prompt on their next visit (no account reset); acceptance and the 18+ confirmation are recorded on the account, and the server won't seat anyone who hasn't accepted.
+- Bonuses are limited to 2 accounts per device per day (daily bonus and emergency reload separately). Device ids and IP addresses are stored only as salted hashes.
+- Chips moving between two players are tallied per day. Large one-way flows from a guest, a brand-new account or an account sharing a device/network are flagged for review (see below).
 
 **Session recovery**
 - All game state lives in Postgres. If you refresh, lose your connection or switch devices, you get your seat, cards and turn back.
@@ -162,15 +174,26 @@ npm test
 ## Releasing updates
 
 - **Players with the game open:** every build writes a `version.json`. Open tabs check it every few minutes and show a "new version ready" banner with a Refresh button. Nobody is reloaded mid-hand, and game state lives in the database, so refreshing is always safe.
+- **Database changes:** when a release changes `supabase/schema.sql`, run it in the Supabase SQL editor *before* the new build deploys. It is safe to re-run and keeps all accounts.
 - **Changelog:** add a new entry at the top of `src/changelog.ts` with a `version` that sorts after the previous one (the release date, e.g. `2026-10-07`, plus a letter for a second release that day). Each player sees the releases they missed once (up to the three newest, tracked on their account by `mark_changelog_seen`); releases from before their account was created are skipped.
+
+## Running it safely
+
+- **Contact email:** set `CONTACT_EMAIL` in `src/legal.ts` before promoting the site. The Terms and Privacy Policy show it for questions and data requests.
+- **Changing the Terms or Privacy Policy:** edit `src/pages/LegalPage.tsx`, update `LEGAL_UPDATED` in `src/legal.ts`, and bump `TERMS_VERSION` if players must agree again (everyone is asked once more on their next visit).
+- **Reviewing cheating flags:** in the Supabase SQL editor run `select * from public.abuse_report;`. Mark a flag handled with `update public.abuse_flags set resolved = true, note = '…' where id = …;`. To keep someone off the leaderboard, set `leaderboard_hidden = true` on their row in `profiles` (Table editor).
+- **Deleting an account for someone:** they can do it themselves (Profile → Delete account); you can also delete the user under Supabase → Authentication → Users, which removes all of their data.
+- These documents are a solid starting point written for a free play-money game, not legal advice. If Stackd grows or you ever add real-money purchases, have a lawyer review them for where you operate.
 
 ## Credits
 
-Avatar and reaction images are [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) by Microsoft (MIT license, see `public/emoji/LICENSE.txt`). They are bundled as images so every player sees the same picture on any device.
+- Player portraits: the pixel-art pack in `assets/Avatar Portraits` (backgrounds removed into `public/portraits`). Check that the pack's licence allows use on a public website.
+- Icons: [Phosphor Icons](https://phosphoricons.com) (MIT).
+- Reaction images and the champion's crown are [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) by Microsoft (MIT license, see `public/emoji/LICENSE.txt`), bundled so every player sees the same picture on any device.
 
 ## Security model
 
-- Clients can only **read** what row-level security allows. They can only **write** through a short list of validated `SECURITY DEFINER` functions (profile edits, daily bonus, emergency reload, joining a room) and chat inserts. Chat inserts are checked by a trigger that stamps the sender's identity and rate-limits messages.
+- Clients can only **read** what row-level security allows. They can only **write** through a short list of validated `SECURITY DEFINER` functions (profile edits, daily bonus, emergency reload, joining a room, accepting the Terms, buying and equipping cosmetics) and chat inserts. Anti-abuse tables (device links, bonus claims, chip transfers, flags) are not readable by clients at all. Chat inserts are checked by a trigger that stamps the sender's identity and rate-limits messages.
 - Chip balances, seats and game state are changed only by Netlify Functions using the service role, and every change goes through `commit_table()`, which refuses overdrafts and stale writes.
 - Room passwords are bcrypt-hashed (`pgcrypto`). Joining is throttled after 5 failed attempts.
 

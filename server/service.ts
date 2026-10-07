@@ -27,13 +27,15 @@ import {
   updateIdentity,
   type Effects,
   type EngineState,
+  type HandRecord,
   type PlayerAction,
   type PublicState,
   type Rng,
   type TableConfig,
 } from '../shared/poker';
 import { VersionConflict } from './errors';
-import type { CommitPayload, Repo, StoredTable } from './repo';
+import type { CommitPayload, ProfileInfo, Repo, StoredTable } from './repo';
+import { handPayload, type HandPayload } from './hands';
 
 export const cryptoRng: Rng = (n) => randomInt(n);
 
@@ -104,11 +106,34 @@ export interface MutationResult {
   changed: boolean;
   version: number;
   state: EngineState;
+  /** Hands that finished in the committed transition. */
+  hands: HandRecord[];
 }
 
 type Mutator = (s: EngineState, fx: Effects, now: number, rec: StoredTable) => boolean | void | Promise<boolean | void>;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Stats, achievements and abuse checks never get in the way of the game itself. */
+async function recordHands(repo: Repo, roomId: string, hands: HandRecord[]) {
+  const payload = hands.map((h) => handPayload(roomId, h)).filter((h): h is HandPayload => h !== null);
+  if (payload.length === 0) return;
+  try {
+    await repo.recordHands(payload);
+  } catch (e) {
+    console.error('[stackd] could not record hand stats', roomId, e);
+  }
+}
+
+/** Players confirm they are 18+ and accept the Terms before they can sit or open a table. */
+function requireTerms(profile: ProfileInfo) {
+  if ('terms_version' in profile && !profile.terms_version)
+    throw new GameError('terms_required', 'Please accept the Terms of Service to play');
+}
+
+function identityOf(userId: string, p: ProfileInfo) {
+  return { userId, name: p.display_name, avatar: p.avatar, color: p.color, frame: p.frame ?? null, backdrop: p.backdrop ?? null };
+}
 
 export async function mutateTable(
   repo: Repo,
@@ -123,10 +148,11 @@ export async function mutateTable(
     const s = mergeState(rec.state, rec.secret);
     const fx = newEffects();
     const result = await mutator(s, fx, now(), rec);
-    if (result === false) return { changed: false, version: rec.version, state: s };
+    if (result === false) return { changed: false, version: rec.version, state: s, hands: [] };
     try {
       const version = await repo.commitTable(roomId, rec.version, buildCommit(s, fx));
-      return { changed: true, version, state: s };
+      await recordHands(repo, roomId, fx.hands);
+      return { changed: true, version, state: s, hands: fx.hands };
     } catch (e) {
       if (e instanceof VersionConflict) {
         await sleep(15 + Math.random() * 40 * (attempt + 1));
@@ -152,6 +178,7 @@ export interface CreateRoomInput {
 export async function createRoom(repo: Repo, userId: string, input: CreateRoomInput, opts: ServiceOptions = {}) {
   const profile = await repo.getProfile(userId);
   if (!profile) throw new GameError('forbidden', 'Profile not found');
+  requireTerms(profile);
   const config = sanitizeConfig(input.config ?? {});
   let name = typeof input.name === 'string' ? input.name.trim().replace(/\s+/g, ' ') : '';
   if (!name) name = `${profile.display_name}'s table`;
@@ -242,6 +269,7 @@ export async function tableOp(
   // Identity is resolved outside the retry loop (it does not depend on table state).
   const profile = op.type === 'sit' || op.type === 'sitin' ? await repo.getProfile(userId) : null;
   if ((op.type === 'sit' || op.type === 'sitin') && !profile) throw new GameError('forbidden', 'Profile not found');
+  if (op.type === 'sit') requireTerms(profile!);
   let memberChecked = false;
 
   const res = await mutateTable(
@@ -265,7 +293,7 @@ export async function tableOp(
           sitDown(
             s,
             fx,
-            { userId, name: profile!.display_name, avatar: profile!.avatar, color: profile!.color },
+            identityOf(userId, profile!),
             op.seat,
             op.buyIn,
             now,
@@ -280,7 +308,7 @@ export async function tableOp(
           setSittingOut(s, fx, userId, true, now);
           return true;
         case 'sitin':
-          if (profile) updateIdentity(s, { userId, name: profile.display_name, avatar: profile.avatar, color: profile.color });
+          if (profile) updateIdentity(s, identityOf(userId, profile));
           setSittingOut(s, fx, userId, false, now);
           return true;
         case 'addchips':
@@ -309,6 +337,26 @@ export async function tableOp(
     state: toPublicState(res.state),
     myCards: cards ? { handNo: res.state.handNo, seat, cards: cards.slice() } : null,
   };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Account deletion                                                          */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Delete a player's account and data. They leave every table first (a hand in
+ * progress finishes without them), then the login and everything linked to it
+ * is removed.
+ */
+export async function deleteAccount(repo: Repo, userId: string, opts: ServiceOptions = {}) {
+  for (const tableId of await repo.tablesOf(userId)) {
+    try {
+      await tableOp(repo, userId, tableId, { type: 'stand' }, opts);
+    } catch (e) {
+      console.error('[stackd] could not stand up before deletion', tableId, e);
+    }
+  }
+  await repo.deleteUser(userId);
 }
 
 /* ------------------------------------------------------------------------ */

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Coins } from 'lucide-react';
+import { CoinsIcon } from '@phosphor-icons/react';
 import { Modal } from '../Modal';
 import { chips } from '../../lib/format';
 import type { TableConfig } from '../../../shared/poker/types';
@@ -48,7 +48,7 @@ export function BuyInDialog({ open, mode, config, wallet, current = 0, busy, not
       ) : (
         <div className="buyin">
           <div className="buyin__amount">
-            <Coins size={22} />
+            <CoinsIcon size={22} />
             <span>{chips(amount)}</span>
             <small>{(amount / bb).toFixed(0)} BB</small>
           </div>

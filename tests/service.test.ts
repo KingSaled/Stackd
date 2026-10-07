@@ -7,8 +7,9 @@ import type { PGlite } from '@electric-sql/pglite';
 import { createDb } from './pglite';
 import { GameError, VersionConflict } from '../server/errors';
 import type { CommitPayload, CreateTableInput, ProfileInfo, Repo, StoredTable } from '../server/repo';
-import { createRoom, runJanitor, tableOp, JANITOR } from '../server/service';
+import { createRoom, deleteAccount, runJanitor, tableOp, JANITOR } from '../server/service';
 import { seededRng, TIMING, type PublicState } from '../shared/poker';
+import type { HandPayload } from '../server/hands';
 
 class PgliteRepo implements Repo {
   constructor(private db: PGlite) {}
@@ -16,7 +17,7 @@ class PgliteRepo implements Repo {
     const r = await this.db.query<{ t: Record<string, never> | null }>('select public.load_table($1) as t', [id]);
     const t = r.rows[0]?.t as unknown as Record<string, unknown> | null;
     if (!t) return null;
-    const secret = (t.secret ?? {}) as { deck?: string[]; hole?: Record<string, string[]> };
+    const secret = (t.secret ?? {}) as StoredTable['secret'];
     return {
       id: t.id as string,
       name: t.name as string,
@@ -24,7 +25,7 @@ class PgliteRepo implements Repo {
       version: t.version as number,
       hasPassword: !!t.has_password,
       state: t.state as unknown as PublicState,
-      secret: { deck: secret.deck ?? [], hole: secret.hole ?? {} },
+      secret: { deck: secret.deck ?? [], hole: secret.hole ?? {}, bots: secret.bots ?? {} },
     };
   }
   async commitTable(id: string, version: number, p: CommitPayload): Promise<number> {
@@ -71,8 +72,21 @@ class PgliteRepo implements Repo {
     }
   }
   async getProfile(userId: string): Promise<ProfileInfo | null> {
-    const r = await this.db.query<ProfileInfo>('select id, display_name, avatar, color, chips from public.profiles where id = $1', [userId]);
+    const r = await this.db.query<ProfileInfo>(
+      'select id, display_name, avatar, color, chips, frame, backdrop, terms_version from public.profiles where id = $1',
+      [userId],
+    );
     return r.rows[0] ? { ...r.rows[0], chips: Number(r.rows[0].chips) } : null;
+  }
+  async tablesOf(userId: string): Promise<string[]> {
+    const r = await this.db.query<{ table_id: string }>('select table_id from public.table_seats where user_id = $1', [userId]);
+    return r.rows.map((x) => x.table_id);
+  }
+  async deleteUser(userId: string): Promise<void> {
+    await this.db.query('delete from auth.users where id = $1', [userId]);
+  }
+  async recordHands(hands: HandPayload[]): Promise<void> {
+    await this.db.query('select public.record_hands($1)', [JSON.stringify(hands)]);
   }
   async isMember(tableId: string, userId: string): Promise<boolean> {
     const r = await this.db.query('select 1 from public.table_members where table_id = $1 and user_id = $2', [tableId, userId]);
@@ -114,6 +128,8 @@ beforeAll(async () => {
       `${name.toLowerCase()}@example.com`,
       JSON.stringify({ display_name: name }),
     ]);
+  // Everyone here has accepted the Terms (the gate itself is tested separately).
+  await db.query(`update public.profiles set terms_version = '2026-10-07'`);
 }, 120_000);
 
 describe('table service (with real SQL)', () => {
@@ -198,6 +214,15 @@ describe('table service (with real SQL)', () => {
     expect(t.state.result!.uncontested).toBe(true);
     const prof = await db.query<{ hands_played: number }>('select hands_played from public.profiles where id = $1', [A]);
     expect(prof.rows[0].hands_played).toBe(1);
+    // The finished hand fed the stats counters and the first achievements.
+    const stats = await db.query<{ user_id: string; counters: Record<string, number> }>('select user_id, counters from public.player_stats');
+    const byUser = Object.fromEntries(stats.rows.map((r) => [r.user_id, r.counters]));
+    expect(byUser[A]).toMatchObject({ hands: 1 });
+    expect(byUser[B]).toMatchObject({ hands: 1 });
+    const winner = t.state.result!.payouts[0].userId;
+    expect(byUser[winner]).toMatchObject({ wins: 1, uncontested_wins: 1 });
+    const unlocked = await db.query<{ achievement_id: string }>('select achievement_id from public.player_achievements where user_id = $1', [winner]);
+    expect(unlocked.rows.map((r) => r.achievement_id).sort()).toEqual(['first_hand', 'first_win']);
   });
 
   it('stands up and cashes out to the wallet', async () => {
@@ -241,6 +266,11 @@ describe('table service (with real SQL)', () => {
     const r = await tableOp(repo, A, roomId, { type: 'sit', seat: 0, buyIn: 500 }, opts);
     expect(r.state!.seats.filter((x) => x?.isBot)).toHaveLength(3);
     expect(JSON.stringify(r.state)).not.toContain('"iters"');
+    // Each bot's hidden skill level survives being saved and loaded again.
+    const brains = (await repo.loadTable(roomId))!.secret.bots ?? {};
+    const botIds = r.state!.seats.filter((x) => x?.isBot).map((x) => x!.userId);
+    expect(Object.keys(brains).sort()).toEqual(botIds.sort());
+    for (const b of Object.values(brains)) expect(['easy', 'medium', 'hard']).toContain(b.level);
     const row = await db.query<{ player_count: number }>('select player_count from public.tables where id = $1', [roomId]);
     expect(row.rows[0].player_count).toBe(1);
     const seats = await db.query('select user_id from public.table_seats where table_id = $1', [roomId]);
@@ -262,6 +292,36 @@ describe('table service (with real SQL)', () => {
     await tableOp(repo, B, roomId, { type: 'stand' }, opts);
     await tableOp(repo, A, roomId, { type: 'stand' }, opts);
     expect(await repo.loadTable(roomId)).toBeNull();
+  });
+
+  it('requires accepting the Terms before sitting or opening a table', async () => {
+    const { roomId } = await createRoom(repo, A, { config: { bigBlind: 10 } }, opts);
+    await db.query('update public.profiles set terms_version = null where id = $1', [B]);
+    await expect(tableOp(repo, B, roomId, { type: 'sit', seat: 1, buyIn: 500 }, opts)).rejects.toThrow(/Terms/);
+    await expect(createRoom(repo, B, {}, opts)).rejects.toThrow(/Terms/);
+    await db.query(`update public.profiles set terms_version = '2026-10-07' where id = $1`, [B]);
+    await tableOp(repo, B, roomId, { type: 'sit', seat: 1, buyIn: 500 }, opts);
+  });
+
+  it('carries equipped cosmetics onto the seat', async () => {
+    await db.query(`update public.profiles set frame = 'frame-gold', backdrop = 'bg-galaxy' where id = $1`, [C]);
+    const { roomId } = await createRoom(repo, C, { config: { bigBlind: 10 } }, opts);
+    const r = await tableOp(repo, C, roomId, { type: 'sit', seat: 0, buyIn: 500 }, opts);
+    expect(r.state!.seats[0]).toMatchObject({ frame: 'frame-gold', backdrop: 'bg-galaxy' });
+  });
+
+  it('deletes an account: leaves the tables, then removes the profile and its data', async () => {
+    const D = '00000000-0000-0000-0000-0000000000d1';
+    await db.query(`insert into auth.users (id, email, raw_user_meta_data) values ($1, 'dee@example.com', '{"display_name":"Dee"}')`, [D]);
+    await db.query(`update public.profiles set terms_version = '2026-10-07' where id = $1`, [D]);
+    const { roomId } = await createRoom(repo, A, { config: { bigBlind: 10 } }, opts);
+    await tableOp(repo, A, roomId, { type: 'sit', seat: 0, buyIn: 500 }, opts);
+    await tableOp(repo, D, roomId, { type: 'sit', seat: 1, buyIn: 500 }, opts);
+    await deleteAccount(repo, D, opts);
+    expect((await db.query('select 1 from public.profiles where id = $1', [D])).rows).toHaveLength(0);
+    expect((await db.query('select 1 from public.table_seats where user_id = $1', [D])).rows).toHaveLength(0);
+    const t = (await repo.loadTable(roomId))!;
+    expect(t.state.seats.some((x) => x?.userId === D)).toBe(false);
   });
 
   it('password rooms require membership to sit', async () => {

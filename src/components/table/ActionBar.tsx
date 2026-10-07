@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import clsx from 'clsx';
-import { Minus, Plus, Coins, LogOut, Coffee, Play } from 'lucide-react';
+import { MinusIcon, PlusIcon, CoinsIcon, SignOutIcon, CoffeeIcon, PlayIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LegalActions, PlayerAction, PublicState } from '../../../shared/poker/types';
 import { potTotal } from '../../../shared/poker/engine';
@@ -55,7 +55,7 @@ export function ActionBar(props: Props) {
           <span className="dot dot--live" /> You're watching · tap an open <strong>Sit</strong> spot to join
         </div>
         <div className="actionbar__wallet">
-          <Coins size={14} /> {chips(props.walletChips)}
+          <CoinsIcon size={14} /> {chips(props.walletChips)}
         </div>
       </div>
     );
@@ -78,24 +78,24 @@ export function ActionBar(props: Props) {
         <div className="seatctl">
           {busted ? (
             <button className="btn btn--gold" onClick={props.onAddChips} disabled={props.busy}>
-              <Coins size={16} /> Rebuy
+              <CoinsIcon size={16} /> Rebuy
             </button>
           ) : seat.sittingOut || seat.away ? (
             <button className="btn btn--mint" onClick={props.onSitIn} disabled={props.busy || seat.leaving}>
-              <Play size={16} /> I'm back
+              <PlayIcon size={16} /> I'm back
             </button>
           ) : (
             <button className="btn btn--ghost" onClick={props.onSitOut} disabled={props.busy}>
-              <Coffee size={16} /> Sit out
+              <CoffeeIcon size={16} /> Sit out
             </button>
           )}
           {!busted && (
             <button className="btn btn--ghost" onClick={props.onAddChips} disabled={props.busy || seat.leaving}>
-              <Plus size={16} /> Chips
+              <PlusIcon size={16} /> Chips
             </button>
           )}
           <button className="btn btn--ghost" onClick={props.onStand} disabled={props.busy || seat.leaving}>
-            <LogOut size={16} /> {seat.leaving ? 'Leaving…' : 'Stand up'}
+            <SignOutIcon size={16} /> {seat.leaving ? 'Leaving…' : 'Stand up'}
           </button>
         </div>
       )}
@@ -231,7 +231,7 @@ function TurnControls({ state, mySeat, legal, busy, onAct, myCards }: Props) {
                 </span>
               )}
               <button className="icon-btn icon-btn--round" aria-label="Decrease" onClick={() => setAmount((v) => clamp(v - bb))}>
-                <Minus size={16} />
+                <MinusIcon size={16} />
               </button>
               <input
                 type="range"
@@ -249,7 +249,7 @@ function TurnControls({ state, mySeat, legal, busy, onAct, myCards }: Props) {
                 style={{ '--p': `${((amount - legal.minRaiseTo) / Math.max(1, legal.maxRaiseTo - legal.minRaiseTo)) * 100}%` } as React.CSSProperties}
               />
               <button className="icon-btn icon-btn--round" aria-label="Increase" onClick={() => setAmount((v) => clamp(v + bb))}>
-                <Plus size={16} />
+                <PlusIcon size={16} />
               </button>
               <input
                 className="raise__input"

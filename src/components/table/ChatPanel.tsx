@@ -1,10 +1,11 @@
 import clsx from 'clsx';
-import { ArrowDown, Send, ScrollText, MessageCircle } from 'lucide-react';
+import { HandWavingIcon, ArrowDownIcon, PaperPlaneRightIcon, ScrollIcon, ChatCircleIcon } from '@phosphor-icons/react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { LogEntry } from '../../../shared/poker/types';
 import type { ChatMessage } from '../../hooks/useTable';
 import { REACTIONS } from '../../../shared/economy';
 import { Emoji } from '../Emoji';
+import { Portrait } from '../Avatar';
 
 interface Props {
   chat: ChatMessage[];
@@ -76,21 +77,23 @@ export function ChatPanel({ chat, log, me, onSend, onReact, canChat }: Props) {
     <div className="chat">
       <div className="chat__tabs" role="tablist">
         <button role="tab" aria-selected={tab === 'chat'} className={clsx(tab === 'chat' && 'is-on')} onClick={() => setTab('chat')}>
-          <MessageCircle size={15} /> Chat
+          <ChatCircleIcon size={15} /> Chat
         </button>
         <button role="tab" aria-selected={tab === 'log'} className={clsx(tab === 'log' && 'is-on')} onClick={() => setTab('log')}>
-          <ScrollText size={15} /> Hand log
+          <ScrollIcon size={15} /> Hand log
         </button>
       </div>
       <div className="chat__list" ref={listRef} onScroll={onScroll}>
         {tab === 'chat' ? (
           chat.length === 0 ? (
-            <div className="chat__empty">Say hi to the table 👋</div>
+            <div className="chat__empty">
+              <HandWavingIcon size={18} weight="duotone" /> Say hi to the table
+            </div>
           ) : (
             chat.map((m) => (
               <div key={m.id} className={clsx('msg', m.user_id === me && 'msg--me')}>
                 <span className="msg__avatar" style={{ '--c': m.color } as React.CSSProperties}>
-                  <Emoji char={m.avatar} />
+                  <Portrait avatar={m.avatar} />
                 </span>
                 <div className="msg__body">
                   <span className="msg__name" style={{ color: m.color }}>
@@ -111,7 +114,7 @@ export function ChatPanel({ chat, log, me, onSend, onReact, canChat }: Props) {
       </div>
       {unseen && (
         <button className="chat__jump" onClick={() => toBottom(true)}>
-          <ArrowDown size={14} /> New {tab === 'chat' ? 'messages' : 'activity'}
+          <ArrowDownIcon size={14} /> New {tab === 'chat' ? 'messages' : 'activity'}
         </button>
       )}
       <div className="chat__reactions">
@@ -131,7 +134,7 @@ export function ChatPanel({ chat, log, me, onSend, onReact, canChat }: Props) {
           aria-label="Chat message"
         />
         <button className="icon-btn icon-btn--accent" disabled={!canChat || !text.trim() || sending} aria-label="Send">
-          <Send size={16} />
+          <PaperPlaneRightIcon size={16} />
         </button>
       </form>
     </div>

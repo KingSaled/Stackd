@@ -1,4 +1,5 @@
 import type { PublicState, SecretState } from '../shared/poker/types';
+import type { HandPayload } from './hands';
 
 export interface StoredTable {
   id: string;
@@ -27,6 +28,10 @@ export interface ProfileInfo {
   avatar: string;
   color: string;
   chips: number;
+  frame?: string | null;
+  backdrop?: string | null;
+  /** Undefined when the database predates terms tracking; null when not yet accepted. */
+  terms_version?: string | null;
 }
 
 export interface CreateTableInput {
@@ -51,4 +56,10 @@ export interface Repo {
   isMember(tableId: string, userId: string): Promise<boolean>;
   listTablesIdleSince(isoTime: string): Promise<string[]>;
   cleanup(): Promise<unknown>;
+  /** Store finished hands for stats, achievements and abuse checks (best effort). */
+  recordHands(hands: HandPayload[]): Promise<void>;
+  /** Tables where the player currently has a seat. */
+  tablesOf(userId: string): Promise<string[]>;
+  /** Permanently delete the login and (by cascade) every row that belongs to the player. */
+  deleteUser(userId: string): Promise<void>;
 }

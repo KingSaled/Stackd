@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowsClockwiseIcon, SparkleIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 
 const CHECK_EVERY_MS = 3 * 60 * 1000;
@@ -47,12 +47,12 @@ export function UpdateBanner() {
           exit={{ y: 40, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 380, damping: 30 }}
         >
-          <Sparkles size={16} />
+          <SparkleIcon size={16} />
           <span>
             <strong>A new version of Stackd is ready.</strong> Refresh when you're between hands — your seat and chips are safe.
           </span>
           <button className="btn btn--gold btn--sm" onClick={() => window.location.reload()}>
-            <RefreshCw size={14} /> Refresh
+            <ArrowsClockwiseIcon size={14} /> Refresh
           </button>
           <button className="link-btn" onClick={() => setHidden(true)}>
             Later

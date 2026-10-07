@@ -1,7 +1,7 @@
 /**
  * Stackd game API (Netlify Function).
  *
- * POST /.netlify/functions/api  { op: 'create' | 'table', ... }
+ * POST /.netlify/functions/api  { op: 'create' | 'table' | 'deleteAccount', ... }
  * Authorization: Bearer <Supabase access token>
  *
  * Every table mutation runs the authoritative poker engine server-side and is
@@ -9,7 +9,7 @@
  * Supabase Realtime.
  */
 import { HttpError, toErrorResponse } from '../../server/errors';
-import { createRoom, tableOp } from '../../server/service';
+import { createRoom, deleteAccount, tableOp } from '../../server/service';
 import { SupabaseRepo, authenticate, getAdminClient } from '../../server/supabase';
 
 const MAX_BODY = 16 * 1024;
@@ -55,6 +55,11 @@ export default async (req: Request) => {
       case 'table': {
         const result = await tableOp(repo, userId, body.roomId, body.action);
         return json(200, { ok: true, ...result, serverNow: Date.now() });
+      }
+      case 'deleteAccount': {
+        if (body.confirm !== 'DELETE') throw new HttpError(400, 'bad_request', 'Deletion was not confirmed');
+        await deleteAccount(repo, userId);
+        return json(200, { ok: true, serverNow: Date.now() });
       }
       default:
         throw new HttpError(400, 'bad_request', 'Unknown operation');

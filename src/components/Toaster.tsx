@@ -1,8 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle2, Info, Trophy } from 'lucide-react';
+import { WarningIcon, CheckCircleIcon, InfoIcon, TrophyIcon } from '@phosphor-icons/react';
 import { useToasts } from '../store/toast';
 
-const ICONS = { info: Info, success: CheckCircle2, error: AlertTriangle, win: Trophy };
+const ICONS = { info: InfoIcon, success: CheckCircleIcon, error: WarningIcon, win: TrophyIcon };
 
 export function Toaster() {
   const toasts = useToasts((s) => s.toasts);

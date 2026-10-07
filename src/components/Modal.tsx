@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { XIcon } from '@phosphor-icons/react';
 import { useEffect } from 'react';
 import clsx from 'clsx';
 
@@ -46,7 +46,7 @@ export function Modal({
             <div className="modal__head">
               {title && <h2 className="modal__title">{title}</h2>}
               <button className="icon-btn" onClick={onClose} aria-label="Close">
-                <X size={18} />
+                <XIcon size={18} />
               </button>
             </div>
             <div className="modal__body">{children}</div>

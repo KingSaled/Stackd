@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { motion } from 'framer-motion';
-import { ArrowRight, Bot, ChevronRight, Plus, RefreshCw, Users, Gift, Flame, Armchair, Lock, LogIn, Trophy } from 'lucide-react';
+import { ArrowRightIcon, RobotIcon, CaretRightIcon, PlusIcon, ArrowsClockwiseIcon, UsersIcon, GiftIcon, FireIcon, ArmchairIcon, LockIcon, SignInIcon, TrophyIcon } from '@phosphor-icons/react';
 import clsx from 'clsx';
 import { TopNav } from '../components/TopNav';
 import { CreateTableDialog } from '../components/CreateTableDialog';
 import { ChangelogModal } from '../components/ChangelogModal';
+import { LegalFooter } from '../components/LegalFooter';
 import { BrokeHelp } from '../components/BrokeHelp';
 import { Avatar } from '../components/Avatar';
 import { Emoji } from '../components/Emoji';
@@ -108,7 +109,7 @@ export function LobbyPage() {
                 transition={{ type: 'spring', stiffness: 320, damping: 20 }}
               >
                 {isChampion && <Emoji char="👑" className="home-hero__crown" label="Champion" />}
-                <Avatar emoji={profile.avatar} color={profile.color} size={56} />
+                <Avatar avatar={profile.avatar} color={profile.color} frame={profile.frame} backdrop={profile.backdrop} size={56} />
               </motion.div>
             )}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
@@ -151,18 +152,18 @@ export function LobbyPage() {
               }}
             >
               <span className="home-action__icon">
-                <Plus size={24} strokeWidth={2.6} />
+                <PlusIcon size={24} weight="bold" />
               </span>
               <span className="home-action__text">
                 <strong>Create table</strong>
                 <span>Your blinds, your rules. Invite friends with a link.</span>
               </span>
-              <ChevronRight className="home-action__go" size={22} />
+              <CaretRightIcon className="home-action__go" size={22} />
             </button>
 
             <form className="home-action home-action--join" onSubmit={joinCode}>
               <span className="home-action__icon">
-                <LogIn size={21} />
+                <SignInIcon size={21} />
               </span>
               <span className="home-action__text">
                 <label htmlFor="join-code">
@@ -182,7 +183,7 @@ export function LobbyPage() {
                   spellCheck={false}
                 />
                 <button className="btn btn--ghost" disabled={code.trim().length < 4}>
-                  Join <ArrowRight size={16} />
+                  Join <ArrowRightIcon size={16} />
                 </button>
               </div>
             </form>
@@ -192,7 +193,7 @@ export function LobbyPage() {
         {econ.broke && (
           <section className="panel panel--alert home-alert">
             <h2 className="home-panel__title">
-              <Flame size={18} /> Running low on chips
+              <FireIcon size={18} /> Running low on chips
             </h2>
             <p className="muted">
               You have {chips(econ.total)} chips in total. Grab your daily bonus or an emergency reload to get back in the game.
@@ -206,7 +207,7 @@ export function LobbyPage() {
             <section className="panel home-panel home-panel--seats">
               <header className="home-panel__head">
                 <h2 className="home-panel__title">
-                  <Armchair size={18} /> Your seats
+                  <ArmchairIcon size={18} /> Your seats
                   {mine.length > 0 && <span className="home-panel__count">{mine.length}</span>}
                 </h2>
               </header>
@@ -237,11 +238,11 @@ export function LobbyPage() {
             <section className="panel home-panel home-panel--open">
               <header className="home-panel__head">
                 <h2 className="home-panel__title">
-                  <Users size={18} /> Open tables
+                  <UsersIcon size={18} /> Open tables
                   {open.length > 0 && <span className="home-panel__count">{open.length}</span>}
                 </h2>
                 <button className="icon-btn" onClick={load} aria-label="Refresh tables" title="Refresh">
-                  <RefreshCw size={16} className={clsx(loading && 'spin')} />
+                  <ArrowsClockwiseIcon size={16} className={clsx(loading && 'spin')} />
                 </button>
               </header>
               {open.length === 0 ? (
@@ -261,7 +262,7 @@ export function LobbyPage() {
                               {t.name}
                               {t.bots && (
                                 <span className="table-row__tag">
-                                  <Bot size={12} /> Bots
+                                  <RobotIcon size={12} /> Bots
                                 </span>
                               )}
                             </span>
@@ -289,7 +290,7 @@ export function LobbyPage() {
             <section className="panel home-panel home-panel--bonus bonus">
               <header className="home-panel__head">
                 <h2 className="home-panel__title">
-                  <Gift size={18} /> Daily bonus
+                  <GiftIcon size={18} /> Daily bonus
                 </h2>
                 <span className="bonus__day">{econ.dailyReady ? `Day ${econ.nextStreak} ready` : `Day ${streak} claimed`}</span>
               </header>
@@ -315,7 +316,7 @@ export function LobbyPage() {
             <section className="panel home-panel home-panel--leaders">
               <header className="home-panel__head">
                 <h2 className="home-panel__title">
-                  <Trophy size={18} /> Leaderboard
+                  <TrophyIcon size={18} /> Leaderboard
                 </h2>
                 <span className="home-panel__hint">Total chips</span>
               </header>
@@ -325,7 +326,7 @@ export function LobbyPage() {
             {profile?.is_guest && (
               <section className="panel panel--note home-panel home-panel--guest">
                 <h2 className="home-panel__title">
-                  <Lock size={16} /> Playing as a guest
+                  <LockIcon size={16} /> Playing as a guest
                 </h2>
                 <p className="muted small">Save your account to keep your chips and stats on any device — and get on the leaderboard.</p>
                 <Link href="/profile" className="btn btn--ghost btn--block">
@@ -335,6 +336,7 @@ export function LobbyPage() {
             )}
           </aside>
         </div>
+        <LegalFooter />
       </main>
       <CreateTableDialog open={createOpen} onClose={() => setCreateOpen(false)} />
       <ChangelogModal />

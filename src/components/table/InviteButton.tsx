@@ -1,4 +1,4 @@
-import { Check, Link2, Share2 } from 'lucide-react';
+import { CheckIcon, LinkIcon, ShareNetworkIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { recallRoomPassword } from '../../lib/storage';
 import { toast } from '../../store/toast';
@@ -34,7 +34,7 @@ export function InviteButton({ roomId, roomName, compact }: { roomId: string; ro
   };
   return (
     <button className="btn btn--gold btn--sm invite-btn" onClick={onClick} aria-label="Invite friends">
-      {copied ? <Check size={16} /> : canShare ? <Share2 size={16} /> : <Link2 size={16} />}
+      {copied ? <CheckIcon size={16} /> : canShare ? <ShareNetworkIcon size={16} /> : <LinkIcon size={16} />}
       {!compact && <span>{copied ? 'Copied' : 'Invite'}</span>}
     </button>
   );

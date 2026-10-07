@@ -13,6 +13,8 @@ export interface Leader {
   hands_played: number;
   hands_won: number;
   biggest_pot: number;
+  frame?: string | null;
+  backdrop?: string | null;
 }
 
 const TOP = 10;
@@ -40,7 +42,7 @@ export function Leaderboard({ leaders, me }: { leaders: Leader[]; me?: string })
         </span>
         <div className="champion__avatar">
           <Emoji char="👑" className="champion__crown" label="Crown" />
-          <Avatar emoji={champ.avatar} color={champ.color} size={58} />
+          <Avatar avatar={champ.avatar} color={champ.color} frame={champ.frame} backdrop={champ.backdrop} size={58} />
         </div>
         <div className="champion__info">
           <span className="champion__label">{isMe ? 'Champion · you' : 'Champion'}</span>
@@ -83,7 +85,7 @@ function LeaderRow({ leader: l, rank, me }: { leader: Leader; rank: number; me?:
   return (
     <li className={clsx('leaders__row', rank <= 3 && `is-top${rank}`, l.id === me && 'is-me')}>
       <span className={clsx('leaders__rank', rank <= 3 && `medal medal--${rank}`)}>{rank}</span>
-      <Avatar emoji={l.avatar} color={l.color} size={30} />
+      <Avatar avatar={l.avatar} color={l.color} frame={l.frame} backdrop={l.backdrop} size={30} />
       <span className="leaders__name">
         {l.display_name}
         {l.id === me && <em>you</em>}

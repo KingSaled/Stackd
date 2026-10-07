@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Modal } from './Modal';
-import { Emoji } from './Emoji';
+import { NamedIcon } from './AchievementIcon';
 import { LATEST_CHANGELOG, unseenEntries, type ChangelogEntry } from '../changelog';
 import { useAuth } from '../store/auth';
 import { supabase } from '../lib/supabase';
@@ -73,7 +73,7 @@ export function ChangelogModal() {
                   transition={{ delay: 0.08 + Math.min(row++, 10) * 0.05, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                 >
                   <span className="changelog__icon">
-                    <Emoji char={it.icon} />
+                    <NamedIcon name={it.icon} size={18} />
                   </span>
                   <span>{it.text}</span>
                 </motion.li>

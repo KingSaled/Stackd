@@ -710,19 +710,30 @@ input[type='range']::-moz-range-thumb {
 
 /* ---------------------------------------------------------------- Avatar */
 
+/* Portrait, backdrop and frame layers live in cosmetics.css. */
 .avatar {
   position: relative;
-  display: inline-grid;
-  place-items: center;
+  /* Keeps frame layers inside the avatar so crowns and badges can sit on top. */
+  isolation: isolate;
+  display: inline-block;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #2c3656, #121829);
   box-shadow:
     0 0 0 2px var(--c),
     0 4px 12px rgba(0, 0, 0, 0.4);
   flex: none;
 }
 
-/* Bundled emoji images (see components/Emoji.tsx); size follows font-size. */
+.avatar--framed {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.avatar--glow:not(.avatar--framed) {
+  box-shadow:
+    0 0 0 3px var(--c),
+    0 0 40px color-mix(in srgb, var(--c) 45%, transparent);
+}
+
+/* Bundled emoji images (reactions; see components/Emoji.tsx); size follows font-size. */
 .emoji {
   display: block;
   width: 1em;
@@ -738,17 +749,6 @@ input[type='range']::-moz-range-thumb {
   height: auto;
   line-height: 1;
   text-align: center;
-}
-
-.avatar__emoji {
-  width: 1.15em;
-  height: 1.15em;
-}
-
-.avatar--glow {
-  box-shadow:
-    0 0 0 3px var(--c),
-    0 0 40px color-mix(in srgb, var(--c) 45%, transparent);
 }
 
 /* ---------------------------------------------------------------- Playing cards */

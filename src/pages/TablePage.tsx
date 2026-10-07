@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, Lock, MessageCircle, X } from 'lucide-react';
+import { ArrowLeftIcon, LockIcon, ChatCircleIcon, XIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import confetti from 'canvas-confetti';
@@ -151,7 +151,7 @@ export function TablePage({ id }: { id: string }) {
             }}
           >
             <div className="gate__lock">
-              <Lock size={22} />
+              <LockIcon size={22} />
             </div>
             <h2>{preview.name}</h2>
             <p className="muted">
@@ -378,12 +378,12 @@ function TableRoom({ roomId }: { roomId: string }) {
     <div className={clsx('table-page', wide && 'table-page--wide')}>
       <header className="table-top">
         <button className="icon-btn" onClick={leave} aria-label="Leave table">
-          <ArrowLeft size={18} />
+          <ArrowLeftIcon size={18} />
         </button>
         <div className="table-top__title">
           <span className="table-top__name">
             {name}
-            {t.meta?.hasPassword && <Lock size={12} />}
+            {t.meta?.hasPassword && <LockIcon size={12} />}
           </span>
           <span className="table-top__meta">
             <span className={clsx('dot', t.connection === 'live' ? 'dot--live' : 'dot--warn')} />
@@ -397,7 +397,7 @@ function TableRoom({ roomId }: { roomId: string }) {
           <InviteButton roomId={roomId} roomName={name} compact={!wide} />
           {!wide && (
             <button className="icon-btn badge-host" onClick={() => setChatOpen(true)} aria-label="Open chat">
-              <MessageCircle size={18} />
+              <ChatCircleIcon size={18} />
               {unread > 0 && <span className="badge">{unread > 9 ? '9+' : unread}</span>}
             </button>
           )}
@@ -469,7 +469,7 @@ function TableRoom({ roomId }: { roomId: string }) {
               <div className="sheet__head">
                 <span className="sheet__grip" />
                 <button className="icon-btn" onClick={() => setChatOpen(false)} aria-label="Close chat">
-                  <X size={18} />
+                  <XIcon size={18} />
                 </button>
               </div>
               {chat}

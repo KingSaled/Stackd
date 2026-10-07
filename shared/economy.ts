@@ -20,13 +20,6 @@ export function dailyBonusFor(streak: number): number {
   return ECONOMY.dailyBonusBase + (s - 1) * ECONOMY.dailyBonusStreakStep;
 }
 
-export const AVATARS = [
-  '🦊', '🐺', '🦁', '🐯', '🐼', '🐸', '🐙', '🦄',
-  '🐲', '🦈', '🦉', '🐻', '🐵', '🐧', '🦝', '🐨',
-  '👽', '🤖', '👑', '🎩', '💎', '🔥', '⚡', '🍀',
-  '🎲', '🃏', '🚀', '🌙', '😎', '🤠', '🥷', '👻',
-];
-
 export const COLORS = [
   '#f5c451', '#ff6b6b', '#ff8e3c', '#ffd93d', '#6bcb77', '#3ef0a8',
   '#4dd4ff', '#4d8bff', '#8f6bff', '#d46bff', '#ff6bcb', '#e8e8f0',

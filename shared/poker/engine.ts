@@ -17,6 +17,7 @@ import {
   BETTING_PHASES,
   type Effects,
   type EngineState,
+  type HandRecord,
   type HandResult,
   type LegalActions,
   type LogKind,
@@ -62,6 +63,8 @@ export interface PlayerIdentity {
   name: string;
   avatar: string;
   color: string;
+  frame?: string | null;
+  backdrop?: string | null;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -316,6 +319,8 @@ function newSeat(player: PlayerIdentity, stack: number, now: number, isBot = fal
     name: player.name,
     avatar: player.avatar,
     color: player.color,
+    ...(player.frame ? { frame: player.frame } : {}),
+    ...(player.backdrop ? { backdrop: player.backdrop } : {}),
     stack,
     bet: 0,
     committed: 0,
@@ -404,7 +409,15 @@ export function sitDown(
     if (occupant.reservedFor) throw new GameError('seat_taken', 'Someone already claimed that seat');
     if (isBettingPhase(s.phase) && occupant.inHand) {
       // The bot finishes the current hand; the player takes over when it ends.
-      occupant.reservedFor = { userId: player.userId, name: player.name, avatar: player.avatar, color: player.color, buyIn };
+      occupant.reservedFor = {
+        userId: player.userId,
+        name: player.name,
+        avatar: player.avatar,
+        color: player.color,
+        frame: player.frame ?? null,
+        backdrop: player.backdrop ?? null,
+        buyIn,
+      };
       walletDelta(fx, player.userId, -buyIn);
       addLog(s, 'info', `${player.name} will take ${occupant.name}'s seat after this hand`, now);
       finalize(s, fx, now);
@@ -523,10 +536,21 @@ export function updateIdentity(s: EngineState, player: PlayerIdentity): boolean 
   const i = seatIndexOf(s, player.userId);
   if (i < 0) return false;
   const seat = seatAt(s, i);
-  if (seat.name === player.name && seat.avatar === player.avatar && seat.color === player.color) return false;
+  const frame = player.frame ?? null;
+  const backdrop = player.backdrop ?? null;
+  if (
+    seat.name === player.name &&
+    seat.avatar === player.avatar &&
+    seat.color === player.color &&
+    (seat.frame ?? null) === frame &&
+    (seat.backdrop ?? null) === backdrop
+  )
+    return false;
   seat.name = player.name;
   seat.avatar = player.avatar;
   seat.color = player.color;
+  seat.frame = frame;
+  seat.backdrop = backdrop;
   return true;
 }
 
@@ -543,6 +567,8 @@ function resetSeatForHand(seat: Seat) {
   seat.hasActed = false;
   seat.actedLevel = 0;
   seat.lastAction = null;
+  seat.vpip = false;
+  seat.pfr = false;
 }
 
 /** Clean up after a hand and deal the next one if at least two players can play. */
@@ -651,6 +677,12 @@ function performAction(s: EngineState, i: number, action: PlayerAction, now: num
   const seat = seatAt(s, i);
   const toCall = Math.max(0, s.currentBet - seat.bet);
   const tag = auto ? ' (auto)' : '';
+  if (s.phase === 'preflop' && !auto) {
+    // Voluntary money before the flop (blinds don't count); bets and raises also count as PFR.
+    const raising = action.type === 'bet' || action.type === 'raise' || (action.type === 'allin' && seat.bet + seat.stack > s.currentBet);
+    if (raising || action.type === 'call' || action.type === 'allin') seat.vpip = true;
+    if (raising) seat.pfr = true;
+  }
   switch (action.type) {
     case 'fold': {
       seat.folded = true;
@@ -883,6 +915,24 @@ function finishHand(
   const runoutStreets = s.runoutFrom == null ? 0 : s.runoutFrom === 0 ? 3 : s.runoutFrom === 3 ? 2 : s.runoutFrom === 4 ? 1 : 0;
 
   const result: HandResult = { handNo: s.handNo, uncontested, pots, payouts: [], hands };
+  const shownCategory = new Map(hands.map((h) => [h.seat, h.category]));
+  const record: HandRecord = { handNo: s.handNo, bigBlind: s.config.bigBlind, uncontested, players: [] };
+  s.seats.forEach((seat, i) => {
+    if (!seat || !seat.inHand) return;
+    record.players.push({
+      userId: seat.userId,
+      isBot: !!seat.isBot,
+      startStack: seat.stack + seat.committed,
+      committed: seat.committed,
+      won: payouts.get(i) ?? 0,
+      folded: seat.folded,
+      allIn: seat.allIn,
+      category: shownCategory.get(i) ?? -1,
+      vpip: !!seat.vpip,
+      pfr: !!seat.pfr,
+    });
+  });
+  fx.hands.push(record);
   for (const [i, amount] of payouts) {
     const seat = seatAt(s, i);
     seat.stack += amount;

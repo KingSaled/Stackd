@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { RealtimeChannel, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { syncClock } from '../lib/clock';
+import { deviceId } from '../lib/device';
 
 export interface Profile {
   id: string;
@@ -21,6 +22,12 @@ export interface Profile {
   created_at: string;
   /** Newest changelog entry this player has dismissed (null until the schema adds it). */
   last_seen_changelog?: string | null;
+  /** Accepted Terms of Service version (undefined if the schema predates it). */
+  terms_version?: string | null;
+  terms_accepted_at?: string | null;
+  /** Equipped Cosmetic Shop items. */
+  frame?: string | null;
+  backdrop?: string | null;
 }
 
 interface AuthState {
@@ -70,6 +77,11 @@ export const useAuth = create<AuthState>((set, get) => ({
       if (prevUser !== session.user.id || !get().profile) {
         await get().refreshProfile();
         void get().refreshSeated();
+        // Lets the server link accounts that share a device (anti-abuse; stored as a hash).
+        void supabase.rpc('touch_device', { p_device: deviceId() }).then(
+          () => undefined,
+          () => undefined,
+        );
         if (channel) void supabase.removeChannel(channel);
         channel = supabase
           .channel(`profile:${session.user.id}`)

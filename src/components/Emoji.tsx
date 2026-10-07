@@ -1,12 +1,13 @@
 import clsx from 'clsx';
-import { AVATARS, REACTIONS } from '../../shared/economy';
+import { REACTIONS } from '../../shared/economy';
 
 /**
  * Emoji rendered from bundled Fluent Emoji images (public/emoji) so every
  * device shows the same picture — native emoji fonts differ a lot between
  * iOS, Android and Windows. Unknown emoji fall back to the native glyph.
  */
-const BUNDLED = new Set([...AVATARS, ...REACTIONS].map(strip));
+/** Reactions plus the champion's crown. */
+const BUNDLED = new Set([...REACTIONS, '👑'].map(strip));
 
 function strip(s: string) {
   return s.replace(/️/g, '');

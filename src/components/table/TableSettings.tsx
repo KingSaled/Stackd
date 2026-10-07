@@ -1,6 +1,7 @@
-import { Settings2 } from 'lucide-react';
+import { GearSixIcon } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { useSettings } from '../../store/settings';
+import { MIN_AGE } from '../../legal';
 
 export function TableSettings() {
   const [open, setOpen] = useState(false);
@@ -15,7 +16,7 @@ export function TableSettings() {
   return (
     <div className="sound-control" ref={ref}>
       <button className="icon-btn" aria-label="Table settings" onClick={() => setOpen((o) => !o)}>
-        <Settings2 size={18} />
+        <GearSixIcon size={18} />
       </button>
       {open && (
         <div className="popover settings-pop">
@@ -30,6 +31,16 @@ export function TableSettings() {
             Show my hand strength
           </label>
           <p className="muted small">Shortcuts: F fold · C check/call · R raise · Enter confirm</p>
+          <p className="muted small settings-pop__legal">
+            Play money only · {MIN_AGE}+ ·{' '}
+            <a href="/terms" target="_blank" rel="noreferrer">
+              Terms
+            </a>{' '}
+            ·{' '}
+            <a href="/privacy" target="_blank" rel="noreferrer">
+              Privacy
+            </a>
+          </p>
         </div>
       )}
     </div>

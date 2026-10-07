@@ -3,6 +3,7 @@ import { GameError } from '../shared/poker/engine';
 import type { SecretState } from '../shared/poker/types';
 import { HttpError, VersionConflict } from './errors';
 import type { CommitPayload, CreateTableInput, ProfileInfo, Repo, StoredTable } from './repo';
+import type { HandPayload } from './hands';
 
 function env(...names: string[]): string | undefined {
   for (const n of names) {
@@ -97,7 +98,8 @@ export class SupabaseRepo implements Repo {
       version: data.version,
       hasPassword: !!data.has_password,
       state: data.state,
-      secret: { deck: secret.deck ?? [], hole: secret.hole ?? {} },
+      // Keep the bots' hidden skill levels: dropping them made every bot play the default brain.
+      secret: { deck: secret.deck ?? [], hole: secret.hole ?? {}, bots: secret.bots ?? {} },
     };
   }
 
@@ -142,13 +144,20 @@ export class SupabaseRepo implements Repo {
   }
 
   async getProfile(userId: string): Promise<ProfileInfo | null> {
-    const { data, error } = await this.db
-      .from('profiles')
-      .select('id, display_name, avatar, color, chips')
-      .eq('id', userId)
-      .maybeSingle();
+    // `*` so the lookup keeps working whether or not the newest schema columns exist yet.
+    const { data, error } = await this.db.from('profiles').select('*').eq('id', userId).maybeSingle();
     if (error) throw new Error(`profile lookup failed: ${messageOf(error)}`);
-    return data ? { ...data, chips: Number(data.chips) } : null;
+    if (!data) return null;
+    return {
+      id: data.id,
+      display_name: data.display_name,
+      avatar: data.avatar,
+      color: data.color,
+      chips: Number(data.chips),
+      frame: data.frame ?? null,
+      backdrop: data.backdrop ?? null,
+      ...('terms_version' in data ? { terms_version: data.terms_version ?? null } : {}),
+    };
   }
 
   async isMember(tableId: string, userId: string): Promise<boolean> {
@@ -171,6 +180,23 @@ export class SupabaseRepo implements Repo {
       .limit(200);
     if (error) throw new Error(`idle table lookup failed: ${messageOf(error)}`);
     return (data ?? []).map((r) => r.id as string);
+  }
+
+  async recordHands(hands: HandPayload[]): Promise<void> {
+    if (hands.length === 0) return;
+    const { error } = await this.db.rpc('record_hands', { p_hands: hands });
+    if (error) throw new Error(`record_hands failed: ${messageOf(error)}`);
+  }
+
+  async tablesOf(userId: string): Promise<string[]> {
+    const { data, error } = await this.db.from('table_seats').select('table_id').eq('user_id', userId);
+    if (error) throw new Error(`seat lookup failed: ${messageOf(error)}`);
+    return (data ?? []).map((r) => r.table_id as string);
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    const { error } = await this.db.auth.admin.deleteUser(userId);
+    if (error) throw new Error(`account deletion failed: ${messageOf(error)}`);
   }
 
   async cleanup(): Promise<unknown> {
