@@ -153,7 +153,6 @@ export interface CreateRoomInput {
   name?: unknown;
   config?: Partial<TableConfig>;
   password?: unknown;
-  listed?: unknown;
 }
 
 export async function createRoom(repo: Repo, userId: string, input: CreateRoomInput, opts: ServiceOptions = {}) {
@@ -166,7 +165,8 @@ export async function createRoom(repo: Repo, userId: string, input: CreateRoomIn
   name = name.slice(0, 40);
   const password = typeof input.password === 'string' && input.password.length > 0 ? input.password : null;
   if (password && password.length > 64) throw new GameError('bad_config', 'Password is too long');
-  const listed = input.listed === true && !password;
+  // Every table is public (listed in the lobby) unless it has a password.
+  const listed = !password;
 
   const now = (opts.now ?? Date.now)();
   const state = createInitialState(config, now);

@@ -14,6 +14,7 @@ import { SetupPage } from './pages/SetupPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { TermsGate } from './components/TermsGate';
 import { AchievementWatcher } from './components/AchievementWatcher';
+import { OnlinePresence } from './components/OnlinePresence';
 
 // Less-visited pages load on demand to keep the first download small.
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
@@ -55,6 +56,7 @@ function Routes() {
     <>
       {session && <TermsGate />}
       {session && <AchievementWatcher />}
+      {session && <OnlinePresence userId={session.user.id} />}
       <Suspense fallback={<Splash />}>
       <Switch>
       <Route path="/auth" component={AuthPage} />

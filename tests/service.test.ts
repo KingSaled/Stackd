@@ -6,7 +6,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import type { PGlite } from '@electric-sql/pglite';
 import { createDb } from './pglite';
 import { GameError, VersionConflict } from '../server/errors';
-import type { CommitPayload, CreateTableInput, ProfileInfo, Repo, StoredTable } from '../server/repo';
+import type { CatalogRows, CommitPayload, CreateTableInput, ProfileInfo, Repo, StoredTable } from '../server/repo';
+import { syncCatalog } from '../server/catalog';
 import { createRoom, deleteAccount, runJanitor, tableOp, JANITOR } from '../server/service';
 import { blackjackOp, createBlackjackRoom } from '../server/blackjack';
 import type { BjPublicState } from '../shared/blackjack';
@@ -103,6 +104,18 @@ class PgliteRepo implements Repo {
   }
   async cleanup() {
     return (await this.db.query('select public.cleanup_stale_data() as r')).rows[0];
+  }
+  async upsertCatalog(rows: CatalogRows): Promise<void> {
+    for (const c of rows.cosmetics)
+      await this.db.query(
+        'insert into public.cosmetics (id, kind, price, tier) values ($1, $2, $3, $4) on conflict (id) do update set kind = excluded.kind, price = excluded.price, tier = excluded.tier',
+        [c.id, c.kind, c.price, c.tier],
+      );
+    for (const a of rows.achievements)
+      await this.db.query(
+        'insert into public.achievements (id, counter, target, reward) values ($1, $2, $3, $4) on conflict (id) do update set counter = excluded.counter, target = excluded.target, reward = excluded.reward',
+        [a.id, a.counter, a.target, a.reward],
+      );
   }
 }
 
@@ -342,9 +355,9 @@ describe('blackjack service (with real SQL)', () => {
   const bj = (user: string, action: Record<string, unknown>) => blackjackOp(repo, user, room, action, opts);
   const load = async () => (await repo.loadTable(room))!.state as unknown as BjPublicState;
 
-  it('creates a listed blackjack table that the lobby can tell apart', async () => {
+  it('creates a public blackjack table that the lobby can tell apart', async () => {
     await db.query('update public.profiles set chips = 10000 where id in ($1, $2)', [A, B]);
-    room = (await createBlackjackRoom(repo, A, { name: 'Twenty-one', config: { turnSeconds: 20 }, listed: true }, opts)).roomId;
+    room = (await createBlackjackRoom(repo, A, { name: 'Twenty-one', config: { turnSeconds: 20 } }, opts)).roomId;
     const r = await db.query<{ game: string; config: { turnSeconds: number; maxSeats: number } }>('select game, config from public.tables where id = $1', [room]);
     expect(r.rows[0].game).toBe('blackjack');
     expect(r.rows[0].config.turnSeconds).toBe(20);
@@ -424,5 +437,39 @@ describe('blackjack service (with real SQL)', () => {
     await deleteAccount(repo, A, opts);
     const st = await load();
     expect(st.seats.filter(Boolean).map((x) => x!.userId)).toEqual([B]);
+  });
+});
+
+describe('shop catalog sync', () => {
+  const buyAs = async (user: string, id: string) => {
+    await db.exec(`select set_config('request.jwt.claim.sub', '${user}', false)`);
+    try {
+      return (await db.query<{ r: { ok: boolean; reason?: string } }>('select public.buy_cosmetic($1) as r', [id])).rows[0].r;
+    } finally {
+      await db.exec(`select set_config('request.jwt.claim.sub', '', false)`);
+    }
+  };
+
+  it('adds shop items the database is missing, so buying them works without re-running the schema', async () => {
+    // A database set up before Storm Front existed.
+    await db.query(`delete from public.cosmetics where id = 'bg-storm'`);
+    await db.query(`delete from public.achievements where id = 'wins_500'`);
+    await db.query(`update public.profiles set chips = 100000 where id = $1`, [C]);
+    expect((await buyAs(C, 'bg-storm')).reason).toBe('not_found');
+
+    const r = await syncCatalog(repo);
+    expect(r.cosmetics).toBe(20);
+    const rows = await db.query<{ id: string; price: string; tier: number }>(`select id, price, tier from public.cosmetics where id = 'bg-storm'`);
+    expect(rows.rows[0]).toMatchObject({ id: 'bg-storm', tier: 3 });
+    expect(Number(rows.rows[0].price)).toBe(25000);
+    expect((await db.query(`select 1 from public.achievements where id = 'wins_500'`)).rows.length).toBe(1);
+
+    const bought = await buyAs(C, 'bg-storm');
+    expect(bought.ok).toBe(true);
+    // 25,000 for the item, plus the 1,000 reward for a first purchase.
+    expect(await chips(C)).toBe(76000);
+    // Running it again changes nothing.
+    await syncCatalog(repo);
+    expect(Number((await db.query<{ n: number }>('select count(*)::int n from public.cosmetics')).rows[0].n)).toBe(20);
   });
 });

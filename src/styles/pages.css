@@ -103,6 +103,11 @@
 }
 
 /* Hold'em / Blackjack switch */
+/* Game switch (and, on phones, the online count beside it). */
+.topnav__games {
+  display: contents;
+}
+
 .game-switch {
   display: inline-flex;
   gap: 3px;
@@ -223,10 +228,20 @@
     order: 2;
   }
 
-  .game-switch {
+  .topnav__games {
     order: 3;
     flex-basis: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
   }
+
+  .game-switch {
+    flex: 1;
+    min-width: 0;
+  }
+
 
   .game-pill {
     flex: 1;
@@ -496,6 +511,162 @@
   transform: translateX(3px);
 }
 
+/* Create table and Quick play share the left slot at half height each, matching the Join panel beside them. */
+.home-actions__stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.home-action--half {
+  min-height: 0;
+  padding: 10px 14px;
+  gap: 2px 12px;
+  border-radius: 16px;
+}
+
+.home-action--half .home-action__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+}
+
+.home-action--half .home-action__text strong {
+  font-size: 1.04rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-action--half .home-action__text > span {
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Quick play: the whole card plays; the gear opens its settings. */
+.home-action--quick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 0 0;
+  border-color: rgba(124, 247, 198, 0.7);
+  background:
+    radial-gradient(ellipse 80% 120% at 0% 0%, rgba(255, 255, 255, 0.32), transparent 60%),
+    linear-gradient(180deg, #7cf7c6, #3ef0a8 45%, #19b97c);
+  color: #03281a;
+  box-shadow:
+    0 12px 30px rgba(62, 240, 168, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.home-action--quick:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.04);
+}
+
+.home-action--quick:has(.home-action__main:active) {
+  transform: translateY(1px) scale(0.99);
+}
+
+.home-action__main {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0 10px 14px;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  border-radius: 16px 0 0 16px;
+}
+
+.home-action__main:disabled {
+  cursor: progress;
+}
+
+.home-action--quick .home-action__icon {
+  background: #03281a;
+  color: #7cf7c6;
+  box-shadow: 0 6px 14px rgba(0, 60, 35, 0.35);
+}
+
+.home-action--quick.is-busy .home-action__icon svg {
+  animation: quick-pulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes quick-pulse {
+  to {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+}
+
+.home-action--quick .home-action__text > span {
+  color: rgba(3, 40, 26, 0.75);
+}
+
+.home-action__gear {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(3, 40, 26, 0.18);
+  background: rgba(3, 40, 26, 0.12);
+  color: #03281a;
+  transition:
+    background 0.15s,
+    transform 0.3s ease;
+}
+
+.home-action__gear:hover {
+  background: rgba(3, 40, 26, 0.22);
+  transform: rotate(45deg);
+}
+
+.quick-intro {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(62, 240, 168, 0.3);
+  background: rgba(62, 240, 168, 0.07);
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.quick-intro svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--mint);
+}
+
+.quick-intro strong {
+  color: var(--text);
+}
+
+.quick-note {
+  margin: -4px 0 0;
+  text-align: center;
+}
+
+.quick-foot__buttons {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 10px;
+}
+
 .home-action--join {
   grid-template-columns: auto minmax(0, 1fr);
   grid-template-areas:
@@ -583,6 +754,26 @@
     width: 42px;
     height: 42px;
     border-radius: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .home-action.home-action--half {
+    padding: 10px 12px;
+    border-radius: 16px;
+  }
+
+  .home-action.home-action--quick {
+    padding: 0 8px 0 0;
+  }
+
+  .home-action--quick .home-action__main {
+    padding: 10px 0 10px 12px;
+  }
+
+  .home-action--half .home-action__icon {
+    width: 38px;
+    height: 38px;
   }
 }
 
@@ -2592,6 +2783,69 @@
   display: none;
 }
 
+/* Players online now: green dot, count and (on wider screens) the word "online". */
+.online-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 13px;
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--text-dim);
+  background: rgba(62, 240, 168, 0.07);
+  border: 1px solid rgba(62, 240, 168, 0.28);
+}
+
+.online-pill strong {
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.online-pill__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 0 3px rgba(62, 240, 168, 0.18);
+  animation: online-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes online-pulse {
+  50% {
+    box-shadow: 0 0 0 5px rgba(62, 240, 168, 0.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .online-pill__dot {
+    animation: none;
+  }
+}
+
+.online-pill.online-pill--row {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .online-pill.online-pill--bar {
+    display: none;
+  }
+
+  .online-pill.online-pill--row {
+    display: inline-flex;
+    flex: none;
+    height: auto;
+    align-self: stretch;
+    padding: 0 12px;
+  }
+}
+
 @media (max-width: 760px) {
   .shop-pill__full {
     display: none;
@@ -2599,6 +2853,15 @@
 
   .shop-pill__short {
     display: inline;
+  }
+
+  .online-pill__label {
+    display: none;
+  }
+
+  .online-pill {
+    gap: 6px;
+    padding: 0 11px;
   }
 }
 

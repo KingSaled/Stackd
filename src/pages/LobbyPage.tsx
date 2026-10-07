@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { motion } from 'framer-motion';
-import { ArrowRightIcon, RobotIcon, CaretRightIcon, PlusIcon, ArrowsClockwiseIcon, UsersIcon, GiftIcon, FireIcon, ArmchairIcon, LockIcon, SignInIcon, TrophyIcon } from '@phosphor-icons/react';
+import { ArrowRightIcon, RobotIcon, CaretRightIcon, PlusIcon, ArrowsClockwiseIcon, UsersIcon, GiftIcon, FireIcon, ArmchairIcon, LockIcon, SignInIcon, TrophyIcon, LightningIcon, GearSixIcon } from '@phosphor-icons/react';
 import clsx from 'clsx';
 import { TopNav } from '../components/TopNav';
 import { CreateTableDialog } from '../components/CreateTableDialog';
 import { CreateBlackjackDialog } from '../components/CreateBlackjackDialog';
+import { QuickPlayDialog } from '../components/QuickPlayDialog';
+import { pokerSetupSummary } from '../components/PokerSetupFields';
+import { useQuickPlay, type BlackjackQuickPlay, type PokerQuickPlay } from '../store/quickplay';
+import { quickPlayRoom } from '../lib/quickplay';
+import { quickBuyInNeeded } from '../lib/quickMatch';
+import { toast } from '../store/toast';
 import { useGameMode } from '../store/game';
 import { ChangelogModal } from '../components/ChangelogModal';
 import { LegalFooter } from '../components/LegalFooter';
@@ -58,6 +64,8 @@ export function LobbyPage() {
   const me = useAuth((s) => s.session?.user.id);
   const [, navigate] = useLocation();
   const [createOpen, setCreateOpen] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickBusy, setQuickBusy] = useState(false);
   const [code, setCode] = useState('');
   const [mine, setMine] = useState<MyTable[]>([]);
   const [open, setOpen] = useState<OpenTable[]>([]);
@@ -89,6 +97,33 @@ export function LobbyPage() {
     const id = setInterval(load, 30_000);
     return () => clearInterval(id);
   }, [load]);
+
+  // Quick play: straight to a seat with the saved settings (asks for them the first time).
+  const quick = useQuickPlay((q) => (bj ? q.blackjack : q.holdem));
+  const quickSummary = !quick ? 'Your game in one tap' : bj ? `Blackjack · ${(quick as BlackjackQuickPlay).timer}s turns` : pokerSetupSummary(quick as PokerQuickPlay);
+  const startQuick = async (prefs: PokerQuickPlay | BlackjackQuickPlay) => {
+    const wallet = useAuth.getState().profile?.chips ?? 0;
+    if (!bj && wallet < quickBuyInNeeded(prefs as PokerQuickPlay)) {
+      toast.error(`You need ${chips(quickBuyInNeeded(prefs as PokerQuickPlay))} chips for your Quick play stakes. Pick lower blinds in the settings.`);
+      setQuickOpen(true);
+      return;
+    }
+    setQuickBusy(true);
+    try {
+      const id = await quickPlayRoom(mode, prefs, wallet);
+      sound.play('chips', { count: 4 });
+      navigate(`/t/${id}?quick=1`);
+    } catch (e) {
+      toast.error((e as Error).message || 'Quick play failed');
+      sound.play('error');
+      setQuickBusy(false);
+    }
+  };
+  const quickPlay = () => {
+    sound.play('click');
+    if (quick) void startQuick(quick);
+    else setQuickOpen(true);
+  };
 
   const joinCode = (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,22 +194,47 @@ export function LobbyPage() {
           </div>
 
           <div className="home-actions">
-            <button
-              className="home-action home-action--create"
-              onClick={() => {
-                sound.play('click');
-                setCreateOpen(true);
-              }}
-            >
-              <span className="home-action__icon">
-                <PlusIcon size={24} weight="bold" />
-              </span>
-              <span className="home-action__text">
-                <strong>{bj ? 'Open a blackjack table' : 'Create table'}</strong>
-                <span>{bj ? 'Up to 6 players against the house. Invite friends with a link.' : 'Your blinds, your rules. Invite friends with a link.'}</span>
-              </span>
-              <CaretRightIcon className="home-action__go" size={22} />
-            </button>
+            <div className="home-actions__stack">
+              <button
+                className="home-action home-action--half home-action--create"
+                onClick={() => {
+                  sound.play('click');
+                  setCreateOpen(true);
+                }}
+              >
+                <span className="home-action__icon">
+                  <PlusIcon size={20} weight="bold" />
+                </span>
+                <span className="home-action__text">
+                  <strong>{bj ? 'Open a blackjack table' : 'Create table'}</strong>
+                  <span>{bj ? '6 seats against the house' : 'Your blinds, your rules'}</span>
+                </span>
+                <CaretRightIcon className="home-action__go" size={20} />
+              </button>
+
+              <div className={clsx('home-action home-action--half home-action--quick', quickBusy && 'is-busy')}>
+                <button className="home-action__main" onClick={quickPlay} disabled={quickBusy} aria-label={`Quick play ${bj ? 'blackjack' : "Hold'em"}`}>
+                  <span className="home-action__icon">
+                    <LightningIcon size={20} weight="fill" />
+                  </span>
+                  <span className="home-action__text">
+                    <strong>{quickBusy ? 'Finding a seat…' : 'Quick play'}</strong>
+                    <span>{quickSummary}</span>
+                  </span>
+                </button>
+                <button
+                  className="home-action__gear"
+                  onClick={() => {
+                    sound.play('click');
+                    setQuickOpen(true);
+                  }}
+                  aria-label="Quick play settings"
+                  title="Quick play settings"
+                >
+                  <GearSixIcon size={20} weight="bold" />
+                </button>
+              </div>
+            </div>
 
             <form className="home-action home-action--join" onSubmit={joinCode}>
               <span className="home-action__icon">
@@ -262,8 +322,7 @@ export function LobbyPage() {
               </header>
               {openHere.length === 0 ? (
                 <p className="muted empty">
-                  No public {bj ? 'blackjack ' : ''}tables right now. Tables are private by default — tick "List in the lobby" when
-                  creating one to show it here.
+                  No open {bj ? 'blackjack ' : ''}tables right now. Hit Quick play or create one: every table without a password shows up here.
                 </p>
               ) : (
                 <ul className="table-list">
@@ -375,6 +434,7 @@ export function LobbyPage() {
       </main>
       <CreateTableDialog open={createOpen && !bj} onClose={() => setCreateOpen(false)} />
       <CreateBlackjackDialog open={createOpen && bj} onClose={() => setCreateOpen(false)} />
+      <QuickPlayDialog open={quickOpen} game={mode} onClose={() => setQuickOpen(false)} onPlay={(p) => void startQuick(p)} />
       <ChangelogModal />
     </div>
   );

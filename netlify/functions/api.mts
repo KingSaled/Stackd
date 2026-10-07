@@ -1,7 +1,7 @@
 /**
  * Stackd game API (Netlify Function).
  *
- * POST /.netlify/functions/api  { op: 'create' | 'table' | 'deleteAccount', game?: 'blackjack', ... }
+ * POST /.netlify/functions/api  { op: 'create' | 'table' | 'syncCatalog' | 'deleteAccount', game?: 'blackjack', ... }
  * Authorization: Bearer <Supabase access token>
  *
  * Every table mutation runs the authoritative poker engine server-side and is
@@ -11,6 +11,7 @@
 import { HttpError, toErrorResponse } from '../../server/errors';
 import { createRoom, deleteAccount, tableOp } from '../../server/service';
 import { blackjackOp, createBlackjackRoom } from '../../server/blackjack';
+import { syncCatalog } from '../../server/catalog';
 import { SupabaseRepo, authenticate, getAdminClient } from '../../server/supabase';
 
 const MAX_BODY = 16 * 1024;
@@ -50,7 +51,6 @@ export default async (req: Request) => {
             name: body.name,
             config: (body.config ?? {}) as Record<string, unknown>,
             password: body.password,
-            listed: body.listed,
           });
           return json(200, { ok: true, ...result, serverNow: Date.now() });
         }
@@ -58,7 +58,6 @@ export default async (req: Request) => {
           name: body.name,
           config: (body.config ?? {}) as Record<string, number>,
           password: body.password,
-          listed: body.listed,
         });
         return json(200, { ok: true, ...result, serverNow: Date.now() });
       }
@@ -68,6 +67,11 @@ export default async (req: Request) => {
           body.game === 'blackjack'
             ? await blackjackOp(repo, userId, body.roomId, body.action)
             : await tableOp(repo, userId, body.roomId, body.action);
+        return json(200, { ok: true, ...result, serverNow: Date.now() });
+      }
+      case 'syncCatalog': {
+        // Copies shop items and achievements from the code into the database (idempotent).
+        const result = await syncCatalog(repo);
         return json(200, { ok: true, ...result, serverNow: Date.now() });
       }
       case 'deleteAccount': {

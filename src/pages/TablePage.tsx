@@ -28,6 +28,7 @@ import { ApiError } from '../lib/api';
 import { seatPan, sound, vibrate } from '../lib/sound';
 import { blindsLabel, chips } from '../lib/format';
 import { recallRoomPassword, rememberRoomPassword } from '../lib/storage';
+import { clearQuickSeatIntent, hasQuickSeatIntent } from '../lib/quickplay';
 
 // Blackjack tables load their own (separately downloaded) room.
 const BlackjackRoom = lazy(() => import('./BlackjackRoom'));
@@ -314,6 +315,40 @@ function TableRoom({ roomId }: { roomId: string }) {
     },
     [t],
   );
+
+  // Sent here by Quick play: sit straight down with the full buy-in (or what the wallet allows).
+  const quickSeat = useRef(hasQuickSeatIntent());
+  useEffect(() => clearQuickSeatIntent(), []);
+  useEffect(() => {
+    if (!quickSeat.current || !state || !profile) return;
+    quickSeat.current = false;
+    if (mySeat >= 0 || claimIdx >= 0) return;
+    const buyIn = Math.min(state.config.maxBuyIn, profile.chips);
+    if (buyIn < state.config.minBuyIn) {
+      toast.error(`You need ${chips(state.config.minBuyIn)} chips to sit at this table`);
+      return;
+    }
+    // Empty seats first, then seats a bot can give up.
+    const empty = state.seats.flatMap((x, i) => (x ? [] : [i]));
+    const bots = state.seats.flatMap((x, i) => (x?.isBot && !x.reservedFor ? [i] : []));
+    void (async () => {
+      for (const i of [...empty, ...bots].slice(0, 4)) {
+        try {
+          const target = state.seats[i];
+          await t.send({ type: 'sit', seat: i, buyIn });
+          sound.play('chips', { count: 6 });
+          if (target?.isBot && isBettingPhase(state.phase) && target.inHand) toast.info(`Seat claimed — you'll be dealt in when this hand ends`);
+          return;
+        } catch (e) {
+          if ((e as ApiError).code !== 'seat_taken' && (e as ApiError).code !== 'stale') {
+            toast.error((e as Error).message);
+            return;
+          }
+        }
+      }
+      toast.info('This table just filled up. Pick an open seat or try Quick play again.');
+    })();
+  }, [state, profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onAct = useCallback(
     (a: PlayerAction) => {

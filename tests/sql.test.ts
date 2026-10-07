@@ -283,6 +283,23 @@ describe('schema', () => {
     expect(Number(after.rows[0].chips)).toBe(Number(before.rows[0].chips) + 1000);
   });
 
+  it('lists every table without a password, whatever the old listing switch said', async () => {
+    // Created with the listing switch off (as older clients did) and an older table stored as unlisted.
+    await as(
+      null,
+      `select public.create_table('NOLIST', 'Friends', $1, '{"bigBlind":10,"smallBlind":5,"maxSeats":6,"minBuyIn":200,"maxBuyIn":1000,"turnSeconds":30}', $2, '{"deck":[],"hole":{}}', null, false)`,
+      [A, emptyState()],
+    );
+    expect((await db.query<{ listed: boolean }>(`select listed from public.tables where id = 'NOLIST'`)).rows[0].listed).toBe(true);
+    await db.query(`update public.tables set listed = false, player_count = 1 where id = 'NOLIST'`);
+    const ids = (await as<{ id: string }>(C, 'select id from public.list_open_tables()')).map((r) => r.id);
+    expect(ids).toContain('NOLIST');
+    // Password tables stay private.
+    await db.query(`update public.tables set player_count = 1 where id = 'ROOM01'`);
+    expect((await as<{ id: string }>(C, 'select id from public.list_open_tables()')).map((r) => r.id)).not.toContain('ROOM01');
+    await db.query(`update public.tables set player_count = 0 where id in ('NOLIST', 'ROOM01')`);
+  });
+
   it('cleans up tables nobody ever sat at', async () => {
     await db.query(`update public.tables set updated_at = now() - interval '1 hour' where player_count = 0`);
     const [res] = await as<{ r: { tables_deleted: number } }>(null, 'select public.cleanup_stale_data() as r');

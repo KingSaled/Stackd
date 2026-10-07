@@ -5,6 +5,7 @@ import { TopNav } from '../components/TopNav';
 import { Avatar } from '../components/Avatar';
 import { LegalFooter } from '../components/LegalFooter';
 import { supabase } from '../lib/supabase';
+import { syncCatalog } from '../lib/api';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toast';
 import { sound } from '../lib/sound';
@@ -53,9 +54,18 @@ export function ShopPage() {
     setConfirming(null);
     setBusy(item.id);
     try {
-      const { data, error } = await supabase.rpc('buy_cosmetic', { p_id: item.id });
-      if (error) throw error;
-      const r = data as { ok: boolean; reason?: string; chips?: number; frame?: string | null; backdrop?: string | null };
+      type BuyResult = { ok: boolean; reason?: string; chips?: number; frame?: string | null; backdrop?: string | null };
+      const buy = async () => {
+        const { data, error } = await supabase.rpc('buy_cosmetic', { p_id: item.id });
+        if (error) throw error;
+        return data as BuyResult;
+      };
+      let r = await buy();
+      // A brand-new item the database hasn't heard of yet: have the server add it, then try again.
+      if (!r.ok && r.reason === 'not_found') {
+        await syncCatalog().catch(() => null);
+        r = await buy();
+      }
       if (r.ok) {
         patchProfile({ chips: Number(r.chips), frame: r.frame ?? null, backdrop: r.backdrop ?? null });
         setOwned((o) => new Set(o).add(item.id));

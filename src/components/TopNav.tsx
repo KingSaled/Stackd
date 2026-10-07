@@ -9,7 +9,8 @@ import { SoundControl } from './SoundControl';
 import { GameSwitch } from './GameSwitch';
 import { useAuth } from '../store/auth';
 import { useEconomy } from '../hooks/useEconomy';
-import { chips, chipsShort } from '../lib/format';
+import { chips, chipsShort, countShort } from '../lib/format';
+import { useOnline } from '../store/online';
 
 function AnimatedNumber({ value }: { value: number }) {
   const spring = useSpring(value, { stiffness: 90, damping: 20 });
@@ -27,6 +28,19 @@ function AnimatedNumber({ value }: { value: number }) {
   );
 }
 
+/** Players online right now (you count, so it never shows 0 while you're here). */
+function OnlinePill({ className }: { className: string }) {
+  const count = Math.max(1, useOnline((s) => s.count) ?? 1);
+  const label = `${count.toLocaleString('en-US')} player${count === 1 ? '' : 's'} online`;
+  return (
+    <span className={clsx('online-pill', className)} title={label} aria-label={label}>
+      <span className="online-pill__dot" />
+      <strong>{countShort(count)}</strong>
+      <span className="online-pill__label">online</span>
+    </span>
+  );
+}
+
 export function TopNav() {
   const profile = useAuth((s) => s.profile);
   const econ = useEconomy();
@@ -37,7 +51,13 @@ export function TopNav() {
         <Link href="/" className="topnav__brand" aria-label="Stackd lobby">
           <Logo size="sm" />
         </Link>
-        {profile && <GameSwitch />}
+        {profile && (
+          <div className="topnav__games">
+            <GameSwitch />
+            {/* Phones: the online count sits at the end of the game switch row. */}
+            <OnlinePill className="online-pill--row" />
+          </div>
+        )}
       </div>
       <div className="topnav__right">
         {econ.dailyReady && (
@@ -54,6 +74,7 @@ export function TopNav() {
           <span className="shop-pill__full">Cosmetic Shop</span>
           <span className="shop-pill__short">Shop</span>
         </Link>
+        <OnlinePill className="online-pill--bar" />
         <SoundControl />
         {profile && (
           <Link href="/profile" className="topnav__me" aria-label="Your profile">

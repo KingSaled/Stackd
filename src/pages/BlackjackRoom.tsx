@@ -21,6 +21,7 @@ import { TableSettings } from '../components/table/TableSettings';
 import { SoundControl } from '../components/SoundControl';
 import { Logo } from '../components/Logo';
 import { ApiError, type BlackjackAction } from '../lib/api';
+import { clearQuickSeatIntent, hasQuickSeatIntent } from '../lib/quickplay';
 import { serverNow } from '../lib/clock';
 import { sound, vibrate } from '../lib/sound';
 import { bjSeatOf } from '../../shared/blackjack/engine';
@@ -142,6 +143,31 @@ export default function BlackjackRoom({ roomId }: { roomId: string }) {
     },
     [t],
   );
+
+  // Sent here by Quick play: take the first free seat straight away.
+  const quickSeat = useRef(hasQuickSeatIntent());
+  useEffect(() => clearQuickSeatIntent(), []);
+  useEffect(() => {
+    if (!quickSeat.current || !state) return;
+    quickSeat.current = false;
+    if (mySeat >= 0) return;
+    const free = state.seats.flatMap((x, i) => (x ? [] : [i]));
+    void (async () => {
+      for (const i of free.slice(0, 4)) {
+        try {
+          await t.send({ type: 'sit', seat: i });
+          sound.play('join');
+          return;
+        } catch (e) {
+          if ((e as ApiError).code !== 'seat_taken' && (e as ApiError).code !== 'stale') {
+            toast.error((e as Error).message);
+            return;
+          }
+        }
+      }
+      toast.info('This table just filled up. Pick an open seat or try Quick play again.');
+    })();
+  }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onAct = useCallback(
     (a: BjAction) => {

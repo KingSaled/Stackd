@@ -50,6 +50,12 @@ export interface CreateTableInput {
   listed: boolean;
 }
 
+/** Shop items and achievements as the database stores them. */
+export interface CatalogRows {
+  cosmetics: { id: string; kind: string; price: number; tier: number }[];
+  achievements: { id: string; counter: string; target: number; reward: number }[];
+}
+
 /** Persistence boundary used by the table service (Supabase in production, in-memory in tests). */
 export interface Repo {
   loadTable(id: string): Promise<StoredTable | null>;
@@ -67,4 +73,6 @@ export interface Repo {
   tablesOf(userId: string): Promise<string[]>;
   /** Permanently delete the login and (by cascade) every row that belongs to the player. */
   deleteUser(userId: string): Promise<void>;
+  /** Insert or update the shop and achievement catalogs. */
+  upsertCatalog(rows: CatalogRows): Promise<void>;
 }

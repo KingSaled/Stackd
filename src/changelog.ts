@@ -15,6 +15,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2026-10-07f',
+    date: 'October 7, 2026',
+    title: 'Quick play and public tables',
+    items: [
+      { icon: 'Lightning', text: "Quick play: tap the gear on the new Quick play button to set up your favourite game once (blinds, seats, buy-in, timer and bots, or your blackjack timer). After that, one tap sits you straight down, at an open table that matches or a new one with your settings." },
+      { icon: 'House', text: 'Every table is now public and shows up in Open tables, so it is easy to find a game. Want a private one? Give it a password and share your invite link.' },
+      { icon: 'Users', text: 'See how many players are online right now in the top bar.' },
+    ],
+  },
+  {
     version: '2026-10-07e',
     date: 'October 7, 2026',
     title: 'Blackjack is here',

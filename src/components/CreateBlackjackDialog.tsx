@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import clsx from 'clsx';
-import { GlobeIcon, LockIcon, TimerIcon } from '@phosphor-icons/react';
+import { TimerIcon } from '@phosphor-icons/react';
 import { Modal } from './Modal';
+import { PasswordOption } from './CreateTableDialog';
 import { createBlackjackRoom } from '../lib/api';
 import { rememberRoomPassword } from '../lib/storage';
 import { toast } from '../store/toast';
@@ -16,7 +17,6 @@ export function CreateBlackjackDialog({ open, onClose }: { open: boolean; onClos
   const [, navigate] = useLocation();
   const [name, setName] = useState('');
   const [timer, setTimer] = useState(15);
-  const [listed, setListed] = useState(false);
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -24,7 +24,7 @@ export function CreateBlackjackDialog({ open, onClose }: { open: boolean; onClos
     e.preventDefault();
     setBusy(true);
     try {
-      const res = await createBlackjackRoom({ name: name.trim(), turnSeconds: timer, password: password || undefined, listed: listed && !password });
+      const res = await createBlackjackRoom({ name: name.trim(), turnSeconds: timer, password: password || undefined });
       if (password) rememberRoomPassword(res.roomId, password);
       sound.play('chips', { count: 6 });
       onClose();
@@ -69,43 +69,12 @@ export function CreateBlackjackDialog({ open, onClose }: { open: boolean; onClos
         </div>
 
         <div className="opt-list">
-          <label className={clsx('opt', password && 'is-disabled')}>
-            <span className="opt__icon">
-              <GlobeIcon size={18} />
-            </span>
-            <span className="opt__text">
-              <strong>List in the lobby</strong>
-              <small>{password ? 'Private tables with a password stay unlisted.' : 'Anyone can find and join it from Open tables.'}</small>
-            </span>
-            <span className="switch">
-              <input type="checkbox" checked={listed && !password} disabled={!!password} onChange={(e) => setListed(e.target.checked)} />
-              <span className="switch__track" />
-            </span>
-          </label>
-          <label className="opt opt--input">
-            <span className="opt__icon">
-              <LockIcon size={18} />
-            </span>
-            <span className="opt__text">
-              <strong>Password</strong>
-              <small>Optional. Only people with it can sit.</small>
-            </span>
-            <input
-              className="input opt__input"
-              type="text"
-              autoComplete="off"
-              placeholder="None"
-              value={password}
-              maxLength={64}
-              onChange={(e) => setPassword(e.target.value)}
-              aria-label="Table password"
-            />
-          </label>
+          <PasswordOption value={password} onChange={setPassword} />
         </div>
 
         <div className="create-foot">
           <span className="create-foot__summary">
-            {BJ_SEATS} seats · {timer}s turns · bets {chips(BJ_LIMITS.minBet)}–{chips(BJ_LIMITS.maxBet)}
+            {BJ_SEATS} seats · {timer}s turns · bets {chips(BJ_LIMITS.minBet)}–{chips(BJ_LIMITS.maxBet)} · {password ? 'private' : 'public'}
           </span>
           <button className="btn btn--gold btn--block btn--lg" disabled={busy}>
             {busy ? 'Opening table…' : 'Open table'}

@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { GameError } from '../shared/poker/engine';
 import type { SecretState } from '../shared/poker/types';
 import { HttpError, VersionConflict } from './errors';
-import type { CommitPayload, CreateTableInput, ProfileInfo, Repo, StoredTable } from './repo';
+import type { CatalogRows, CommitPayload, CreateTableInput, ProfileInfo, Repo, StoredTable } from './repo';
 import type { HandPayload } from './hands';
 
 function env(...names: string[]): string | undefined {
@@ -201,6 +201,13 @@ export class SupabaseRepo implements Repo {
   async deleteUser(userId: string): Promise<void> {
     const { error } = await this.db.auth.admin.deleteUser(userId);
     if (error) throw new Error(`account deletion failed: ${messageOf(error)}`);
+  }
+
+  async upsertCatalog(rows: CatalogRows): Promise<void> {
+    const a = await this.db.from('cosmetics').upsert(rows.cosmetics, { onConflict: 'id' });
+    if (a.error) throw new Error(`cosmetics sync failed: ${messageOf(a.error)}`);
+    const b = await this.db.from('achievements').upsert(rows.achievements, { onConflict: 'id' });
+    if (b.error) throw new Error(`achievements sync failed: ${messageOf(b.error)}`);
   }
 
   async cleanup(): Promise<unknown> {

@@ -12,6 +12,14 @@ export function chipsShort(n: number | null | undefined): string {
   return `${trim(v / 1_000_000_000, 2)}B`;
 }
 
+/** Head counts: 950, 1.2K, 12.3K, 123K, 1.5M. */
+export function countShort(n: number): string {
+  const v = Math.max(0, Math.round(n));
+  if (v < 1000) return String(v);
+  if (v < 1_000_000) return `${trim(v / 1000, v < 100_000 ? 1 : 0)}K`;
+  return `${trim(v / 1_000_000, 1)}M`;
+}
+
 function trim(n: number, digits: number) {
   return n.toFixed(digits).replace(/\.0+$|(\.\d*[1-9])0+$/, '$1');
 }

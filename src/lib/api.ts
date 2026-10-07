@@ -69,11 +69,15 @@ export interface CreateRoomRequest {
   name: string;
   config: Partial<TableConfig>;
   password?: string;
-  listed: boolean;
 }
 
 export function createRoom(req: CreateRoomRequest) {
   return call<{ ok: true; roomId: string }>({ op: 'create', ...req });
+}
+
+/** Ask the server to copy the latest shop items and achievements into the database. */
+export function syncCatalog() {
+  return call<{ ok: true }>({ op: 'syncCatalog' });
 }
 
 /** Permanently delete the signed-in account (leaves all tables first). */
@@ -104,13 +108,12 @@ export function blackjackAction(roomId: string, action: BlackjackAction) {
   return call<BlackjackActionResponse>({ op: 'table', game: 'blackjack', roomId, action });
 }
 
-export function createBlackjackRoom(req: { name: string; turnSeconds: number; password?: string; listed: boolean }) {
+export function createBlackjackRoom(req: { name: string; turnSeconds: number; password?: string }) {
   return call<{ ok: true; roomId: string }>({
     op: 'create',
     game: 'blackjack',
     name: req.name,
     config: { turnSeconds: req.turnSeconds },
     password: req.password,
-    listed: req.listed,
   });
 }

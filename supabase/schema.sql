@@ -809,7 +809,8 @@ as $$
          t.player_count, t.status, t.updated_at, coalesce((t.config ->> 'bots')::boolean, false),
          t.game, (t.config ->> 'turnSeconds')::int
     from public.tables t
-   where t.listed and not t.has_password and t.player_count > 0 and t.updated_at > now() - interval '2 days'
+   -- Every table is public unless it has a password (the old per-table listing switch is ignored).
+   where not t.has_password and t.player_count > 0 and t.updated_at > now() - interval '2 days'
    order by t.player_count desc, t.updated_at desc
    limit 40;
 $$;
@@ -951,7 +952,7 @@ create trigger chat_before_insert
 
 create or replace function public.create_table(
   p_id text, p_name text, p_host uuid, p_config jsonb, p_state jsonb, p_secret jsonb,
-  p_password text, p_listed boolean)
+  p_password text, p_listed boolean) -- p_listed is no longer used: tables without a password are public
 returns text
 language plpgsql
 security definer
@@ -964,7 +965,7 @@ begin
     v_hash := crypt(p_password, gen_salt('bf', 8));
   end if;
   insert into public.tables (id, name, host_id, config, has_password, listed, state, version)
-  values (p_id, p_name, p_host, p_config, v_hash is not null, coalesce(p_listed, false) and v_hash is null, p_state, 1);
+  values (p_id, p_name, p_host, p_config, v_hash is not null, v_hash is null, p_state, 1);
   insert into public.table_secrets (table_id, secret, password_hash) values (p_id, p_secret, v_hash);
   insert into public.table_members (table_id, user_id) values (p_id, p_host) on conflict do nothing;
   return p_id;
