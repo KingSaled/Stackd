@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { motion } from 'framer-motion';
 import { CheckIcon, CoinsIcon, LockSimpleIcon, SparkleIcon, StorefrontIcon } from '@phosphor-icons/react';
 import { TopNav } from '../components/TopNav';
 import { Avatar } from '../components/Avatar';
@@ -19,7 +18,6 @@ export function ShopPage() {
   const patchProfile = useAuth((s) => s.patchProfile);
   const [tab, setTab] = useState<CosmeticKind>('frame');
   const [owned, setOwned] = useState<Set<string>>(new Set());
-  const [preview, setPreview] = useState<{ frame: string | null; backdrop: string | null } | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -40,19 +38,15 @@ export function ShopPage() {
   }, [confirming]);
 
   const equipped = { frame: profile?.frame ?? null, backdrop: profile?.backdrop ?? null };
-  const look = preview ?? equipped;
+  const look = equipped;
   const items = tab === 'frame' ? FRAMES : BACKDROPS;
   const ownedCount = useMemo(() => [...owned].filter((id) => cosmeticById(id)).length, [owned]);
 
   if (!profile) return <div className="page page--center"><div className="spinner" /></div>;
 
-  const show = (item: Cosmetic | null, kind: CosmeticKind) =>
-    setPreview({ ...look, [kind]: item ? item.id : null });
-
   const buy = async (item: Cosmetic) => {
     if (confirming !== item.id) {
       setConfirming(item.id);
-      show(item, item.kind);
       sound.play('click');
       return;
     }
@@ -65,7 +59,6 @@ export function ShopPage() {
       if (r.ok) {
         patchProfile({ chips: Number(r.chips), frame: r.frame ?? null, backdrop: r.backdrop ?? null });
         setOwned((o) => new Set(o).add(item.id));
-        setPreview(null);
         sound.play('chips', { count: 6 });
         toast.success(`${item.name} is yours and equipped!`);
       } else if (r.reason === 'insufficient_chips') {
@@ -90,7 +83,6 @@ export function ShopPage() {
       if (error) throw error;
       const r = data as { frame: string | null; backdrop: string | null };
       patchProfile({ frame: r.frame, backdrop: r.backdrop });
-      setPreview(null);
       sound.play('click');
     } catch (e) {
       toast.error((e as Error).message || 'Could not equip that');
@@ -105,73 +97,51 @@ export function ShopPage() {
     <div className="page shop">
       <TopNav />
       <main className="shop__main">
-        <section className="shop-hero">
-          <div className="shop-hero__copy">
-            <span className="shop-hero__eyebrow">
-              <StorefrontIcon size={16} weight="fill" /> Cosmetic Shop
-            </span>
-            <h1>Make your seat stand out</h1>
-            <p className="muted">
-              Borders and backgrounds show on your avatar everywhere: at the table, in the lobby and on the leaderboard. Bought
-              with play chips only.
-            </p>
-            <div className="shop-hero__wallet">
-              <CoinsIcon size={18} weight="fill" />
-              <span>{chips(profile.chips)}</span>
-              <small>in your wallet · {ownedCount}/{FRAMES.length + BACKDROPS.length} owned</small>
+        <header className="shop-head">
+          <div className="shop-head__title">
+            <StorefrontIcon size={22} weight="fill" />
+            <div>
+              <h1>Cosmetic Shop</h1>
+              <p className="muted small">Borders and backgrounds show on your avatar everywhere. Bought with play chips only.</p>
             </div>
           </div>
-          <motion.div className="shop-hero__preview" key={`${look.frame}-${look.backdrop}`} initial={{ scale: 0.92 }} animate={{ scale: 1 }}>
-            <Avatar avatar={profile.avatar} color={profile.color} frame={look.frame} backdrop={look.backdrop} size={132} />
-            <span className="shop-hero__name" style={{ color: profile.color }}>
-              {profile.display_name}
-            </span>
-            {preview && (
-              <button className="link-btn" onClick={() => setPreview(null)}>
-                Back to my look
-              </button>
-            )}
-          </motion.div>
-        </section>
+          <div className="shop-head__wallet">
+            <CoinsIcon size={16} weight="fill" />
+            <strong>{chips(profile.chips)}</strong>
+            <small>{ownedCount}/{FRAMES.length + BACKDROPS.length} owned</small>
+          </div>
+        </header>
 
-        <div className="segmented segmented--full shop__tabs" role="tablist">
-          <button role="tab" aria-selected={tab === 'frame'} className={clsx(tab === 'frame' && 'is-on')} onClick={() => setTab('frame')}>
-            Borders
-          </button>
-          <button role="tab" aria-selected={tab === 'backdrop'} className={clsx(tab === 'backdrop' && 'is-on')} onClick={() => setTab('backdrop')}>
-            Backgrounds
+        <div className="shop-bar">
+          <div className="segmented segmented--full shop__tabs" role="tablist">
+            <button role="tab" aria-selected={tab === 'frame'} className={clsx(tab === 'frame' && 'is-on')} onClick={() => setTab('frame')}>
+              Borders
+            </button>
+            <button role="tab" aria-selected={tab === 'backdrop'} className={clsx(tab === 'backdrop' && 'is-on')} onClick={() => setTab('backdrop')}>
+              Backgrounds
+            </button>
+          </div>
+          <button
+            className={clsx('shop-default', !current && 'is-on')}
+            disabled={!current || !!busy}
+            onClick={() => equip(tab, null)}
+            title={tab === 'frame' ? 'A simple ring in your profile colour' : 'A soft glow in your profile colour'}
+          >
+            <Avatar avatar={profile.avatar} color={profile.color} frame={tab === 'frame' ? null : look.frame} backdrop={tab === 'backdrop' ? null : look.backdrop} size={30} />
+            <span>
+              <small>Free</small>
+              {!current ? (
+                <strong>
+                  <CheckIcon size={12} weight="bold" /> {tab === 'frame' ? 'Classic ring' : 'Colour glow'}
+                </strong>
+              ) : (
+                <strong>Use {tab === 'frame' ? 'classic ring' : 'colour glow'}</strong>
+              )}
+            </span>
           </button>
         </div>
 
         <ul className="shop-grid">
-          <li className={clsx('shop-item', 'tier-0', !current && 'is-equipped')} onMouseEnter={() => show(null, tab)}>
-            <button className="shop-item__look" onClick={() => show(null, tab)} aria-label="Preview the default look">
-              <Avatar
-                avatar={profile.avatar}
-                color={profile.color}
-                frame={tab === 'frame' ? null : look.frame}
-                backdrop={tab === 'backdrop' ? null : look.backdrop}
-                size={84}
-              />
-            </button>
-            <div className="shop-item__info">
-              <span className="shop-item__rarity">Free</span>
-              <strong>{tab === 'frame' ? 'Classic ring' : 'Signature glow'}</strong>
-              <p>{tab === 'frame' ? 'A simple ring in your profile colour.' : 'A soft glow in your profile colour.'}</p>
-            </div>
-            <div className="shop-item__action">
-              {!current ? (
-                <span className="shop-item__state">
-                  <CheckIcon size={14} weight="bold" /> Equipped
-                </span>
-              ) : (
-                <button className="btn btn--ghost btn--sm btn--block" disabled={!!busy} onClick={() => equip(tab, null)}>
-                  Use default
-                </button>
-              )}
-            </div>
-          </li>
-
           {items.map((item) => {
             const has = owned.has(item.id);
             const on = current === item.id;
@@ -180,9 +150,8 @@ export function ShopPage() {
               <li
                 key={item.id}
                 className={clsx('shop-item', `tier-${item.tier}`, on && 'is-equipped', has && 'is-owned')}
-                onMouseEnter={() => show(item, item.kind)}
               >
-                <button className="shop-item__look" onClick={() => show(item, item.kind)} aria-label={`Preview ${item.name}`}>
+                <div className="shop-item__look">
                   <Avatar
                     avatar={profile.avatar}
                     color={profile.color}
@@ -195,7 +164,7 @@ export function ShopPage() {
                       <SparkleIcon size={11} weight="fill" /> Animated
                     </span>
                   )}
-                </button>
+                </div>
                 <div className="shop-item__info">
                   <span className="shop-item__rarity">{RARITY[item.tier]}</span>
                   <strong>{item.name}</strong>

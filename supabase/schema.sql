@@ -504,6 +504,7 @@ insert into public.achievements (id, counter, target, reward) values
   ('hands_1000', 'hands', 1000, 10000),
   ('first_win', 'wins', 1, 500),
   ('wins_100', 'wins', 100, 5000),
+  ('wins_500', 'wins', 500, 20000),
   ('showdown_25', 'showdown_wins', 25, 3000),
   ('steal_25', 'uncontested_wins', 25, 3000),
   ('allin_win', 'allin_wins', 1, 1000),
@@ -1252,15 +1253,25 @@ create policy "owners read their cosmetics" on public.player_cosmetics for selec
 
 insert into public.cosmetics (id, kind, price, tier) values
   ('frame-steel', 'frame', 5000, 1),
+  ('frame-chip', 'frame', 7500, 1),
   ('frame-gold', 'frame', 15000, 2),
+  ('frame-neon', 'frame', 20000, 2),
   ('frame-ruby', 'frame', 40000, 3),
+  ('frame-storm', 'frame', 50000, 3),
   ('frame-diamond', 'frame', 100000, 4),
+  ('frame-prism', 'frame', 125000, 4),
   ('frame-mythic', 'frame', 250000, 5),
+  ('frame-celestial', 'frame', 300000, 5),
   ('bg-felt', 'backdrop', 3000, 1),
+  ('bg-blackjack', 'backdrop', 4000, 1),
   ('bg-sunset', 'backdrop', 8000, 2),
+  ('bg-city', 'backdrop', 10000, 2),
   ('bg-ocean', 'backdrop', 20000, 3),
+  ('bg-storm', 'backdrop', 25000, 3),
   ('bg-velvet', 'backdrop', 50000, 4),
-  ('bg-galaxy', 'backdrop', 120000, 5)
+  ('bg-jackpot', 'backdrop', 60000, 4),
+  ('bg-galaxy', 'backdrop', 120000, 5),
+  ('bg-aurora', 'backdrop', 150000, 5)
 on conflict (id) do update set kind = excluded.kind, price = excluded.price, tier = excluded.tier;
 
 -- Buy an item with wallet chips (chips seated at tables can't be spent) and equip it.

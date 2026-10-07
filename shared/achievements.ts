@@ -26,6 +26,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'hands_1000', name: 'Grinder', description: 'Play 1,000 hands.', counter: 'hands', target: 1_000, reward: 10_000, tier: 'gold', icon: 'Hourglass' },
   { id: 'first_win', name: 'Ship It', description: 'Win your first pot.', counter: 'wins', target: 1, reward: 500, tier: 'bronze', icon: 'HandCoins' },
   { id: 'wins_100', name: 'Pot Collector', description: 'Win 100 pots.', counter: 'wins', target: 100, reward: 5_000, tier: 'silver', icon: 'Coins' },
+  { id: 'wins_500', name: 'Shark', description: 'Win 500 pots.', counter: 'wins', target: 500, reward: 20_000, tier: 'gold', icon: 'FishSimple' },
   { id: 'showdown_25', name: 'Show Me', description: 'Win 25 pots at showdown.', counter: 'showdown_wins', target: 25, reward: 3_000, tier: 'silver', icon: 'Eye' },
   { id: 'steal_25', name: 'Pickpocket', description: 'Win 25 pots without a showdown.', counter: 'uncontested_wins', target: 25, reward: 3_000, tier: 'silver', icon: 'Detective' },
   { id: 'allin_win', name: 'All In', description: 'Win a hand after going all-in.', counter: 'allin_wins', target: 1, reward: 1_000, tier: 'bronze', icon: 'Lightning' },

@@ -15,6 +15,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2026-10-07d',
+    date: 'October 7, 2026',
+    title: 'A bigger, sharper Cosmetic Shop',
+    items: [
+      { icon: 'Sparkle', text: 'Twenty items: two borders and two backgrounds at every rarity, all redrawn as crisp art that stays sharp at any size. Anything you already bought is still yours.' },
+      { icon: 'Storefront', text: 'New borders include House Chip, Vegas Neon, Storm Caller, Holo Prism and Celestial Halo. New backgrounds include Twenty-One, Neon Skyline, Storm Front, Jackpot and Aurora Peaks.' },
+      { icon: 'Trophy', text: 'A new achievement, Shark (win 500 pots). Achievements are now sorted by reward.' },
+      { icon: 'ChartBar', text: 'A tidier profile: your best hand shows as a short name with a mini card pattern.' },
+      { icon: 'PokerChip', text: 'A cleaner Create a table window with all the same options.' },
+      { icon: 'Crown', text: "The champion card's gold frame now animates smoothly." },
+    ],
+  },
+  {
     version: '2026-10-07c',
     date: 'October 7, 2026',
     title: 'Smarter bots and polish',

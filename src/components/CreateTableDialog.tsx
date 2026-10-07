@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import clsx from 'clsx';
-import { LockIcon, GlobeIcon, RobotIcon } from '@phosphor-icons/react';
+import { LockIcon, GlobeIcon, RobotIcon, TimerIcon, UsersThreeIcon } from '@phosphor-icons/react';
 import { Modal } from './Modal';
 import { BLIND_PRESETS } from '../../shared/economy';
-import { blindsLabel, chips } from '../lib/format';
+import { blindsLabel, chips, chipsShort } from '../lib/format';
 import { createRoom } from '../lib/api';
 import { rememberRoomPassword } from '../lib/storage';
 import { toast } from '../store/toast';
@@ -59,6 +59,8 @@ export function CreateTableDialog({ open, onClose }: { open: boolean; onClose: (
     }
   };
 
+  const compact = (n: number) => (n >= 1000 ? `${n / 1000}K` : String(n));
+
   return (
     <Modal open={open} onClose={onClose} title="Create a table" wide>
       <form className="form create-form" onSubmit={submit}>
@@ -75,100 +77,117 @@ export function CreateTableDialog({ open, onClose }: { open: boolean; onClose: (
 
         <div className="field">
           <span className="field__label">Blinds</span>
-          <div className="segmented segmented--wrap">
+          <div className="stake-grid">
             {BLIND_PRESETS.map((p, i) => (
-              <button type="button" key={p.bb} className={clsx(i === blind && 'is-on')} onClick={() => setBlind(i)}>
-                {blindsLabel(p.sb, p.bb)}
+              <button type="button" key={p.bb} className={clsx('stake', i === blind && 'is-on')} onClick={() => setBlind(i)} aria-label={`Blinds ${blindsLabel(p.sb, p.bb)}`}>
+                {compact(p.sb)}/{compact(p.bb)}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="field-row">
+        <div className="create-pair">
           <div className="field">
-            <span className="field__label">Seats · {seats}</span>
-            <div className="segmented">
-              {[2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-                <button type="button" key={n} className={clsx(n === seats && 'is-on')} onClick={() => setSeats(n)}>
-                  {n}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="field-row">
-          <div className="field">
-            <span className="field__label">Buy-in</span>
-            <div className="segmented">
+            <span className="field__label">
+              Buy-in <em className="field__aside">{chipsShort(minBuyIn)}–{chipsShort(maxBuyIn)}</em>
+            </span>
+            <div className="segmented segmented--full">
               {BUYIN_PRESETS.map((p, i) => (
-                <button type="button" key={p.label} className={clsx(i === buyin && 'is-on')} onClick={() => setBuyin(i)}>
+                <button type="button" key={p.label} className={clsx(i === buyin && 'is-on')} onClick={() => setBuyin(i)} title={`${p.min}–${p.max} big blinds`}>
                   {p.label}
                 </button>
               ))}
             </div>
-            <span className="field__hint">
-              {chips(minBuyIn)} – {chips(maxBuyIn)} chips ({bi.min}–{bi.max} big blinds)
-            </span>
           </div>
           <div className="field">
-            <span className="field__label">Turn timer</span>
-            <div className="segmented">
-              {TIMERS.map((s) => (
-                <button type="button" key={s} className={clsx(s === timer && 'is-on')} onClick={() => setTimer(s)}>
-                  {s}s
+            <span className="field__label">
+              <TimerIcon size={13} /> Turn timer
+            </span>
+            <div className="segmented segmented--full">
+              {TIMERS.map((t) => (
+                <button type="button" key={t} className={clsx(t === timer && 'is-on')} onClick={() => setTimer(t)}>
+                  {t}s
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        <div className="field-row">
-          <label className="field">
-            <span className="field__label">
-              <LockIcon size={13} /> Password <em className="muted">(optional)</em>
+        <div className="field">
+          <span className="field__label">
+            <UsersThreeIcon size={13} /> Seats
+          </span>
+          <div className="segmented segmented--full">
+            {[2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+              <button type="button" key={n} className={clsx(n === seats && 'is-on')} onClick={() => setSeats(n)}>
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="opt-list">
+          <label className="opt">
+            <span className="opt__icon">
+              <RobotIcon size={18} />
+            </span>
+            <span className="opt__text">
+              <strong>Fill empty seats with bots</strong>
+              <small>Mixed, hidden skill levels. Friends take a bot's seat when the hand ends.</small>
+            </span>
+            <span className="switch">
+              <input type="checkbox" checked={bots} onChange={(e) => setBots(e.target.checked)} />
+              <span className="switch__track" />
+            </span>
+          </label>
+          <label className={clsx('opt', password && 'is-disabled')}>
+            <span className="opt__icon">
+              <GlobeIcon size={18} />
+            </span>
+            <span className="opt__text">
+              <strong>List in the lobby</strong>
+              <small>{password ? 'Private tables with a password stay unlisted.' : 'Anyone can find and join it from Open tables.'}</small>
+            </span>
+            <span className="switch">
+              <input type="checkbox" checked={listed && !password} disabled={!!password} onChange={(e) => setListed(e.target.checked)} />
+              <span className="switch__track" />
+            </span>
+          </label>
+          <label className="opt opt--input">
+            <span className="opt__icon">
+              <LockIcon size={18} />
+            </span>
+            <span className="opt__text">
+              <strong>Password</strong>
+              <small>Optional. Only people with it can sit.</small>
             </span>
             <input
-              className="input"
+              className="input opt__input"
               type="text"
               autoComplete="off"
-              placeholder="Leave empty for an open table"
+              placeholder="None"
               value={password}
               maxLength={64}
               onChange={(e) => setPassword(e.target.value)}
+              aria-label="Table password"
             />
-          </label>
-          <label className={clsx('switch', password && 'is-disabled')}>
-            <input type="checkbox" checked={listed && !password} disabled={!!password} onChange={(e) => setListed(e.target.checked)} />
-            <span className="switch__track" />
-            <span>
-              <GlobeIcon size={13} /> List in the lobby
-            </span>
           </label>
         </div>
 
-        <label className="switch bots-switch">
-          <input type="checkbox" checked={bots} onChange={(e) => setBots(e.target.checked)} />
-          <span className="switch__track" />
-          <span className="bots-switch__text">
-            <strong>
-              <RobotIcon size={14} /> Fill empty seats with bots
-            </strong>
-            <em className="muted">
-              Bots of mixed, hidden skill levels. Friends who join take a bot's seat when the current hand ends.
-            </em>
-          </span>
-        </label>
-
         {!affordable && (
           <p className="form-warn">
-            You need {chips(minBuyIn)} chips to sit at these stakes — you can still create it for friends.
+            You need {chips(minBuyIn)} chips to sit at these stakes. You can still create it for friends.
           </p>
         )}
 
-        <button className="btn btn--gold btn--block btn--lg" disabled={busy}>
-          {busy ? 'Opening table…' : 'Open table'}
-        </button>
+        <div className="create-foot">
+          <span className="create-foot__summary">
+            {blindsLabel(b.sb, b.bb)} · {seats} seats · {timer}s turns{bots ? ' · bots' : ''}
+          </span>
+          <button className="btn btn--gold btn--block btn--lg" disabled={busy}>
+            {busy ? 'Opening table…' : 'Open table'}
+          </button>
+        </div>
       </form>
     </Modal>
   );

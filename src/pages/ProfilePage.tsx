@@ -24,7 +24,6 @@ import { COLORS } from '../../shared/economy';
 import { PORTRAITS, portraitOf } from '../../shared/portraits';
 import { BACKDROPS, FRAMES, cosmeticById, type CosmeticKind } from '../../shared/cosmetics';
 import { ACHIEVEMENTS } from '../../shared/achievements';
-import { HAND_CATEGORIES } from '../../shared/poker/evaluator';
 import { chips, chipsShort } from '../lib/format';
 import { sound } from '../lib/sound';
 
@@ -36,6 +35,25 @@ interface Tracked {
 }
 
 const pct = (n: number, d: number) => (d > 0 ? `${Math.round((n / d) * 100)}%` : '—');
+
+/** Short names that fit a stat tile, by hand category (high card … royal flush). */
+const HAND_SHORT = ['High card', 'Pair', 'Two pair', 'Trips', 'Straight', 'Flush', 'Full house', 'Quads', 'Str. flush', 'Royal flush'];
+/** Which of the five cards make each hand: 1 and 2 are the card groups, 0 is a kicker. */
+const HAND_SHAPE = ['10000', '11000', '11220', '11100', '11111', '11111', '11122', '11110', '11111', '11111'];
+
+function BestHand({ category }: { category: number }) {
+  return (
+    <span className="hand-shape" aria-hidden>
+      {[...HAND_SHAPE[category]].map((g, i) => (
+        <i key={i} className={g === '0' ? undefined : g === '2' ? 'is-alt' : 'is-on'} />
+      ))}
+    </span>
+  );
+}
+
+/** Achievements from smallest to biggest reward (ties: easiest tier first). */
+const TIER_ORDER = { bronze: 0, silver: 1, gold: 2, platinum: 3 } as const;
+const SORTED_ACHIEVEMENTS = [...ACHIEVEMENTS].sort((a, b) => a.reward - b.reward || TIER_ORDER[a.tier] - TIER_ORDER[b.tier]);
 
 export function ProfilePage() {
   const profile = useAuth((s) => s.profile);
@@ -161,17 +179,12 @@ export function ProfilePage() {
     { label: 'Hands won', value: chips(profile.hands_won) },
     { label: 'Win rate', value: pct(profile.hands_won, profile.hands_played) },
     { label: 'Biggest pot', value: chipsShort(profile.biggest_pot) },
-    { label: 'Best hand', value: profile.best_hand >= 0 ? HAND_CATEGORIES[profile.best_hand] : '—' },
   ];
-  const net = n('net_won');
+  const best = profile.best_hand >= 0 && profile.best_hand < HAND_SHORT.length ? profile.best_hand : -1;
   const detailed = [
-    { label: 'Net winnings', value: `${net > 0 ? '+' : ''}${chipsShort(net)}`, tone: net > 0 ? 'up' : net < 0 ? 'down' : undefined, hint: 'Chips won minus chips put in' },
     { label: 'Biggest win', value: chipsShort(n('biggest_win')), hint: 'Most profit in one hand' },
-    { label: 'VPIP', value: pct(n('vpip_hands'), n('hands')), hint: 'How often you put chips in before the flop' },
-    { label: 'PFR', value: pct(n('pfr_hands'), n('hands')), hint: 'How often you raise before the flop' },
     { label: 'Showdowns won', value: pct(n('showdown_wins'), n('showdowns')), hint: `${chips(n('showdown_wins'))} of ${chips(n('showdowns'))}` },
     { label: 'All-ins won', value: pct(n('allin_wins'), n('allins')), hint: `${chips(n('allin_wins'))} of ${chips(n('allins'))}` },
-    { label: 'Steals', value: chips(n('uncontested_wins')), hint: 'Pots won without a showdown' },
     { label: 'Best streak', value: `${n('best_streak') || profile.daily_streak} days`, hint: 'Daily bonus streak' },
   ];
   const since = tracked ? new Date(tracked.since).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null;
@@ -280,6 +293,12 @@ export function ProfilePage() {
                 <span className="stat-tile__label">{s.label}</span>
               </div>
             ))}
+            <div className="stat-tile" title={best >= 0 ? HAND_SHORT[best] : undefined}>
+              <span className="stat-tile__value">{best >= 0 ? HAND_SHORT[best] : '—'}</span>
+              <span className="stat-tile__label stat-tile__label--hand">
+                Best hand {best >= 0 && <BestHand category={best} />}
+              </span>
+            </div>
           </div>
           <div className="home-panel__head profile__subhead">
             <h3 className="profile__h3">Play style</h3>
@@ -287,7 +306,7 @@ export function ProfilePage() {
           </div>
           <div className="stat-grid stat-grid--4">
             {detailed.map((s) => (
-              <div key={s.label} className={clsx('stat-tile', s.tone && `is-${s.tone}`)} title={s.hint}>
+              <div key={s.label} className="stat-tile" title={s.hint}>
                 <span className="stat-tile__value">{s.value}</span>
                 <span className="stat-tile__label">{s.label}</span>
                 <span className="stat-tile__hint">{s.hint}</span>
@@ -328,7 +347,7 @@ export function ProfilePage() {
             </div>
           )}
           <ul className="achv-grid">
-            {ACHIEVEMENTS.map((a) => {
+            {SORTED_ACHIEVEMENTS.map((a) => {
               const at = unlocked.get(a.id);
               const progress = Math.min(n(a.counter), a.target);
               return (

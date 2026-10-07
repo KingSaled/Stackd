@@ -1,6 +1,8 @@
 import clsx from 'clsx';
 import { PORTRAIT_SHIFT, portraitOf } from '../../shared/portraits';
 import { backdropClass, frameClass } from '../../shared/cosmetics';
+import { FrameArt } from './cosmetics/FrameArt';
+import { BackdropArt } from './cosmetics/BackdropArt';
 
 interface PortraitProps {
   avatar: string;
@@ -20,7 +22,9 @@ export function Portrait({ avatar, frame, backdrop }: PortraitProps) {
   return (
     <>
       <span className="portrait">
-        <span className={clsx('portrait__bg', b ?? 'bg-default')} aria-hidden />
+        <span className={clsx('portrait__bg', b ?? 'bg-default')} aria-hidden>
+          {b && <BackdropArt id={b} />}
+        </span>
         <img
           className="portrait__img"
           src={`/portraits/${id}.png`}
@@ -30,7 +34,11 @@ export function Portrait({ avatar, frame, backdrop }: PortraitProps) {
           style={shift ? ({ '--dx': shift } as React.CSSProperties) : undefined}
         />
       </span>
-      {f && <span className={clsx('portrait__frame', f)} aria-hidden />}
+      {f && (
+        <span className={clsx('portrait__frame', f)} aria-hidden>
+          <FrameArt id={f} />
+        </span>
+      )}
     </>
   );
 }
