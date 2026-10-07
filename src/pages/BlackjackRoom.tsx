@@ -22,6 +22,7 @@ import { SoundControl } from '../components/SoundControl';
 import { Logo } from '../components/Logo';
 import { ApiError, type BlackjackAction } from '../lib/api';
 import { clearQuickSeatIntent, hasQuickSeatIntent } from '../lib/quickplay';
+import { celebrationColors } from '../lib/season';
 import { serverNow } from '../lib/clock';
 import { sound, vibrate } from '../lib/sound';
 import { bjSeatOf } from '../../shared/blackjack/engine';
@@ -93,7 +94,7 @@ export default function BlackjackRoom({ roomId }: { roomId: string }) {
       spread: 80,
       startVelocity: 36,
       origin: r ? { x: (r.left + r.width / 2) / window.innerWidth, y: (r.top + r.height / 2) / window.innerHeight } : { x: 0.5, y: 0.8 },
-      colors: ['#f5c451', '#ffdf8a', '#3ef0a8', '#ffffff', '#4f8dff'],
+      colors: celebrationColors(['#f5c451', '#ffdf8a', '#3ef0a8', '#ffffff', '#4f8dff']),
       disableForReducedMotion: true,
     });
     vibrate([30, 40, 80]);

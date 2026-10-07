@@ -13,6 +13,8 @@ import { ECONOMY } from '../../shared/economy';
 import { LegalFooter } from '../components/LegalFooter';
 import { rememberTermsAccepted } from '../lib/terms';
 import { MIN_AGE } from '../legal';
+import { useSeason } from '../lib/season';
+import { Bat, JackOLantern } from '../components/season/HalloweenArt';
 
 type Mode = 'signin' | 'signup' | 'guest' | 'forgot';
 
@@ -139,6 +141,7 @@ export function AuthPage() {
   };
 
   const head = HEADINGS[mode];
+  const halloween = useSeason((s) => s.season) === 'halloween';
   const submitLabel = busy ? 'One moment…' : mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Send reset link';
 
   return (
@@ -162,6 +165,13 @@ export function AuthPage() {
               <DeviceMobileIcon size={16} /> Real-time on any device, no download
             </li>
           </ul>
+          {halloween && (
+            <div className="auth__spooky" aria-hidden>
+              <Bat className="auth__bat" />
+              <Bat className="auth__bat auth__bat--2" />
+              <JackOLantern className="auth__pumpkin" />
+            </div>
+          )}
           <div className="auth__fan" aria-hidden>
             {['Ah', 'Ad', 'Kc', 'Ks', 'As'].map((c, i) => (
               <motion.div

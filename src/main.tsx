@@ -7,11 +7,16 @@ import './styles/components.css';
 import './styles/cosmetics.css';
 import './styles/table.css';
 import './styles/pages.css';
+import './styles/halloween.css';
 import { IconContext } from '@phosphor-icons/react';
 import { App } from './App';
+import { startSeasons } from './lib/season';
 
 /** Phosphor icons app-wide: bold reads crisply at small sizes on the dark UI. */
 const icons = { weight: 'bold' as const, mirrored: false };
+
+// Seasonal looks (e.g. Halloween) switch on and off by date; set before the first paint.
+startSeasons();
 
 const root = createRoot(document.getElementById('root')!);
 
@@ -23,6 +28,8 @@ if (import.meta.env.DEV && window.location.pathname.startsWith('/dev/blackjack')
       </IconContext.Provider>,
     ),
   );
+} else if (import.meta.env.DEV && window.location.pathname.startsWith('/dev/halloween')) {
+  void import('./dev/HalloweenGallery').then(({ default: Gallery }) => root.render(<Gallery />));
 } else if (import.meta.env.DEV && window.location.pathname.startsWith('/dev/cosmetics')) {
   void import('./dev/CosmeticsGallery').then(({ default: Gallery }) => root.render(<Gallery />));
 } else if (import.meta.env.DEV && window.location.pathname.startsWith('/dev')) {

@@ -180,6 +180,19 @@ npm test
 - **Database changes:** when a release changes `supabase/schema.sql`, run it in the Supabase SQL editor *before* the new build deploys. It is safe to re-run and keeps all accounts.
 - **Changelog:** add a new entry at the top of `src/changelog.ts` with a `version` that sorts after the previous one (the release date, e.g. `2026-10-07`, plus a letter for a second release that day). Each player sees the releases they missed once (up to the three newest, tracked on their account by `mark_changelog_seen`); releases from before their account was created are skipped.
 
+## Seasonal looks
+
+Limited-time themes only change how the site looks. Each one has a date window in
+`src/lib/season.ts` (players' local time) and switches itself on and off, even in a tab
+that stays open. The Halloween look (`src/styles/halloween.css`, art in
+`src/components/season/`) runs through October 31, 2026 and turns off at midnight on
+November 1.
+
+- Preview any time with `?season=halloween`, or see the normal look with `?season=off`
+  (`?season=auto` goes back to the date).
+- To run it again next year, add a window for that year in `SEASON_WINDOWS`.
+- To end it early, remove its window.
+
 ## Running it safely
 
 - **Contact email:** set `CONTACT_EMAIL` in `src/legal.ts` before promoting the site. The Terms and Privacy Policy show it for questions and data requests.

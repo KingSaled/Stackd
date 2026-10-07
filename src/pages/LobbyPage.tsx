@@ -27,6 +27,8 @@ import { blindsLabel, chips, countdown, timeAgo } from '../lib/format';
 import { ECONOMY, dailyBonusFor } from '../../shared/economy';
 import { sound } from '../lib/sound';
 import { setChampion } from '../store/champion';
+import { useSeason } from '../lib/season';
+import { Ghost, JackOLantern } from '../components/season/HalloweenArt';
 
 interface MyTable {
   table_id: string;
@@ -74,6 +76,7 @@ export function LobbyPage() {
   const econ = useEconomy();
   const mode = useGameMode((s) => s.mode);
   const bj = mode === 'blackjack';
+  const halloween = useSeason((s) => s.season) === 'halloween';
   const openHere = open.filter((t) => gameOf(t) === mode);
   const heroCards = bj ? ['Kh', 'As'] : ['As', 'Ks', 'Qs', 'Js', 'Ts'];
 
@@ -159,7 +162,7 @@ export function LobbyPage() {
               </motion.div>
             )}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-              <p className="home-hero__eyebrow">{profile ? 'Welcome back' : 'Welcome to Stackd'}</p>
+              <p className="home-hero__eyebrow">{halloween ? 'Happy Halloween' : profile ? 'Welcome back' : 'Welcome to Stackd'}</p>
               <h1 className={clsx('home-hero__name', (profile?.display_name.length ?? 0) > 12 && 'is-long')}>
                 {profile ? profile.display_name : 'Ready to play?'}
               </h1>
@@ -173,7 +176,14 @@ export function LobbyPage() {
             </motion.div>
           </div>
 
+          {halloween && <JackOLantern className="hero-pumpkin hero-pumpkin--corner" />}
           <div className="home-hero__art" aria-hidden>
+            {halloween && (
+              <>
+                <JackOLantern className="hero-pumpkin" />
+                <Ghost className="hero-ghost" />
+              </>
+            )}
             <div className={clsx('fan', bj && 'fan--bj')} key={mode}>
               {heroCards.map((c, i) => (
                 <motion.div

@@ -4,6 +4,7 @@
  * without a server. Scenes: betting, dealt, turn, split, settled.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { SeasonDecor } from '../components/season/SeasonDecor';
 import '../styles/blackjack.css';
 import { BlackjackStage } from '../components/blackjack/BlackjackStage';
 import { BlackjackBar } from '../components/blackjack/BlackjackBar';
@@ -135,6 +136,7 @@ export default function BlackjackPlayground() {
   const mySeat = pub.seats.findIndex((x) => x?.userId === 'me');
   return (
     <div className={`table-page bj-page ${wide ? 'table-page--wide' : ''}`}>
+      <SeasonDecor />
       <header className="table-top">
         <div className="table-top__title">
           <span className="table-top__name">Playground · blackjack</span>

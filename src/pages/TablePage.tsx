@@ -29,6 +29,7 @@ import { seatPan, sound, vibrate } from '../lib/sound';
 import { blindsLabel, chips } from '../lib/format';
 import { recallRoomPassword, rememberRoomPassword } from '../lib/storage';
 import { clearQuickSeatIntent, hasQuickSeatIntent } from '../lib/quickplay';
+import { celebrationColors } from '../lib/season';
 
 // Blackjack tables load their own (separately downloaded) room.
 const BlackjackRoom = lazy(() => import('./BlackjackRoom'));
@@ -263,7 +264,7 @@ function TableRoom({ roomId }: { roomId: string }) {
         spread: big ? 100 : 70,
         startVelocity: big ? 45 : 32,
         origin,
-        colors: ['#f5c451', '#ffdf8a', '#3ef0a8', '#ffffff', '#ff6bcb'],
+        colors: celebrationColors(['#f5c451', '#ffdf8a', '#3ef0a8', '#ffffff', '#ff6bcb']),
         disableForReducedMotion: true,
       });
     }

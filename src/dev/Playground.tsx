@@ -4,6 +4,7 @@
  * and sounds can be exercised without a backend. Excluded from production builds.
  */
 import { useMemo, useRef, useState } from 'react';
+import { SeasonDecor } from '../components/season/SeasonDecor';
 import {
   applyAction,
   createInitialState,
@@ -161,6 +162,7 @@ export default function Playground() {
 
   return (
     <div className="table-page">
+      <SeasonDecor />
       <header className="table-top">
         <div className="table-top__title">
           <span className="table-top__name">Playground · {scene}</span>

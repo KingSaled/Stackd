@@ -1,0 +1,1053 @@
+/* =====================================================================
+   Halloween (limited time)
+   ---------------------------------------------------------------------
+   Every rule here is scoped to :root[data-season='halloween'], which
+   src/lib/season.ts sets during October and clears at midnight on
+   November 1 (local time). Nothing here changes how the game works:
+   it only recolours and decorates it. Delete this file (and its import
+   in main.tsx) to retire the season for good.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------- Palette */
+
+:root[data-season='halloween'] {
+  --bg-0: #08050f;
+  --bg-1: #0f0a1a;
+  --bg-2: #171026;
+  --bg-3: #221737;
+  --bg-4: #2e2049;
+  --line: rgba(255, 196, 150, 0.09);
+  --line-strong: rgba(255, 196, 150, 0.18);
+  --text: #f7efe4;
+  --text-dim: #beb1cc;
+  --text-faint: #7f7194;
+  --gold: #ff9a2e;
+  --gold-2: #ffc46b;
+  --gold-deep: #c65a0c;
+  --mint: #9cf06a;
+  --mint-deep: #4f9e24;
+  --red: #ff4766;
+  --blue: #9d8cff;
+  --purple: #a66bff;
+  --hw-orange: 255, 154, 46;
+  --hw-slime: 156, 240, 106;
+  --hw-violet: 166, 107, 255;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 24px 70px rgba(0, 0, 0, 0.65);
+}
+
+/* A moonlit purple sky with a warm glow on the horizon. */
+:root[data-season='halloween'] body {
+  background:
+    radial-gradient(1100px 700px at 88% -12%, rgba(150, 100, 255, 0.2), transparent 62%),
+    radial-gradient(900px 600px at -5% 5%, rgba(90, 40, 150, 0.22), transparent 60%),
+    radial-gradient(1300px 520px at 50% 118%, rgba(255, 120, 30, 0.16), transparent 62%),
+    linear-gradient(180deg, #0d0719 0%, #08050f 55%, #0b0610 100%);
+  background-attachment: fixed;
+}
+
+:root[data-season='halloween'] ::selection {
+  background: rgba(var(--hw-orange), 0.35);
+}
+
+/* The app paints above the scenery layer. */
+:root[data-season='halloween'] #root {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------------------------------------------------------------- Scenery */
+
+.season-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.hw-scene {
+  position: absolute;
+  inset: 0;
+}
+
+.hw-stars {
+  position: absolute;
+  inset: 0 0 30% 0;
+  background-image:
+    radial-gradient(1.4px 1.4px at 8% 14%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1.1px 1.1px at 19% 38%, rgba(255, 240, 220, 0.6), transparent),
+    radial-gradient(1.6px 1.6px at 31% 9%, rgba(255, 255, 255, 0.75), transparent),
+    radial-gradient(1px 1px at 44% 27%, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1.3px 1.3px at 57% 12%, rgba(255, 245, 230, 0.7), transparent),
+    radial-gradient(1px 1px at 66% 34%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1.5px 1.5px at 74% 6%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1.1px 1.1px at 83% 30%, rgba(255, 240, 220, 0.6), transparent),
+    radial-gradient(1.2px 1.2px at 94% 18%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 3% 46%, rgba(255, 255, 255, 0.5), transparent);
+  animation: hw-twinkle 4.5s ease-in-out infinite alternate;
+  will-change: opacity;
+}
+
+.hw-stars--b {
+  background-position: 37vw 9vh;
+  opacity: 0.7;
+  animation-duration: 6.5s;
+  animation-delay: -3s;
+}
+
+@keyframes hw-twinkle {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* A full moon with soft craters and a halo. */
+.hw-moon {
+  position: absolute;
+  top: max(9vh, 72px);
+  right: 1.6vw;
+  width: clamp(56px, 7.6vw, 112px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 34%, rgba(196, 168, 120, 0.4) 0 9%, transparent 10%),
+    radial-gradient(circle at 62% 26%, rgba(196, 168, 120, 0.32) 0 6%, transparent 7%),
+    radial-gradient(circle at 58% 62%, rgba(196, 168, 120, 0.35) 0 12%, transparent 13%),
+    radial-gradient(circle at 34% 70%, rgba(196, 168, 120, 0.25) 0 5%, transparent 6%),
+    radial-gradient(circle at 40% 36%, #fffbf0, #f7e8c2 55%, #e4c98c 100%);
+  box-shadow:
+    0 0 30px 6px rgba(255, 236, 190, 0.28),
+    0 0 90px 30px rgba(190, 150, 255, 0.16),
+    inset -10px -8px 22px rgba(160, 120, 70, 0.35);
+  opacity: 0.92;
+}
+
+/* Bats cross the sky now and then, flapping. */
+.hw-bat {
+  position: absolute;
+  top: var(--top);
+  left: 0;
+  width: var(--size);
+  fill: #05020a;
+  opacity: 0.85;
+  animation: hw-fly var(--dur) linear var(--delay) infinite;
+  will-change: transform;
+}
+
+.hw-bat--rev {
+  animation-name: hw-fly-rev;
+}
+
+.hw-bat svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  transform-origin: 50% 45%;
+  animation: hw-flap 0.22s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 6px rgba(var(--hw-violet), 0.35));
+}
+
+@keyframes hw-flap {
+  to {
+    transform: scaleY(0.35);
+  }
+}
+
+@keyframes hw-fly {
+  0% {
+    transform: translate(-12vw, 0);
+  }
+  20% {
+    transform: translate(12vw, -3vh);
+  }
+  40% {
+    transform: translate(36vw, 2vh);
+  }
+  60% {
+    transform: translate(60vw, -2vh);
+  }
+  80% {
+    transform: translate(84vw, 3vh);
+  }
+  100% {
+    transform: translate(112vw, -1vh);
+  }
+}
+
+@keyframes hw-fly-rev {
+  0% {
+    transform: translate(112vw, 0) scaleX(-1);
+  }
+  25% {
+    transform: translate(82vw, 3vh) scaleX(-1);
+  }
+  50% {
+    transform: translate(52vw, -2vh) scaleX(-1);
+  }
+  75% {
+    transform: translate(22vw, 2vh) scaleX(-1);
+  }
+  100% {
+    transform: translate(-12vw, -1vh) scaleX(-1);
+  }
+}
+
+/* Autumn leaves drift down. */
+.hw-leaf {
+  position: absolute;
+  top: -40px;
+  left: var(--x);
+  width: var(--size);
+  opacity: 0.7;
+  animation: hw-fall var(--dur) linear var(--delay) infinite;
+  will-change: transform;
+}
+
+.hw-leaf svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@keyframes hw-fall {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(var(--sway), 27vh) rotate(95deg);
+  }
+  50% {
+    transform: translate(0, 54vh) rotate(180deg);
+  }
+  75% {
+    transform: translate(calc(var(--sway) * -1), 81vh) rotate(275deg);
+  }
+  100% {
+    transform: translate(0, calc(100vh + 80px)) rotate(360deg);
+  }
+}
+
+.hw-skyline {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: clamp(110px, 20vh, 200px);
+}
+
+.hw-windows {
+  animation: hw-candle 3.2s ease-in-out infinite;
+}
+
+@keyframes hw-candle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  45% {
+    opacity: 0.82;
+  }
+  52% {
+    opacity: 0.95;
+  }
+  70% {
+    opacity: 0.86;
+  }
+}
+
+/* Low fog rolling along the ground. */
+.hw-fog {
+  position: absolute;
+  left: -50%;
+  bottom: -4vh;
+  width: 200%;
+  height: 30vh;
+  background:
+    radial-gradient(ellipse 18% 46% at 12% 62%, rgba(214, 196, 255, 0.11), transparent 72%),
+    radial-gradient(ellipse 22% 52% at 34% 70%, rgba(214, 196, 255, 0.09), transparent 72%),
+    radial-gradient(ellipse 16% 40% at 58% 60%, rgba(214, 196, 255, 0.1), transparent 72%),
+    radial-gradient(ellipse 24% 50% at 80% 72%, rgba(214, 196, 255, 0.09), transparent 72%);
+  animation: hw-drift 70s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.hw-fog--front {
+  bottom: -9vh;
+  opacity: 0.8;
+  animation-duration: 48s;
+  animation-direction: alternate-reverse;
+}
+
+@keyframes hw-drift {
+  from {
+    transform: translateX(-8%);
+  }
+  to {
+    transform: translateX(8%);
+  }
+}
+
+/* At the tables: a quieter sky so nothing competes with the cards (and no moon behind the chat). */
+.hw-scene--table .hw-moon {
+  display: none;
+}
+
+.hw-scene--table .hw-leaf {
+  opacity: 0.35;
+}
+
+.hw-scene--table .hw-leaf:nth-child(n + 11) {
+  display: none;
+}
+
+.hw-scene--table .hw-fog {
+  opacity: 0.6;
+}
+
+@media (max-width: 640px) {
+  .hw-leaf:nth-of-type(2n) {
+    display: none;
+  }
+
+  .hw-moon {
+    top: 124px;
+    right: 4vw;
+  }
+}
+
+/* Small flourishes used by pages. */
+.hw-flicker {
+  animation: hw-flicker 2.8s ease-in-out infinite;
+}
+
+@keyframes hw-flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  20% {
+    opacity: 0.86;
+  }
+  23% {
+    opacity: 0.97;
+  }
+  48% {
+    opacity: 0.9;
+  }
+  51% {
+    opacity: 1;
+  }
+  76% {
+    opacity: 0.84;
+  }
+}
+
+/* ---------------------------------------------------------------- Header and logo */
+
+/* A witch's hat perched on the S. */
+:root[data-season='halloween'] .logo__word {
+  position: relative;
+}
+
+:root[data-season='halloween'] .logo__word::before {
+  content: '';
+  position: absolute;
+  left: -0.24em;
+  top: -0.5em;
+  width: 0.82em;
+  height: 0.72em;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 56'%3E %3Cdefs%3E%3ClinearGradient id='c' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%239a5ce0'/%3E%3Cstop offset='1' stop-color='%235a2a96'/%3E%3C/linearGradient%3E%3C/defs%3E %3Cellipse cx='32' cy='46' rx='30' ry='8' fill='%236a35ad' stroke='%23b48cf0' stroke-width='1.4'/%3E %3Cpath d='M14 45 C20 30 24 16 30 6 C33 1 40 2 46 8 C42 7 38 8 37 12 C40 24 46 34 50 45 Z' fill='url(%23c)' stroke='%23b48cf0' stroke-width='1.4' stroke-linejoin='round'/%3E %3Cpath d='M15.5 42 C26 45 38 45 49 42 L47.5 36.5 C37 39.5 27 39.5 17.5 36.5 Z' fill='%23ff9a2e'/%3E %3Crect x='28' y='36' width='8' height='7.5' rx='1.2' fill='none' stroke='%23ffe08f' stroke-width='2'/%3E%3C/svg%3E") no-repeat center / contain;
+  rotate: -16deg;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 6px rgba(166, 107, 255, 0.45));
+  pointer-events: none;
+}
+
+:root[data-season='halloween'] .logo__word em {
+  text-shadow: 0 0 18px rgba(var(--hw-orange), 0.45);
+}
+
+:root[data-season='halloween'] .topnav,
+:root[data-season='halloween'] .table-top,
+:root[data-season='halloween'] .legal__top {
+  background: rgba(13, 7, 22, 0.78);
+  border-bottom-color: rgba(var(--hw-orange), 0.14);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+
+:root[data-season='halloween'] .game-switch {
+  background: rgba(var(--hw-violet), 0.08);
+  border-color: rgba(var(--hw-violet), 0.2);
+}
+
+:root[data-season='halloween'] .game-pill.is-on {
+  background: linear-gradient(180deg, rgba(126, 66, 196, 0.75), rgba(76, 32, 130, 0.75));
+  box-shadow:
+    inset 0 0 0 1px rgba(196, 160, 255, 0.5),
+    0 4px 14px rgba(var(--hw-violet), 0.25);
+}
+
+:root[data-season='halloween'] .game-pill--blackjack.is-on {
+  background: linear-gradient(180deg, rgba(178, 36, 56, 0.8), rgba(110, 14, 30, 0.8));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 140, 150, 0.45),
+    0 4px 14px rgba(200, 30, 60, 0.25);
+}
+
+:root[data-season='halloween'] .wallet-pill {
+  background: linear-gradient(180deg, rgba(var(--hw-orange), 0.2), rgba(var(--hw-orange), 0.07));
+  border-color: rgba(var(--hw-orange), 0.42);
+}
+
+:root[data-season='halloween'] .shop-pill {
+  background: linear-gradient(180deg, rgba(var(--hw-violet), 0.32), rgba(var(--hw-violet), 0.12));
+  border-color: rgba(196, 160, 255, 0.45);
+}
+
+:root[data-season='halloween'] .online-pill {
+  background: rgba(var(--hw-slime), 0.07);
+  border-color: rgba(var(--hw-slime), 0.3);
+}
+
+:root[data-season='halloween'] .online-pill__dot {
+  box-shadow: 0 0 0 3px rgba(var(--hw-slime), 0.18);
+}
+
+/* ---------------------------------------------------------------- Surfaces */
+
+:root[data-season='halloween'] .card,
+:root[data-season='halloween'] .panel {
+  background: linear-gradient(180deg, rgba(38, 24, 60, 0.8), rgba(17, 10, 29, 0.86));
+  border-color: rgba(var(--hw-orange), 0.12);
+  box-shadow:
+    0 12px 34px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 220, 190, 0.05);
+}
+
+/* Cobwebs in the corners of lobby panels, dialogs and the sign-in card. */
+:root[data-season='halloween'] .home-panel,
+:root[data-season='halloween'] .modal,
+:root[data-season='halloween'] .auth__shell {
+  position: relative;
+  isolation: isolate;
+}
+
+:root[data-season='halloween'] .home-panel::after,
+:root[data-season='halloween'] .modal::after,
+:root[data-season='halloween'] .auth__shell::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 92px;
+  height: 92px;
+  z-index: -1;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 140'%3E%3Cpath d='M140 0L135.3 135.9M140 0L102.5 130.7M140 0L70.0 116.6M140 0L42.2 94.5M140 0L21.1 65.9M140 0L8.0 32.9M140 0L4.1 4.7M139.5 15.5Q138.1 12.3 135.7 14.9M135.7 14.9Q135.0 11.4 131.8 13.6M132.0 13.3Q132.3 9.7 128.8 10.8M128.8 10.8Q130.0 7.4 126.2 7.7M126.4 7.5Q128.4 4.6 124.9 3.8M124.9 3.8Q127.7 1.7 124.2 0.6M139.0 30.0Q136.2 23.7 131.6 29.4M131.7 28.8Q130.4 22.0 124.5 25.7M124.5 25.7Q125.1 18.8 118.0 21.3M118.4 20.8Q120.7 14.3 113.8 14.5M113.8 14.5Q117.7 8.8 110.3 7.4M110.9 7.3Q116.2 3.3 110.0 1.0M138.3 47.4Q134.1 37.4 126.9 45.5M126.9 45.5Q124.9 34.8 115.1 41.4M115.6 40.6Q116.4 29.7 105.9 32.9M105.9 32.9Q109.5 22.5 97.7 23.4M98.6 23.0Q104.7 13.9 94.0 11.5M94.0 11.5Q102.5 5.3 91.7 1.7M137.8 62.0Q132.2 49.1 122.5 60.9M122.9 59.7Q120.2 45.5 108.0 53.2M108.0 53.2Q109.1 38.9 94.5 44.0M95.3 43.1Q100.1 29.5 85.7 30.1M85.7 30.1Q93.8 18.2 78.6 15.3M79.8 15.0Q90.8 6.9 78.0 2.2M137.1 83.9Q129.5 66.4 116.8 80.7M116.8 80.7Q113.2 61.6 95.9 73.4M96.7 72.0Q98.2 52.6 79.6 58.4M79.6 58.4Q86.0 40.0 65.1 41.5M66.5 40.7Q77.5 24.6 58.5 20.3M58.5 20.3Q73.5 9.4 54.4 3.0M136.2 109.1Q126.3 86.3 109.3 107.0M109.9 105.0Q105.2 80.1 83.8 93.6M83.8 93.6Q85.6 68.4 59.9 77.4M61.5 75.8Q69.8 52.0 44.5 52.9M44.5 52.9Q58.7 32.0 31.9 26.9M34.1 26.4Q53.5 12.2 30.9 3.8M135.6 126.0Q124.2 99.6 105.2 121.2M105.2 121.2Q99.8 92.5 73.8 110.3M75.1 108.1Q77.2 78.9 49.3 87.6M49.3 87.6Q58.9 60.0 27.5 62.4M29.7 61.1Q46.1 37.0 17.6 30.5M17.6 30.5Q40.1 14.0 11.5 4.5' fill='none' stroke='%23e9dcff' stroke-opacity='.32' stroke-width='.8' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat top right / contain;
+  border-top-right-radius: inherit;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+:root[data-season='halloween'] .home-panel:nth-child(even)::after {
+  right: auto;
+  left: 0;
+  transform: scaleX(-1);
+}
+
+:root[data-season='halloween'] .panel--alert {
+  border-color: rgba(255, 71, 102, 0.45);
+  background: linear-gradient(180deg, rgba(90, 16, 34, 0.7), rgba(32, 10, 22, 0.8));
+}
+
+:root[data-season='halloween'] .panel--note {
+  border-color: rgba(var(--hw-orange), 0.28);
+}
+
+:root[data-season='halloween'] .modal {
+  background: linear-gradient(180deg, #24163a, #120b1f);
+  border-color: rgba(var(--hw-orange), 0.2);
+}
+
+:root[data-season='halloween'] .sheet {
+  background: linear-gradient(180deg, #221536, #110a1d);
+  border-color: rgba(var(--hw-orange), 0.18);
+}
+
+:root[data-season='halloween'] .popover {
+  background: #1a1029;
+}
+
+:root[data-season='halloween'] .toast {
+  background: rgba(26, 15, 40, 0.97);
+  border-color: rgba(var(--hw-orange), 0.22);
+}
+
+:root[data-season='halloween'] .input {
+  background: rgba(10, 5, 18, 0.6);
+}
+
+:root[data-season='halloween'] .input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(var(--hw-orange), 0.2);
+}
+
+:root[data-season='halloween'] .segmented {
+  background: rgba(10, 5, 18, 0.5);
+}
+
+:root[data-season='halloween'] .segmented button.is-on,
+:root[data-season='halloween'] .legal__tabs a.is-on {
+  background: linear-gradient(180deg, rgba(var(--hw-orange), 0.28), rgba(var(--hw-orange), 0.12));
+  color: var(--gold-2);
+  box-shadow: inset 0 0 0 1px rgba(var(--hw-orange), 0.55);
+}
+
+:root[data-season='halloween'] .stake.is-on {
+  background: linear-gradient(180deg, rgba(var(--hw-orange), 0.3), rgba(var(--hw-orange), 0.12));
+  border-color: rgba(var(--hw-orange), 0.7);
+  color: var(--gold-2);
+}
+
+:root[data-season='halloween'] .chip-btn.is-on {
+  background: rgba(var(--hw-orange), 0.18);
+}
+
+:root[data-season='halloween'] .opt-list {
+  background: rgba(10, 5, 18, 0.35);
+}
+
+:root[data-season='halloween'] .msg--me .msg__body {
+  background: rgba(var(--hw-orange), 0.12);
+}
+
+:root[data-season='halloween'] .spinner {
+  border-color: rgba(var(--hw-orange), 0.18);
+  border-top-color: var(--gold);
+}
+
+/* ---------------------------------------------------------------- Buttons */
+
+:root[data-season='halloween'] .btn--gold,
+:root[data-season='halloween'] .btn--raise {
+  --b-bg: linear-gradient(180deg, #ffc077, #ff8f1f 45%, #d95f0b);
+  --b-fg: #2b1100;
+  --b-border: rgba(255, 192, 119, 0.75);
+  --b-glow: rgba(255, 143, 31, 0.32);
+}
+
+:root[data-season='halloween'] .btn--mint,
+:root[data-season='halloween'] .btn--call {
+  --b-bg: linear-gradient(180deg, #ccff9a, #9cf06a 45%, #5cb82b);
+  --b-fg: #132a04;
+  --b-border: rgba(204, 255, 154, 0.7);
+  --b-glow: rgba(156, 240, 106, 0.28);
+}
+
+:root[data-season='halloween'] .btn--fold {
+  --b-bg: linear-gradient(180deg, #ff6c86, #d92a4b 50%, #9e1230);
+}
+
+:root[data-season='halloween'] .btn--allin {
+  --b-bg: linear-gradient(180deg, #cfa6ff, #9d63f2 50%, #6a35c4);
+  --b-border: rgba(207, 166, 255, 0.7);
+}
+
+:root[data-season='halloween'] .pulse {
+  animation-name: hw-pulse;
+}
+
+:root[data-season='halloween'] .streak__dot.is-next {
+  animation-name: hw-pulse;
+}
+
+@keyframes hw-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 143, 31, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(255, 143, 31, 0);
+  }
+}
+
+:root[data-season='halloween'] .switch input:checked + .switch__track {
+  background: var(--mint-deep);
+}
+
+/* ---------------------------------------------------------------- Lobby */
+
+:root[data-season='halloween'] .home-hero {
+  border-color: rgba(var(--hw-orange), 0.2);
+  background:
+    radial-gradient(ellipse 50% 100% at 92% 50%, rgba(255, 128, 20, 0.24), transparent 62%),
+    radial-gradient(ellipse 45% 80% at 0% 0%, rgba(var(--hw-violet), 0.18), transparent 60%),
+    linear-gradient(180deg, rgba(40, 22, 64, 0.9), rgba(14, 8, 24, 0.94));
+}
+
+/* A spider dangles from the top of the welcome card. */
+:root[data-season='halloween'] .home-hero::after {
+  content: '';
+  position: absolute;
+  top: -40px;
+  left: 46%;
+  width: 26px;
+  height: 120px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 34'%3E %3Cg stroke='%234a3866' stroke-width='2.2' fill='none' stroke-linecap='round'%3E %3Cpath d='M16 16 C10 10 6 10 2 14'/%3E%3Cpath d='M16 18 C9 16 5 18 2 23'/%3E%3Cpath d='M17 20 C11 22 8 26 6 31'/%3E%3Cpath d='M18 21 C14 25 13 29 13 33'/%3E %3Cpath d='M24 16 C30 10 34 10 38 14'/%3E%3Cpath d='M24 18 C31 16 35 18 38 23'/%3E%3Cpath d='M23 20 C29 22 32 26 34 31'/%3E%3Cpath d='M22 21 C26 25 27 29 27 33'/%3E%3C/g%3E %3Cellipse cx='20' cy='20' rx='6.5' ry='7.5' fill='%232c1d42' stroke='%237d65a8' stroke-width='1.2'/%3E %3Ccircle cx='20' cy='11.5' r='4.2' fill='%232c1d42' stroke='%237d65a8' stroke-width='1.2'/%3E %3Ccircle cx='18.3' cy='11' r='1.3' fill='%23ffb347'/%3E%3Ccircle cx='21.7' cy='11' r='1.3' fill='%23ffb347'/%3E%3C/svg%3E") no-repeat bottom center / 26px auto,
+    linear-gradient(rgba(233, 220, 255, 0.35), rgba(233, 220, 255, 0.35)) no-repeat top center / 1px calc(100% - 14px);
+  transform-origin: 50% 0;
+  animation: hw-spider 7s ease-in-out infinite;
+  will-change: transform;
+  pointer-events: none;
+}
+
+/* The thread runs up past the card's top edge, so lowering the spider never shows its end. */
+@keyframes hw-spider {
+  0%,
+  100% {
+    transform: translateY(0) rotate(2deg);
+  }
+  50% {
+    transform: translateY(34px) rotate(-3deg);
+  }
+}
+
+:root[data-season='halloween'] .home-hero__eyebrow {
+  color: var(--gold);
+}
+
+:root[data-season='halloween'] .home-hero__name {
+  background: linear-gradient(180deg, #ffe6c2, #ffa13a 55%, #e0650e);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.hero-pumpkin {
+  position: absolute;
+  z-index: 3;
+  left: -14px;
+  bottom: -12px;
+  width: 104px;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 22px rgba(255, 140, 20, 0.35));
+}
+
+.hero-ghost {
+  position: absolute;
+  z-index: 3;
+  right: -6px;
+  top: -6px;
+  width: 50px;
+  opacity: 0.92;
+  filter: drop-shadow(0 0 14px rgba(220, 210, 255, 0.4));
+  animation: hw-float 4.6s ease-in-out infinite;
+}
+
+@keyframes hw-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(3deg);
+  }
+}
+
+:root[data-season='halloween'] .home-hero__art {
+  position: relative;
+}
+
+.hero-pumpkin--corner {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .hero-pumpkin--corner {
+    display: block;
+    left: auto;
+    bottom: auto;
+    right: 14px;
+    top: 16px;
+    width: 56px;
+  }
+
+  :root[data-season='halloween'] .home-hero::after {
+    left: auto;
+    right: 92px;
+  }
+}
+
+:root[data-season='halloween'] .home-action {
+  background: rgba(10, 5, 18, 0.5);
+}
+
+:root[data-season='halloween'] .home-action--create {
+  border-color: rgba(255, 196, 130, 0.75);
+  background:
+    radial-gradient(ellipse 80% 120% at 0% 0%, rgba(255, 255, 255, 0.32), transparent 60%),
+    linear-gradient(180deg, #ffc077, #ff8f1f 45%, #d95f0b);
+  color: #2b1100;
+  box-shadow:
+    0 12px 30px rgba(255, 128, 20, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+:root[data-season='halloween'] .home-action--create .home-action__icon {
+  background: #2b1100;
+  color: #ffb45c;
+}
+
+:root[data-season='halloween'] .home-action--create .home-action__text > span {
+  color: rgba(43, 17, 0, 0.78);
+}
+
+:root[data-season='halloween'] .home-action--quick {
+  border-color: rgba(204, 255, 154, 0.7);
+  background:
+    radial-gradient(ellipse 80% 120% at 0% 0%, rgba(255, 255, 255, 0.3), transparent 60%),
+    linear-gradient(180deg, #ccff9a, #9cf06a 45%, #5cb82b);
+  color: #132a04;
+  box-shadow:
+    0 12px 30px rgba(var(--hw-slime), 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+:root[data-season='halloween'] .home-action--quick .home-action__icon {
+  background: #132a04;
+  color: #b8ff86;
+}
+
+:root[data-season='halloween'] .home-action--quick .home-action__text > span {
+  color: rgba(19, 42, 4, 0.75);
+}
+
+:root[data-season='halloween'] .home-action__gear {
+  color: #132a04;
+  background: rgba(19, 42, 4, 0.12);
+  border-color: rgba(19, 42, 4, 0.2);
+}
+
+:root[data-season='halloween'] .home-action--join .home-action__icon {
+  background: rgba(var(--hw-orange), 0.14);
+  box-shadow: inset 0 0 0 1px rgba(var(--hw-orange), 0.32);
+}
+
+:root[data-season='halloween'] .table-row {
+  background: rgba(255, 220, 190, 0.025);
+}
+
+:root[data-season='halloween'] .table-row:hover {
+  background: rgba(var(--hw-orange), 0.06);
+}
+
+:root[data-season='halloween'] .table-row--mine {
+  border-color: rgba(var(--hw-slime), 0.25);
+  background: linear-gradient(90deg, rgba(var(--hw-slime), 0.07), rgba(255, 255, 255, 0.02) 60%);
+}
+
+:root[data-season='halloween'] .streak__dot.is-on {
+  background: linear-gradient(180deg, #ffc077, #e0650e);
+  color: #2b1100;
+}
+
+:root[data-season='halloween'] .leaders__row.is-me {
+  background: rgba(var(--hw-orange), 0.1);
+  border-color: rgba(var(--hw-orange), 0.32);
+}
+
+/* ---------------------------------------------------------------- Sign in */
+
+:root[data-season='halloween'] .auth {
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 45%, rgba(var(--hw-violet), 0.18), transparent 72%),
+    radial-gradient(ellipse 50% 35% at 50% 0%, rgba(255, 170, 90, 0.1), transparent 70%);
+}
+
+:root[data-season='halloween'] .auth__shell {
+  border-color: rgba(var(--hw-orange), 0.25);
+  background: linear-gradient(180deg, rgba(36, 22, 56, 0.95), rgba(14, 8, 24, 0.97));
+}
+
+:root[data-season='halloween'] .auth__shell::before {
+  width: 120px;
+  height: 120px;
+}
+
+/* The felt panel becomes a moonlit purple field. */
+:root[data-season='halloween'] .auth__hero {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 30%, rgba(255, 210, 160, 0.08), transparent 70%),
+    radial-gradient(ellipse 120% 100% at 50% 35%, #5a2f86 0%, #43216a 40%, #2b1250 75%, #1c0a36 100%);
+  box-shadow: inset -1px 0 0 rgba(var(--hw-orange), 0.3);
+}
+
+:root[data-season='halloween'] .auth__hero::after {
+  border-color: rgba(var(--hw-orange), 0.25);
+}
+
+:root[data-season='halloween'] .auth__perks svg {
+  box-shadow: inset 0 0 0 1px rgba(var(--hw-orange), 0.3);
+}
+
+.auth__spooky {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.auth__pumpkin {
+  position: absolute;
+  left: 20px;
+  bottom: 18px;
+  width: 92px;
+  z-index: 3;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 20px rgba(255, 140, 20, 0.4));
+}
+
+.auth__bat {
+  position: absolute;
+  top: 74px;
+  right: 22%;
+  width: 34px;
+  fill: #0b0514;
+  animation: hw-float 5s ease-in-out infinite;
+}
+
+.auth__bat--2 {
+  top: 40px;
+  right: 6%;
+  width: 22px;
+  animation-delay: -2s;
+}
+
+:root[data-season='halloween'] .auth__fan {
+  z-index: 2;
+}
+
+@media (max-width: 760px) {
+  .auth__pumpkin {
+    width: 64px;
+    left: auto;
+    right: 18px;
+    top: 20px;
+    bottom: auto;
+  }
+
+  .auth__bat {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------- Shop and profile */
+
+:root[data-season='halloween'] .shop-item {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, color-mix(in srgb, var(--tier) 16%, transparent), transparent 70%),
+    linear-gradient(180deg, rgba(40, 24, 62, 0.82), rgba(17, 10, 29, 0.86));
+}
+
+/* ---------------------------------------------------------------- Tables */
+
+/* The room: candlelight over the table, the night sky beyond. */
+:root[data-season='halloween'] .table-page {
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 44%, rgba(255, 150, 60, 0.12), transparent 72%),
+    radial-gradient(ellipse 120% 90% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+:root[data-season='halloween'] .side-chat {
+  background: rgba(16, 9, 27, 0.82);
+  border-left-color: rgba(var(--hw-orange), 0.12);
+}
+
+:root[data-season='halloween'] .actionbar {
+  background: linear-gradient(180deg, rgba(24, 13, 38, 0.94), rgba(10, 5, 18, 0.98));
+  border-top-color: rgba(var(--hw-orange), 0.14);
+}
+
+:root[data-season='halloween'] .actionbar--turn {
+  border-top-color: rgba(var(--hw-slime), 0.4);
+  box-shadow: 0 -10px 40px rgba(var(--hw-slime), 0.08);
+}
+
+:root[data-season='halloween'] .raise {
+  background: linear-gradient(180deg, rgba(26, 14, 40, 0.96), rgba(16, 9, 27, 0.98));
+  border-top-color: rgba(var(--hw-orange), 0.3);
+}
+
+/* Poker: midnight-purple felt under a warm orange light, with a copper trim. */
+:root[data-season='halloween'] .table-rail {
+  background:
+    radial-gradient(130% 120% at 50% 0%, rgba(255, 190, 130, 0.12), transparent 45%),
+    radial-gradient(120% 140% at 50% 100%, rgba(0, 0, 0, 0.55), transparent 55%),
+    linear-gradient(180deg, #2a1a24 0%, #170d16 48%, #0c060c 100%);
+}
+
+:root[data-season='halloween'] .table-rail::before {
+  border-color: rgba(var(--hw-orange), 0.38);
+}
+
+:root[data-season='halloween'] .table-felt {
+  background:
+    radial-gradient(ellipse 55% 50% at 50% 40%, rgba(255, 170, 90, 0.16), transparent 70%),
+    radial-gradient(ellipse 85% 75% at 50% 42%, #5c3088 0%, #45226c 36%, #301552 66%, #1c0b34 100%);
+  box-shadow:
+    0 0 0 2px #ff9a2e,
+    0 0 0 3.5px #8a3a08,
+    0 0 0 9px #1c0d18,
+    0 0 0 10px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.35),
+    inset 0 0 90px rgba(0, 0, 0, 0.55),
+    inset 0 14px 30px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-season='halloween'] .table-felt::before {
+  border-color: rgba(var(--hw-orange), 0.24);
+  box-shadow: 0 0 0 5px rgba(var(--hw-orange), 0.05);
+}
+
+:root[data-season='halloween'] .table-felt::after {
+  border-color: rgba(var(--hw-orange), 0.1);
+}
+
+:root[data-season='halloween'] .felt-logo {
+  color: rgba(0, 0, 0, 0.2);
+}
+
+:root[data-season='halloween'] .felt-logo small {
+  color: rgba(var(--hw-orange), 0.22);
+}
+
+:root[data-season='halloween'] .board__slot {
+  background: rgba(0, 0, 0, 0.12);
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--hw-orange), 0.14),
+    inset 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+:root[data-season='halloween'] .board__slot:has(.board__card) {
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-season='halloween'] .pot__main,
+:root[data-season='halloween'] .status-pill {
+  background: linear-gradient(180deg, rgba(20, 10, 30, 0.78), rgba(8, 4, 14, 0.82));
+  border-color: rgba(var(--hw-orange), 0.3);
+}
+
+:root[data-season='halloween'] .seat__plate {
+  background: linear-gradient(180deg, rgba(38, 22, 58, 0.95), rgba(13, 7, 22, 0.96));
+  border-color: rgba(var(--hw-orange), 0.24);
+}
+
+:root[data-season='halloween'] .seat.is-turn .seat__avatar::before {
+  background: conic-gradient(from 0deg, transparent 0 55%, rgba(var(--hw-slime), 0.15) 65%, rgba(var(--hw-slime), 0.95) 98%, transparent 100%);
+}
+
+:root[data-season='halloween'] .seat.is-turn .seat__avatar {
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.55),
+    0 0 0 4px var(--ring, var(--c)),
+    0 0 0 9px rgba(var(--hw-slime), 0.12),
+    0 0 36px rgba(var(--hw-slime), 0.45),
+    0 10px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* Card backs: a spiderweb on midnight purple with a jack-o'-lantern in the middle. */
+:root[data-season='halloween'] .pcard__back {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 112'%3E %3Cdefs%3E%3ClinearGradient id='s' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ffb347'/%3E%3Cstop offset='.6' stop-color='%23f57c12'/%3E%3Cstop offset='1' stop-color='%23b84906'/%3E%3C/linearGradient%3E%3C/defs%3E %3Cpath d='M57 26 C55 16 58 9 63 4 C66 2 69 4 67 7 C63 12 63 19 65 26 Z' fill='%2355642a'/%3E %3Cellipse cx='34' cy='64' rx='26' ry='37' fill='url(%23s)' stroke='%23a8430a' stroke-width='1.6'/%3E %3Cellipse cx='86' cy='64' rx='26' ry='37' fill='url(%23s)' stroke='%23a8430a' stroke-width='1.6'/%3E %3Cellipse cx='47' cy='64' rx='24' ry='40' fill='url(%23s)' stroke='%23a8430a' stroke-width='1.6'/%3E %3Cellipse cx='73' cy='64' rx='24' ry='40' fill='url(%23s)' stroke='%23a8430a' stroke-width='1.6'/%3E %3Cellipse cx='60' cy='64' rx='22' ry='42' fill='url(%23s)' stroke='%23a8430a' stroke-width='1.6'/%3E %3Cpath d='M32 54 L46 42 L50 58 Z M88 54 L74 42 L70 58 Z M56 66 L60 58 L64 66 Z M30 74 Q60 98 90 74 L82 76 L78 84 L72 78 L66 87 L60 80 L54 87 L48 78 L42 84 L38 76 Z' fill='%23ffd25a' stroke='%236b2400' stroke-width='2.4' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center / 54% auto,
+    repeating-radial-gradient(circle at 50% 50%, transparent 0 9%, rgba(255, 154, 46, 0.2) 9% 10%),
+    repeating-conic-gradient(from 8deg at 50% 50%, rgba(255, 154, 46, 0.22) 0 1.2deg, transparent 1.2deg 30deg),
+    radial-gradient(ellipse at 50% 35%, #44226c 0%, #28123f 55%, #140821 100%);
+  border-color: #f6ecdf;
+  box-shadow:
+    inset 0 0 0 calc(var(--w) * 0.025) rgba(255, 154, 46, 0.85),
+    0 1px 1px rgba(0, 0, 0, 0.3),
+    0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-season='halloween'] .pcard__logo {
+  opacity: 0;
+}
+
+:root[data-season='halloween'] .pcard.is-highlight .pcard__front {
+  box-shadow:
+    0 0 0 2px var(--gold),
+    0 0 18px rgba(var(--hw-orange), 0.75),
+    0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+/* Blackjack: blood-red felt with candlelit printing. */
+:root[data-season='halloween'] .bj-table {
+  background:
+    radial-gradient(130% 120% at 50% 0%, rgba(255, 190, 130, 0.12), transparent 45%),
+    radial-gradient(120% 140% at 50% 100%, rgba(0, 0, 0, 0.55), transparent 55%),
+    linear-gradient(180deg, #2a1a24 0%, #170d16 48%, #0c060c 100%);
+}
+
+:root[data-season='halloween'] .bj-felt {
+  background:
+    radial-gradient(ellipse 55% 60% at 50% 18%, rgba(255, 200, 150, 0.14), transparent 70%),
+    radial-gradient(ellipse 85% 110% at 50% 10%, #a3203a 0%, #7c1429 40%, #560c1c 72%, #32060f 100%);
+  box-shadow:
+    0 0 0 2px #ff9a2e,
+    0 0 0 3.5px #8a3a08,
+    inset 0 0 0 1px rgba(0, 0, 0, 0.35),
+    inset 0 0 70px rgba(0, 0, 0, 0.5),
+    inset 0 10px 24px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-season='halloween'] .bj-print__big {
+  fill: rgba(255, 196, 107, 0.82);
+}
+
+:root[data-season='halloween'] .bj-print__small {
+  fill: rgba(255, 196, 107, 0.55);
+}
+
+:root[data-season='halloween'] .bj-circle {
+  border-color: rgba(255, 196, 107, 0.45);
+  box-shadow:
+    inset 0 0 0 4px rgba(0, 0, 0, 0.1),
+    inset 0 0 0 5px rgba(255, 196, 107, 0.15);
+}
+
+:root[data-season='halloween'] .bj-circle.is-mine {
+  border-color: rgba(255, 210, 150, 0.9);
+  box-shadow:
+    inset 0 0 0 4px rgba(0, 0, 0, 0.1),
+    0 0 16px rgba(var(--hw-orange), 0.45);
+}
+
+/* ---------------------------------------------------------------- Calm motion */
+
+@media (prefers-reduced-motion: reduce) {
+  .hw-stars,
+  .hw-bat,
+  .hw-bat svg,
+  .hw-fog,
+  .hw-windows,
+  .hw-flicker,
+  .hero-ghost,
+  .auth__bat,
+  :root[data-season='halloween'] .home-hero::after {
+    animation: none;
+  }
+
+  .hw-bat {
+    transform: translate(70vw, 0);
+  }
+
+  .hw-bat--rev {
+    transform: translate(20vw, 6vh) scaleX(-1);
+  }
+
+  .hw-leaf {
+    display: none;
+  }
+}
