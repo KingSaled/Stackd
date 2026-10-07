@@ -82,7 +82,7 @@ export default function BlackjackPlayground() {
   const scene = new URLSearchParams(window.location.search).get('scene') ?? 'turn';
   const [s, setS] = useState<BjState>(() => build(scene));
   const [, bump] = useState(0);
-  const [pending, setPending] = useState(500);
+  const [pending, setPending] = useState(0);
   const [wallet, setWallet] = useState(48_250);
   const wrap = useRef<HTMLDivElement>(null);
   const m = useStage(wrap);
@@ -131,6 +131,7 @@ export default function BlackjackPlayground() {
     return () => clearTimeout(id);
   }, [tl.resultsAt]);
 
+  useEffect(() => setPending(0), [s.roundNo]);
   const mySeat = pub.seats.findIndex((x) => x?.userId === 'me');
   return (
     <div className={`table-page bj-page ${wide ? 'table-page--wide' : ''}`}>

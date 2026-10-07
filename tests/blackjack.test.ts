@@ -45,6 +45,39 @@ function table(players = 1) {
 
 const net = (fx: BjEffects, id = 'u0') => fx.wallet[id] ?? 0;
 
+/** Textbook basic strategy for 6 decks, dealer stands on soft 17, double after split. */
+function basicStrategy(hand: { cards: Card[] }, legal: { canDouble: boolean; canSplit: boolean }, dealerUp: Card): 'hit' | 'stand' | 'double' | 'split' {
+  const d = dealerUp[0] === 'A' ? 11 : 'TJQK'.includes(dealerUp[0]) ? 10 : Number(dealerUp[0]);
+  const { total, soft } = handTotal(hand.cards);
+  if (legal.canSplit) {
+    const r = hand.cards[0][0];
+    const p = r === 'A' ? 11 : 'TJQK'.includes(r) ? 10 : Number(r);
+    if (
+      p === 11 ||
+      p === 8 ||
+      (p === 9 && ![7, 10, 11].includes(d)) ||
+      (p === 7 && d <= 7) ||
+      (p === 6 && d <= 6) ||
+      (p === 4 && (d === 5 || d === 6)) ||
+      ((p === 2 || p === 3) && d <= 7)
+    )
+      return 'split';
+  }
+  if (soft && total < 21) {
+    if (total >= 19) return 'stand';
+    if (total === 18) return legal.canDouble && d >= 3 && d <= 6 ? 'double' : d <= 8 ? 'stand' : 'hit';
+    const double = (total === 17 && d >= 3) || (total >= 15 && d >= 4) || d >= 5;
+    return legal.canDouble && double && d <= 6 ? 'double' : 'hit';
+  }
+  if (total >= 17) return 'stand';
+  if (total >= 13) return d <= 6 ? 'stand' : 'hit';
+  if (total === 12) return d >= 4 && d <= 6 ? 'stand' : 'hit';
+  if (total === 11) return legal.canDouble && d <= 10 ? 'double' : 'hit';
+  if (total === 10) return legal.canDouble && d <= 9 ? 'double' : 'hit';
+  if (total === 9) return legal.canDouble && d >= 3 && d <= 6 ? 'double' : 'hit';
+  return 'hit';
+}
+
 describe('blackjack hand maths', () => {
   it('counts aces as 1 or 11', () => {
     expect(handTotal(['As', 'Kd'])).toEqual({ total: 21, soft: true });
@@ -290,11 +323,7 @@ describe('blackjack rounds', () => {
       for (let p = 0; p < 3; p++) bjPlaceBet(s, fx, `u${p}`, 100, r, now);
       for (let g = 0; g < 50 && s.phase === 'playing'; g++) {
         const seat = s.seats[s.toAct]!;
-        const h = seat.hands[s.handIdx];
-        const t = handTotal(h.cards).total;
-        const legal = bjLegal(s, s.toAct);
-        const action = legal.canSplit && h.cards[0][0] === '8' ? 'split' : legal.canDouble && t === 11 ? 'double' : t < 17 ? 'hit' : 'stand';
-        bjAct(s, fx, seat.userId, action, r, now);
+        bjAct(s, fx, seat.userId, basicStrategy(seat.hands[s.handIdx], bjLegal(s, s.toAct), s.dealer[0]), r, now);
       }
       expect(s.phase).toBe('settled');
       for (const seat of s.seats) {
@@ -310,7 +339,50 @@ describe('blackjack rounds', () => {
       bjTick(s, fx, r, now);
     }
     const edge = wallet / wagered;
-    expect(edge).toBeLessThan(0);
-    expect(edge).toBeGreaterThan(-0.1);
+    expect(edge).toBeLessThan(0.02);
+    expect(edge).toBeGreaterThan(-0.03);
+  }, 60_000);
+
+  it('is a fair game: perfect strategy gets back about 99.5% and every card is equally likely', () => {
+    // 6 decks, dealer stands on soft 17, 3:2, double after split, no surrender: the published house edge is about 0.4-0.5%.
+    const r = seededRng(7);
+    const s = table(1);
+    const ROUNDS = 150_000;
+    let wagered = 0;
+    let back = 0;
+    let wins = 0;
+    let losses = 0;
+    let naturals = 0;
+    const upCards: Record<string, number> = {};
+    let now = T0;
+    for (let round = 0; round < ROUNDS; round++) {
+      const fx = newBjEffects();
+      bjPlaceBet(s, fx, 'u0', 100, r, now);
+      upCards[s.dealer[0][0]] = (upCards[s.dealer[0][0]] ?? 0) + 1;
+      while (s.phase === 'playing') {
+        const seat = s.seats[0]!;
+        bjAct(s, fx, 'u0', basicStrategy(seat.hands[s.handIdx], bjLegal(s, 0), s.dealer[0]), r, now);
+      }
+      const hands = s.seats[0]!.hands;
+      const result = hands.reduce((a, h) => a + h.payout - h.bet, 0);
+      wagered += hands.reduce((a, h) => a + h.bet, 0);
+      back += hands.reduce((a, h) => a + h.payout, 0);
+      if (result > 0) wins++;
+      else if (result < 0) losses++;
+      if (hands.some((h) => h.outcome === 'blackjack')) naturals++;
+      now = s.nextRoundAt!;
+      bjTick(s, fx, r, now);
+    }
+    const rtp = back / wagered;
+    expect(rtp).toBeGreaterThan(0.987);
+    expect(rtp).toBeLessThan(1.003);
+    expect(wins / ROUNDS).toBeGreaterThan(0.42);
+    expect(wins / ROUNDS).toBeLessThan(0.445);
+    expect(losses / ROUNDS).toBeGreaterThan(0.47);
+    expect(losses / ROUNDS).toBeLessThan(0.49);
+    expect(naturals / ROUNDS).toBeGreaterThan(0.043);
+    expect(naturals / ROUNDS).toBeLessThan(0.048);
+    // Every rank turns up as the dealer's card 1 time in 13.
+    for (const rank of '23456789TJQKA') expect(Math.abs(upCards[rank] / ROUNDS - 1 / 13)).toBeLessThan(0.004);
   }, 60_000);
 });

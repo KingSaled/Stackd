@@ -14,6 +14,7 @@ import { usePresentation } from '../hooks/usePresentation';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { Stage } from '../components/table/Stage';
 import { ActionBar, type PreAction } from '../components/table/ActionBar';
+import { DockPlaceholder } from '../components/table/Dock';
 import { ChatPanel } from '../components/table/ChatPanel';
 import { BuyInDialog } from '../components/table/BuyInDialog';
 import { InviteButton } from '../components/table/InviteButton';
@@ -450,7 +451,7 @@ function TableRoom({ roomId }: { roomId: string }) {
         {wide && <aside className="side-chat">{chat}</aside>}
       </div>
 
-      {state && (
+      {state ? (
         <ActionBar
           state={state}
           mySeat={mySeat}
@@ -474,6 +475,8 @@ function TableRoom({ roomId }: { roomId: string }) {
             if (await run({ type: 'stand' })) toast.info('Seat released — your buy-in is back in your wallet');
           }}
         />
+      ) : (
+        <DockPlaceholder />
       )}
 
       <AnimatePresence>

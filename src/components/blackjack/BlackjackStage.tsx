@@ -347,7 +347,7 @@ function HeroHand({
     const amount = seat.bet || pendingBet;
     return (
       <div className="bj-hero" style={{ left: hero.x, top: hero.y }}>
-        <span className="bj-hero__label">{seat.bet ? 'Your bet is in' : 'Your bet'}</span>
+        <span className="bj-hero__label">{seat.bet ? 'Your bet is in' : amount > 0 ? 'Your bet' : 'Place your bet'}</span>
         <span className={clsx('bj-hero__circle', !seat.bet && 'is-ghost')}>{amount > 0 && <ChipStack amount={amount} max={6} />}</span>
       </div>
     );
@@ -416,7 +416,7 @@ function BettingCircle({ at, amount, mine, ghost }: { at: Pt; amount: number; mi
       <AnimatePresence>
         {amount > 0 && (
           <motion.div
-            key={amount}
+            key={ghost ? 'ghost' : 'bet'}
             className="bj-circle__chips"
             initial={{ y: -10, opacity: 0, scale: 0.9 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}

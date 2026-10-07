@@ -13,6 +13,7 @@ import { useStage } from '../hooks/useStage';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { BlackjackStage } from '../components/blackjack/BlackjackStage';
 import { BlackjackBar } from '../components/blackjack/BlackjackBar';
+import { DockPlaceholder } from '../components/table/Dock';
 import { bjTimeline } from '../components/blackjack/timeline';
 import { ChatPanel } from '../components/table/ChatPanel';
 import { InviteButton } from '../components/table/InviteButton';
@@ -48,12 +49,8 @@ export default function BlackjackRoom({ roomId }: { roomId: string }) {
   const mySeat = state ? bjSeatOf(state, me) : -1;
   const seat = mySeat >= 0 && state ? state.seats[mySeat] : null;
 
-  // Start each betting round from the player's last bet (or the table minimum).
-  const lastBet = seat?.lastBet ?? 0;
-  useEffect(() => {
-    if (!state) return;
-    if (pending === 0) setPending(Math.min(Math.max(lastBet || state.config.minBet * 10, state.config.minBet), profile?.chips ?? 0));
-  }, [state?.roundNo, mySeat]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Every round's bet starts empty: the player picks their chips (or rebets their last amount in one tap).
+  useEffect(() => setPending(0), [state?.roundNo, mySeat]);
 
   // Results become visible once the dealer has finished drawing.
   const tl = state ? bjTimeline(state) : null;
@@ -261,7 +258,7 @@ export default function BlackjackRoom({ roomId }: { roomId: string }) {
         {wide && <aside className="side-chat">{chat}</aside>}
       </div>
 
-      {state && (
+      {state ? (
         <BlackjackBar
           state={state}
           mySeat={mySeat}
@@ -282,6 +279,8 @@ export default function BlackjackRoom({ roomId }: { roomId: string }) {
             if (await run({ type: 'stand' })) toast.info('You left your seat');
           }}
         />
+      ) : (
+        <DockPlaceholder className="bj-bar" />
       )}
 
       <AnimatePresence>

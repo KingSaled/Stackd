@@ -336,113 +336,110 @@
 .bj-bar__status {
   display: flex;
   justify-content: center;
-  gap: 14px;
-  font-size: 0.9rem;
+  gap: 16px;
 }
 
-.bj-bar__status strong {
+.bj-bar__status strong,
+.bj-bar__text strong {
   font-family: var(--font-display);
   color: var(--gold-2);
+}
+
+.bj-bar__text {
+  font-size: 0.98rem;
+  color: var(--text);
 }
 
 .bj-actions .btn {
   gap: 6px;
 }
 
-.bj-bar__right {
+.bj-tools {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  gap: 8px;
   align-items: center;
+  gap: 6px;
 }
 
-.bj-bar--bet {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
+.bj-wallet {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-dim);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.bj-wallet svg {
+  color: var(--gold-2);
+}
+
+/* Betting: the chips and the Deal button share the dock's main row. */
+.bj-betrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 760px;
+  height: 100%;
 }
 
 .bj-chiptray {
+  flex: none;
   display: flex;
-  justify-content: center;
+  align-items: center;
   gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 
 .bj-chipbtn {
-  --chip-size: 38px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 3px;
+  --chip-size: 44px;
+  position: relative;
+  flex: none;
+  width: var(--chip-size);
+  height: var(--chip-size);
+  padding: 0;
   border: none;
+  border-radius: 50%;
   background: none;
-  color: var(--text-dim);
-  font-size: 0.72rem;
-  font-weight: 800;
   transition: transform 0.12s;
 }
 
-.bj-chipbtn .chip {
-  width: var(--chip-size);
-  height: var(--chip-size);
+.bj-chipbtn span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: calc(var(--chip-size) * 0.27);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #fff;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.85),
+    0 0 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
 }
 
 .bj-chipbtn:hover:not(:disabled) {
-  transform: translateY(-3px);
-  color: var(--text);
+  transform: translateY(-2px);
 }
 
 .bj-chipbtn:active:not(:disabled) {
-  transform: translateY(1px) scale(0.95);
+  transform: scale(0.94);
 }
 
 .bj-chipbtn:disabled {
   opacity: 0.35;
 }
 
-.bj-bar__row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 760px;
-  width: 100%;
-  margin: 0 auto;
-}
-
-.bj-betinfo {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.1;
-  min-width: 96px;
-}
-
-.bj-betinfo small {
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-}
-
-.bj-betinfo strong {
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  color: var(--gold-2);
-  font-variant-numeric: tabular-nums;
-}
-
-.bj-betinfo em {
-  font-style: normal;
-  font-size: 0.7rem;
-  color: var(--text-faint);
-  white-space: nowrap;
-}
-
 .bj-deal {
   flex: 1;
-  min-height: 46px;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  padding: 0 10px;
+  border-radius: 14px;
   font-size: 1.02rem;
 }
 
@@ -462,27 +459,45 @@
 }
 
 @media (max-width: 560px) {
+  .bj-betrow {
+    gap: 8px;
+  }
+
+  .bj-chiptray {
+    gap: 3px;
+  }
+
   .bj-chipbtn {
-    --chip-size: 32px;
-  }
-
-  .bj-bar__row {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .bj-betinfo {
-    min-width: 0;
-    flex: 1 1 auto;
+    --chip-size: 34px;
   }
 
   .bj-deal {
-    flex: 1 1 100%;
-    order: 10;
+    padding: 0 6px;
+    font-size: 0.9rem;
   }
 
   .bj-bar__status {
-    font-size: 0.82rem;
+    gap: 12px;
+  }
+
+  .bj-bar__text {
+    font-size: 0.88rem;
+  }
+
+  .hide-sm {
+    display: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .bj-chipbtn {
+    --chip-size: 31px;
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .bj-chipbtn {
+    --chip-size: 34px;
   }
 
   .hide-sm {
