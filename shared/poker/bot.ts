@@ -33,13 +33,17 @@ export function isBotId(userId: string): boolean {
   return userId.startsWith('bot-');
 }
 
-/** Random skill level (weighted toward capable bots) and personality. */
+/**
+ * Random skill level and personality. Like a real card room, a good share of
+ * the table are "fish" (easy): loose, passive players who see lots of flops
+ * and call too much, feeding the pots the regulars and sharks fight over.
+ */
 export function createBotBrain(rng: Rng): BotBrain {
   const roll = rand(rng);
-  const level: BotLevel = roll < 0.25 ? 'easy' : roll < 0.65 ? 'medium' : 'hard';
+  const level: BotLevel = roll < 0.4 ? 'easy' : roll < 0.72 ? 'medium' : 'hard';
   switch (level) {
     case 'easy':
-      return { level, tight: between(rng, 0.1, 0.4), aggr: between(rng, 0.1, 0.4), bluff: between(rng, 0.02, 0.08), iters: 60 };
+      return { level, tight: between(rng, 0.05, 0.35), aggr: between(rng, 0.1, 0.35), bluff: between(rng, 0.02, 0.08), iters: 60 };
     case 'medium':
       return { level, tight: between(rng, 0.35, 0.65), aggr: between(rng, 0.35, 0.65), bluff: between(rng, 0.06, 0.14), iters: 160 };
     default:
@@ -146,7 +150,7 @@ export function decideBotAction(s: EngineState, seatIndex: number, brain: BotBra
   if (s.phase !== 'river' && brain.level !== 'easy') callBar *= 0.9;
   // A bettor usually has something: continue only with a hand that is at least
   // about average against them, however good the price looks.
-  callBar = Math.max(callBar, fair * { easy: 0.72, medium: 0.92, hard: 0.9 }[brain.level] * (1 + tightAdj * 0.3));
+  callBar = Math.max(callBar, fair * { easy: 0.6, medium: 0.92, hard: 0.9 }[brain.level] * (1 + tightAdj * 0.3));
 
   const raiseBar = valueBar + 0.3 + (toCall > pot * 0.6 ? 0.35 : 0);
   if (legal.canRaise && rel >= raiseBar && r() < 0.3 + brain.aggr * 0.6) {
@@ -157,8 +161,12 @@ export function decideBotAction(s: EngineState, seatIndex: number, brain: BotBra
   if (legal.canRaise && brain.level === 'hard' && s.phase !== 'river' && eq > 0.28 && r() < brain.bluff) {
     return sized(0.7 + r() * 0.3);
   }
-  // Calling stations call a bit too often.
-  if (brain.level === 'easy' && toCall <= Math.max(bb * 3, pot * 0.25) && r() < 0.35) return { type: 'call' };
+  // Fish are calling stations: they hate folding, especially to small bets.
+  if (brain.level === 'easy') {
+    const small = toCall <= Math.max(bb * 3, pot * 0.35);
+    const medium = toCall <= pot * 0.75;
+    if (r() < (small ? 0.6 : medium ? 0.3 : 0.08) * (1.2 - brain.tight)) return { type: 'call' };
+  }
   // Short stacks don't fold tiny amounts.
   if (toCall <= bb && seat.stack > toCall && r() < 0.3) return { type: 'call' };
   return { type: 'fold' };
@@ -194,12 +202,16 @@ function preflopDecision(
   const fromButton = (seatIndex - s.dealer + n) % n;
   const early = !isSB && !isBB && dealt >= 6 && fromButton > 0 && fromButton <= Math.ceil(dealt / 3) + 2 && fromButton < n - 1;
 
-  // Share of starting hands this bot plays at a six-handed table.
-  const base = { easy: 0.5 - brain.tight * 0.3, medium: 0.4 - brain.tight * 0.25, hard: 0.36 - brain.tight * 0.2 }[brain.level];
-  const tableFactor = Math.min(2.6, Math.max(0.75, (6 / Math.max(2, dealt)) ** 0.8));
-  const posFactor = late ? 1.3 : early ? 0.8 : 1;
+  // Share of starting hands this bot plays at a six-handed table. Fish play
+  // most hands wherever they sit; regulars keep their six-handed ranges at a
+  // full table (looser than strict full-ring play, so pots get action) and
+  // widen short-handed and in position.
+  const fish = brain.level === 'easy';
+  const base = { easy: 0.64 - brain.tight * 0.4, medium: 0.42 - brain.tight * 0.25, hard: 0.38 - brain.tight * 0.2 }[brain.level];
+  const tableFactor = fish ? 1 : Math.min(2.6, Math.max(1, (6 / Math.max(2, dealt)) ** 0.8));
+  const posFactor = fish ? (late ? 1.1 : 1) : late ? 1.3 : early ? 0.85 : 1;
   const range = Math.min(0.95, base * tableFactor * posFactor);
-  const raiseShare = Math.min(0.95, Math.max(0.15, { easy: 0.3, medium: 0.55, hard: 0.7 }[brain.level] + (brain.aggr - 0.5) * 0.3));
+  const raiseShare = Math.min(0.95, Math.max(0.1, { easy: 0.14, medium: 0.55, hard: 0.7 }[brain.level] + (brain.aggr - 0.5) * 0.3));
   const stackTotal = seat.stack + seat.bet;
 
   const raiseTo = (total: number): PlayerAction => {
@@ -218,7 +230,8 @@ function preflopDecision(
       if (legal.canRaise && pct <= range * raiseShare * 0.45 && r() < 0.5 + brain.aggr * 0.4) return raiseTo(openTo);
       return { type: 'check' };
     }
-    const widen = isSB ? 1.25 : 1;
+    // Limpers in front give speculative hands a good multiway price.
+    const widen = (isSB ? 1.25 : 1) * (limpers > 0 && !fish ? 1.2 : 1);
     if (legal.canRaise && pct <= range * raiseShare * widen && r() < 0.88) return raiseTo(openTo);
     if (pct <= range * widen) {
       // Strong regulars rarely limp; they raise or fold.
@@ -231,15 +244,14 @@ function preflopDecision(
   // --- Facing a raise -------------------------------------------------------
   const size = s.currentBet / bb;
   const tier = size <= 5 ? 1 : size <= 14 ? 2 : 3; // open, 3-bet, 4-bet+
-  let defend = range * [0, 0.68, 0.34, 0.16][tier];
+  let defend = range * (fish ? [0, 0.85, 0.5, 0.22] : [0, 0.68, 0.34, 0.16])[tier];
   if (tier === 1) defend /= 1 + Math.max(0, size - 3) * 0.1;
   if (isBB) defend *= 1.8;
   else if (isSB) defend *= 1.1;
   const potOdds = toCall / (pot + toCall);
   if (potOdds < 0.25) defend *= 1.3;
-  if (brain.level === 'easy') defend *= 1.35;
   // Calling would commit most of the stack: only strong hands continue.
-  if (toCall >= stackTotal * 0.45) defend = Math.min(defend, { easy: 0.2, medium: 0.12, hard: 0.1 }[brain.level]);
+  if (toCall >= stackTotal * 0.45) defend = Math.min(defend, { easy: 0.22, medium: 0.12, hard: 0.1 }[brain.level]);
 
   const reraise = defend * (0.28 + brain.aggr * 0.15);
   if (legal.canRaise && pct <= reraise && r() < 0.6 + brain.aggr * 0.35) return raiseTo(s.currentBet * (2.8 + r() * 0.6));

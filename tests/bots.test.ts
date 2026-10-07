@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   addChips,
   applyAction,
+  createBotBrain,
   cardInt,
   createInitialState,
   decideBotAction,
@@ -304,6 +305,56 @@ describe('bot strength', () => {
     expect(foldedToRaise / facedRaise).toBeLessThan(0.82);
     expect(foldedToBet / facedBet).toBeGreaterThan(0.2);
     expect(foldedToBet / facedBet).toBeLessThan(0.6);
+  }, 120_000);
+
+  it('a full table of random bots has fish who feed multiway pots', () => {
+    const rng = seededRng(7);
+    const now = 1_000_000;
+    const s = createInitialState({ ...cfg, bots: false, maxSeats: 9 }, now);
+    const fx = newEffects();
+    for (let i = 0; i < 9; i++) sitDown(s, fx, { userId: `p${i}`, name: `P${i}`, avatar: '', color: '' }, i, 1000, now, rng);
+    let brains: BotBrain[] = [];
+    let hands = 0;
+    let flops = 0;
+    let playersAtFlop = 0;
+    const vpip = { easy: [0, 0], medium: [0, 0], hard: [0, 0] };
+    const net = { easy: 0, medium: 0, hard: 0 };
+    for (let h = 0; h < 800; h++) {
+      if (h % 40 === 0) brains = Array.from({ length: 9 }, () => createBotBrain(rng));
+      s.seats.forEach((seat, i) => {
+        net[brains[i].level] += seat!.stack - 1000;
+        seat!.stack = 1000;
+      });
+      s.phase = 'waiting' as EngineState['phase'];
+      fx.hands = [];
+      startHand(s, fx, now, rng);
+      let sawFlop = false;
+      for (let g = 0; g < 300 && isBettingPhase(s.phase); g++) {
+        if (s.phase === 'flop' && !sawFlop) {
+          sawFlop = true;
+          flops++;
+          playersAtFlop += s.seats.filter((x) => x?.inHand && !x.folded).length;
+        }
+        const i = s.toAct;
+        applyAction(s, fx, `p${i}`, decideBotAction(s, i, brains[i], rng), now);
+      }
+      hands++;
+      for (const rec of fx.hands)
+        for (const p of rec.players) {
+          const v = vpip[brains[Number(p.userId.slice(1))].level];
+          v[1]++;
+          if (p.vpip) v[0]++;
+        }
+    }
+    s.seats.forEach((seat, i) => (net[brains[i].level] += seat!.stack - 1000));
+    // Most hands reach the flop, usually three or more ways.
+    expect(flops / hands).toBeGreaterThan(0.65);
+    expect(playersAtFlop / flops).toBeGreaterThan(3);
+    // Fish play most hands, regulars a realistic share, and the fish lose the chips.
+    expect(vpip.easy[0] / vpip.easy[1]).toBeGreaterThan(0.45);
+    expect(vpip.medium[0] / vpip.medium[1]).toBeLessThan(0.4);
+    expect(vpip.hard[0] / vpip.hard[1]).toBeLessThan(0.4);
+    expect(net.easy).toBeLessThan(0);
   }, 120_000);
 
   it('a player who raises every hand does not profit from bots', () => {

@@ -1,7 +1,8 @@
 /**
- * Table geometry. Seats are distributed evenly by arc length around an ellipse
- * (so they don't bunch up at the narrow ends), starting at bottom-center and
- * going clockwise — the same direction the action moves.
+ * Table geometry. Seats are spaced evenly by distance along the rail, starting
+ * at bottom-centre and going clockwise (the direction the action moves). The
+ * rail is a pill (straight top and bottom, round ends), so seats follow that
+ * shape: on an ellipse the corner seats would drift in over the felt.
  */
 
 export interface Point {
@@ -11,13 +12,14 @@ export interface Point {
 
 export interface StageGeometry {
   center: Point;
-  /** Seat ring radii in percent of width / height. */
-  rx: number;
-  ry: number;
+  /** The rail's outer box (percent insets of the stage); matches .table-rail in table.css. */
+  rail: { left: number; right: number; top: number; bottom: number };
 }
 
 export function stageGeometry(portrait: boolean): StageGeometry {
-  return portrait ? { center: { x: 50, y: 46 }, rx: 39, ry: 39 } : { center: { x: 50, y: 46 }, rx: 44, ry: 39 };
+  return portrait
+    ? { center: { x: 50, y: 46 }, rail: { left: 9, right: 9, top: 7, bottom: 15 } }
+    : { center: { x: 50, y: 46 }, rail: { left: 6, right: 6, top: 8, bottom: 16 } };
 }
 
 const cache = new Map<string, Point[]>();
@@ -27,31 +29,60 @@ export function seatPositions(n: number, portrait: boolean, aspect: number): Poi
   const hit = cache.get(key);
   if (hit) return hit;
   const g = stageGeometry(portrait);
-  // Work in a pixel-like space so arc length is visually uniform.
+  // Work in a pixel-like space so distances are visually uniform.
   const W = 1000;
   const H = 1000 / aspect;
-  const rx = (g.rx / 100) * W;
-  const ry = (g.ry / 100) * H;
-  const SAMPLES = 720;
-  const pts: { x: number; y: number; d: number }[] = [];
-  let d = 0;
-  let prev: { x: number; y: number } | null = null;
-  for (let i = 0; i <= SAMPLES; i++) {
-    // Start at the bottom (90°) and go clockwise on screen (increasing angle with y down).
-    const a = Math.PI / 2 + (i / SAMPLES) * Math.PI * 2;
-    const p = { x: Math.cos(a) * rx, y: Math.sin(a) * ry };
-    if (prev) d += Math.hypot(p.x - prev.x, p.y - prev.y);
-    pts.push({ ...p, d });
-    prev = p;
-  }
-  const total = d;
+  const x0 = (g.rail.left / 100) * W;
+  const x1 = W - (g.rail.right / 100) * W;
+  const y0 = (g.rail.top / 100) * H;
+  const y1 = H - (g.rail.bottom / 100) * H;
+  // Seats sit on the middle of the leather (the rail is ~5.8% of its height thick).
+  const inset = Math.min(x1 - x0, y1 - y0) * 0.029;
+  const left = x0 + inset;
+  const right = x1 - inset;
+  const top = y0 + inset;
+  const bottom = y1 - inset;
+  const r = Math.min(right - left, bottom - top) / 2;
+  const cx = (left + right) / 2;
+  const cy = (top + bottom) / 2;
+  const hx = (right - left) / 2 - r; // half-length of the straight top/bottom edges
+  const hy = (bottom - top) / 2 - r; // half-length of straight sides (tall tables)
+
+  // Outline as a dense polyline, clockwise on screen from bottom-centre.
+  const pts: { x: number; y: number }[] = [];
+  const line = (ax: number, ay: number, bx: number, by: number) => {
+    for (let i = 0; i < 60; i++) pts.push({ x: ax + ((bx - ax) * i) / 60, y: ay + ((by - ay) * i) / 60 });
+  };
+  const arc = (ox: number, oy: number, from: number, to: number) => {
+    for (let i = 0; i < 180; i++) {
+      const a = from + ((to - from) * i) / 180;
+      pts.push({ x: ox + Math.cos(a) * r, y: oy + Math.sin(a) * r });
+    }
+  };
+  const P = Math.PI;
+  line(cx, cy + hy + r, cx - hx, cy + hy + r);
+  arc(cx - hx, cy + hy, P / 2, P);
+  line(cx - hx - r, cy + hy, cx - hx - r, cy - hy);
+  arc(cx - hx, cy - hy, P, 1.5 * P);
+  line(cx - hx, cy - hy - r, cx + hx, cy - hy - r);
+  arc(cx + hx, cy - hy, 1.5 * P, 2 * P);
+  line(cx + hx + r, cy - hy, cx + hx + r, cy + hy);
+  arc(cx + hx, cy + hy, 0, P / 2);
+  line(cx + hx, cy + hy + r, cx, cy + hy + r);
+  pts.push({ x: cx, y: cy + hy + r });
+
+  const dist = [0];
+  for (let i = 1; i < pts.length; i++) dist.push(dist[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+  const total = dist[dist.length - 1];
   const out: Point[] = [];
   let j = 0;
   for (let k = 0; k < n; k++) {
     const target = (k / n) * total;
-    while (j < pts.length - 1 && pts[j + 1].d < target) j++;
-    const p = pts[j];
-    out.push({ x: g.center.x + (p.x / W) * 100, y: g.center.y + (p.y / H) * 100 });
+    while (j < pts.length - 2 && dist[j + 1] < target) j++;
+    const t = (target - dist[j]) / Math.max(1e-9, dist[j + 1] - dist[j]);
+    const x = pts[j].x + (pts[j + 1].x - pts[j].x) * t;
+    const y = pts[j].y + (pts[j + 1].y - pts[j].y) * t;
+    out.push({ x: (x / W) * 100, y: (y / H) * 100 });
   }
   cache.set(key, out);
   return out;
