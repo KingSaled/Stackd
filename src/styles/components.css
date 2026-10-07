@@ -758,7 +758,6 @@ input[type='range']::-moz-range-thumb {
   position: relative;
   width: var(--w);
   height: calc(var(--w) * 1.4);
-  perspective: 700px;
   flex: none;
   transition:
     filter 0.35s ease,
@@ -777,25 +776,56 @@ input[type='range']::-moz-range-thumb {
   --w: 26px;
 }
 
+/*
+ * Cards are flat 2D elements at rest; only the face that should show is
+ * visible. They become 3D just for the moment they turn over (.is-flipping),
+ * because long-lived 3D layers with hidden back faces can vanish or show
+ * hairline seams on some GPUs and in Safari.
+ */
 .pcard__inner {
   position: absolute;
   inset: 0;
-  transform-style: preserve-3d;
-  transition: transform 0.6s cubic-bezier(0.2, 0.85, 0.25, 1.1);
-  transform: rotateY(180deg);
-}
-
-.pcard__inner.is-up {
-  transform: rotateY(0deg);
 }
 
 .pcard__face {
   position: absolute;
   inset: 0;
   border-radius: calc(var(--w) * 0.11);
+  overflow: hidden;
+}
+
+.pcard__inner:not(.is-up) .pcard__front,
+.pcard__inner.is-up .pcard__back {
+  visibility: hidden;
+}
+
+.pcard.is-flipping {
+  perspective: 700px;
+}
+
+.pcard.is-flipping .pcard__inner {
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  animation: card-turn 0.6s cubic-bezier(0.2, 0.85, 0.25, 1.1) both;
+}
+
+.pcard.is-flipping .pcard__face {
+  visibility: visible;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  overflow: hidden;
+}
+
+.pcard.is-flipping .pcard__back {
+  transform: rotateY(180deg);
+}
+
+@keyframes card-turn {
+  from {
+    transform: rotateY(180deg);
+  }
+  to {
+    transform: rotateY(0deg);
+  }
 }
 
 .pcard__front {
@@ -854,7 +884,6 @@ input[type='range']::-moz-range-thumb {
 }
 
 .pcard__back {
-  transform: rotateY(180deg);
   background:
     radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.16) 0 20%, transparent 21%),
     repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.08) 0 3px, transparent 3px 7px),
@@ -887,7 +916,7 @@ input[type='range']::-moz-range-thumb {
     0 4px 10px rgba(0, 0, 0, 0.4);
 }
 
-/* Dimmed via an overlay: CSS filters are unreliable on rotated 3D cards. */
+/* Dimmed via an overlay (works the same whether or not the card is mid-flip). */
 .pcard__front::after {
   content: '';
   position: absolute;
