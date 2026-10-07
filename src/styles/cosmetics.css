@@ -17,7 +17,7 @@
   z-index: 0;
 }
 
-/* Pixel art stays crisp at any size. */
+/* Pixel art stays crisp at any size; --dx centres heads drawn off-centre. */
 .portrait__img {
   position: absolute;
   z-index: 1;
@@ -25,6 +25,7 @@
   bottom: 0;
   width: 88%;
   height: 88%;
+  transform: translateX(calc(var(--dx, 0) * 100% / 32));
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   user-select: none;

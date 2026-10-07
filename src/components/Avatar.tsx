@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { portraitSrc } from '../../shared/portraits';
+import { PORTRAIT_SHIFT, portraitOf } from '../../shared/portraits';
 import { backdropClass, frameClass } from '../../shared/cosmetics';
 
 interface PortraitProps {
@@ -15,11 +15,20 @@ interface PortraitProps {
 export function Portrait({ avatar, frame, backdrop }: PortraitProps) {
   const f = frameClass(frame);
   const b = backdropClass(backdrop);
+  const id = portraitOf(avatar);
+  const shift = PORTRAIT_SHIFT[id] ?? 0;
   return (
     <>
       <span className="portrait">
         <span className={clsx('portrait__bg', b ?? 'bg-default')} aria-hidden />
-        <img className="portrait__img" src={portraitSrc(avatar)} alt="" draggable={false} decoding="async" />
+        <img
+          className="portrait__img"
+          src={`/portraits/${id}.png`}
+          alt=""
+          draggable={false}
+          decoding="async"
+          style={shift ? ({ '--dx': shift } as React.CSSProperties) : undefined}
+        />
       </span>
       {f && <span className={clsx('portrait__frame', f)} aria-hidden />}
     </>

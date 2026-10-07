@@ -15,6 +15,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2026-10-07c',
+    date: 'October 7, 2026',
+    title: 'Smarter bots and polish',
+    items: [
+      { icon: 'Robot', text: "Smarter bots: they now play realistic starting hands, raise their good ones and stand up to raises instead of folding to almost everything. Raising every hand won't push them around anymore." },
+      { icon: 'Cards', text: 'Fixed a rare glitch where a card on the board could turn invisible, and a thin line that could show through cards on some PCs.' },
+      { icon: 'UserCircle', text: 'Every portrait now sits perfectly centred in its frame.' },
+    ],
+  },
+  {
     version: '2026-10-07b',
     date: 'October 7, 2026',
     title: 'Achievements, the Cosmetic Shop and portraits',

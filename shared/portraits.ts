@@ -12,6 +12,18 @@ export const PORTRAITS = [
 
 export type PortraitId = (typeof PORTRAITS)[number];
 
+/**
+ * Horizontal nudge (in source pixels, + = right) that puts each character's
+ * head on the exact centre of the frame; several are drawn off-centre by half
+ * a pixel or a pixel in the original art. Measured from the cut-out images.
+ */
+export const PORTRAIT_SHIFT: Partial<Record<PortraitId, number>> = {
+  p01: 0.5, p06: 0.5, p07: -0.5, p11: 0.5, p13: 0.5, p15: -0.5, p16: -0.5, p18: 0.5,
+  p20: 0.5, p23: -1, p33: 0.5, p34: 0.5, p35: 1, p38: 0.5, p43: 0.5, p46: 0.5,
+  p47: 0.5, p48: -0.5, p51: -0.5, p53: 0.5, p67: 0.5, p68: 0.5, p69: -0.5, p76: -0.5,
+  p83: -0.5, p91: 0.5, p99: 0.5,
+};
+
 /** Emoji avatars used before portraits existed, in their original order. */
 export const LEGACY_EMOJI = [
   '🦊', '🐺', '🦁', '🐯', '🐼', '🐸', '🐙', '🦄',
