@@ -246,4 +246,90 @@ describe('bot strength', () => {
     }
     expect(hardNet).toBeGreaterThan(0);
   }, 120_000);
+
+  it('plays a realistic share of hands and does not fold to everything', () => {
+    // Six regulars: count how often they play pre-flop and fold when bet into.
+    const brains: BotBrain[] = [
+      { level: 'medium', tight: 0.5, aggr: 0.5, bluff: 0.1, iters: 160 },
+      { level: 'hard', tight: 0.62, aggr: 0.7, bluff: 0.15, iters: 320 },
+      { level: 'medium', tight: 0.4, aggr: 0.6, bluff: 0.08, iters: 160 },
+      { level: 'hard', tight: 0.7, aggr: 0.6, bluff: 0.12, iters: 320 },
+      { level: 'medium', tight: 0.6, aggr: 0.4, bluff: 0.1, iters: 160 },
+      { level: 'hard', tight: 0.55, aggr: 0.8, bluff: 0.18, iters: 320 },
+    ];
+    const rng = seededRng(21);
+    const now = 1_000_000;
+    const s = createInitialState({ ...cfg, bots: false, maxSeats: 6 }, now);
+    const fx = newEffects();
+    brains.forEach((_, i) => sitDown(s, fx, { userId: `p${i}`, name: `P${i}`, avatar: '', color: '' }, i, 1000, now, rng));
+    let dealt = 0;
+    let played = 0;
+    let raisedPre = 0;
+    let facedRaise = 0;
+    let foldedToRaise = 0;
+    let facedBet = 0;
+    let foldedToBet = 0;
+    for (let h = 0; h < 250; h++) {
+      s.seats.forEach((seat) => (seat!.stack = 1000));
+      s.phase = 'waiting' as EngineState['phase'];
+      fx.hands = [];
+      startHand(s, fx, now, rng);
+      for (let g = 0; g < 200 && isBettingPhase(s.phase); g++) {
+        const i = s.toAct;
+        const facing = s.currentBet > s.seats[i]!.bet;
+        const a = decideBotAction(s, i, brains[i], rng);
+        if (facing && s.phase === 'preflop' && s.currentBet > cfg.bigBlind) {
+          facedRaise++;
+          if (a.type === 'fold') foldedToRaise++;
+        }
+        if (facing && s.phase !== 'preflop') {
+          facedBet++;
+          if (a.type === 'fold') foldedToBet++;
+        }
+        applyAction(s, fx, `p${i}`, a, now);
+      }
+      for (const rec of fx.hands)
+        for (const p of rec.players) {
+          dealt++;
+          if (p.vpip) played++;
+          if (p.pfr) raisedPre++;
+        }
+    }
+    const vpip = played / dealt;
+    const pfr = raisedPre / dealt;
+    expect(vpip).toBeGreaterThan(0.18);
+    expect(vpip).toBeLessThan(0.4);
+    // Regulars raise most of the hands they play instead of limping.
+    expect(pfr / vpip).toBeGreaterThan(0.4);
+    expect(foldedToRaise / facedRaise).toBeLessThan(0.82);
+    expect(foldedToBet / facedBet).toBeGreaterThan(0.2);
+    expect(foldedToBet / facedBet).toBeLessThan(0.6);
+  }, 120_000);
+
+  it('a player who raises every hand does not profit from bots', () => {
+    const rng = seededRng(33);
+    const now = 1_000_000;
+    const brains: BotBrain[] = [0, 1, 2, 3, 4].map((k) => ({ level: k % 2 ? 'medium' : 'hard', tight: 0.55, aggr: 0.6, bluff: 0.1, iters: 200 }) as BotBrain);
+    const s = createInitialState({ ...cfg, bots: false, maxSeats: 6 }, now);
+    const fx = newEffects();
+    for (let i = 0; i < 6; i++) sitDown(s, fx, { userId: `p${i}`, name: `P${i}`, avatar: '', color: '' }, i, 1000, now, rng);
+    let maniac = 0;
+    for (let h = 0; h < 300; h++) {
+      maniac += s.seats[0]!.stack - 1000;
+      s.seats.forEach((seat) => (seat!.stack = 1000));
+      s.phase = 'waiting' as EngineState['phase'];
+      startHand(s, fx, now, rng);
+      for (let g = 0; g < 200 && isBettingPhase(s.phase); g++) {
+        const i = s.toAct;
+        let a: PlayerAction;
+        if (i === 0) {
+          const L = getLegalActions(s, 0);
+          a = L.canRaise ? { type: 'allin' } : L.canCheck ? { type: 'check' } : { type: 'call' };
+        } else a = decideBotAction(s, i, brains[i - 1], rng);
+        applyAction(s, fx, `p${i}`, a, now);
+      }
+    }
+    maniac += s.seats[0]!.stack - 1000;
+    expect(maniac).toBeLessThan(0);
+  }, 120_000);
 });

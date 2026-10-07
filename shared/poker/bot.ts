@@ -10,6 +10,7 @@
  */
 import type { Rng } from './cards';
 import { estimateEquity } from './fast';
+import { preflopPercentile } from './preflop';
 import { getLegalActions, potTotal } from './engine';
 import type { BotBrainData, EngineState, PlayerAction } from './types';
 import { COLORS } from '../economy';
@@ -85,17 +86,6 @@ export function decideBotAction(s: EngineState, seatIndex: number, brain: BotBra
   const preflop = s.phase === 'preflop';
   const r = () => rand(rng);
 
-  // --- Hand strength ------------------------------------------------------
-  let eq = estimateEquity(hole, s.board, Math.max(1, Math.min(opponents, 5)), brain.iters, rng);
-  if (brain.level === 'easy') eq += (r() - 0.5) * 0.24;
-  else if (brain.level === 'medium') eq += (r() - 0.5) * 0.1;
-  // Better bots respect big bets: a large bet usually means a strong hand.
-  const pressure = toCall / Math.max(1, pot - toCall);
-  if (brain.level !== 'easy') eq *= 1 - (brain.level === 'hard' ? 0.14 : 0.08) * Math.min(1.5, pressure);
-  eq = Math.max(0, Math.min(1, eq));
-  const fair = 1 / (opponents + 1);
-  const rel = eq / fair; // 1 = an average hand against this many opponents
-
   // Late position (on or right before the button) plays a little looser.
   const n = s.seats.length;
   const fromButton = (seatIndex - s.dealer + n) % n;
@@ -117,6 +107,21 @@ export function decideBotAction(s: EngineState, seatIndex: number, brain: BotBra
     return legal.canCheck ? { type: 'check' } : { type: 'call' };
   }
 
+  if (preflop) return preflopDecision(s, seatIndex, brain, hole, legal, late, r);
+
+  // --- Hand strength ------------------------------------------------------
+  // Facing a bet, what matters is mostly the bettor (others behind often fold).
+  const versus = legal.canCheck ? Math.min(opponents, 3) : Math.min(opponents, 2);
+  let eq = estimateEquity(hole, s.board, Math.max(1, versus), brain.iters, rng);
+  if (brain.level === 'easy') eq += (r() - 0.5) * 0.24;
+  else if (brain.level === 'medium') eq += (r() - 0.5) * 0.1;
+  // Better bots respect big bets: a large bet usually means a strong hand.
+  const pressure = toCall / Math.max(1, pot - toCall);
+  if (brain.level !== 'easy') eq *= 1 - (brain.level === 'hard' ? 0.12 : 0.07) * Math.min(1.5, pressure);
+  eq = Math.max(0, Math.min(1, eq));
+  const fair = 1 / (versus + 1);
+  const rel = eq / fair; // 1 = an average hand against these opponents
+
   const tightAdj = (brain.tight - 0.5) * 0.45;
   const valueBar = { easy: 1.75, medium: 1.45, hard: 1.3 }[brain.level] + tightAdj - (late ? 0.08 : 0);
 
@@ -125,18 +130,23 @@ export function decideBotAction(s: EngineState, seatIndex: number, brain: BotBra
     if (legal.canRaise && rel >= valueBar && r() < 0.4 + brain.aggr * 0.55) {
       return sized(0.45 + brain.aggr * 0.35 + (rel > 2.2 ? 0.2 : 0) + r() * 0.15);
     }
-    const bluffChance = brain.bluff * (late ? 1.6 : 1) * (opponents <= 2 ? 1 : 0.35) * (preflop ? 0.5 : 1);
+    // The pre-flop raiser usually follows up on the flop (a continuation bet).
+    if (legal.canRaise && seat.pfr && s.phase === 'flop' && opponents <= 2 && r() < 0.3 + brain.aggr * 0.4) {
+      return sized(0.33 + r() * 0.3);
+    }
+    const bluffChance = brain.bluff * (late ? 1.6 : 1) * (opponents <= 2 ? 1 : 0.35);
     if (legal.canRaise && r() < bluffChance) return sized(0.5 + r() * 0.3);
     return { type: 'check' };
   }
 
   // --- Facing a bet -------------------------------------------------------
   const potOdds = toCall / (pot + toCall);
-  let callBar = potOdds * { easy: 0.72, medium: 0.95, hard: 1.03 }[brain.level] * (1 + tightAdj * 0.6);
+  let callBar = potOdds * { easy: 0.8, medium: 1.05, hard: 1.1 }[brain.level] * (1 + tightAdj * 0.6);
   // Drawing hands get implied odds on early streets.
-  if (!preflop && s.phase !== 'river' && brain.level !== 'easy') callBar *= 0.9;
-  // Pre-flop, tight bots fold weak hands to raises even with a decent price.
-  if (preflop && toCall > bb && rel < 0.8 + brain.tight * 0.55) callBar = Math.max(callBar, 0.95);
+  if (s.phase !== 'river' && brain.level !== 'easy') callBar *= 0.9;
+  // A bettor usually has something: continue only with a hand that is at least
+  // about average against them, however good the price looks.
+  callBar = Math.max(callBar, fair * { easy: 0.72, medium: 0.92, hard: 0.9 }[brain.level] * (1 + tightAdj * 0.3));
 
   const raiseBar = valueBar + 0.3 + (toCall > pot * 0.6 ? 0.35 : 0);
   if (legal.canRaise && rel >= raiseBar && r() < 0.3 + brain.aggr * 0.6) {
@@ -144,12 +154,106 @@ export function decideBotAction(s: EngineState, seatIndex: number, brain: BotBra
   }
   if (eq >= callBar) return { type: 'call' };
   // Semi-bluff raises with live draws from stronger bots.
-  if (legal.canRaise && brain.level === 'hard' && !preflop && s.phase !== 'river' && eq > 0.28 && r() < brain.bluff) {
+  if (legal.canRaise && brain.level === 'hard' && s.phase !== 'river' && eq > 0.28 && r() < brain.bluff) {
     return sized(0.7 + r() * 0.3);
   }
   // Calling stations call a bit too often.
   if (brain.level === 'easy' && toCall <= Math.max(bb * 3, pot * 0.25) && r() < 0.35) return { type: 'call' };
   // Short stacks don't fold tiny amounts.
   if (toCall <= bb && seat.stack > toCall && r() < 0.3) return { type: 'call' };
+  return { type: 'fold' };
+}
+
+type Legal = ReturnType<typeof getLegalActions>;
+
+/**
+ * Pre-flop play from a starting-hand ranking. Each bot plays a share of hands
+ * that depends on its skill and tightness, its seat and how many players were
+ * dealt in; it raises the stronger part of that range and defends against
+ * raises roughly as often as real players do.
+ */
+function preflopDecision(
+  s: EngineState,
+  seatIndex: number,
+  brain: BotBrain,
+  hole: string[],
+  legal: Legal,
+  late: boolean,
+  r: () => number,
+): PlayerAction {
+  const bb = s.config.bigBlind;
+  const seat = s.seats[seatIndex]!;
+  const pot = potTotal(s);
+  const toCall = legal.callAmount;
+  // Lower is stronger; a little noise per decision so ranges have soft edges.
+  const pct = preflopPercentile(hole) * (0.85 + r() * 0.3);
+  const dealt = s.seats.filter((x) => x?.inHand).length;
+  const isSB = seatIndex === s.sbSeat;
+  const isBB = seatIndex === s.bbSeat;
+  const n = s.seats.length;
+  const fromButton = (seatIndex - s.dealer + n) % n;
+  const early = !isSB && !isBB && dealt >= 6 && fromButton > 0 && fromButton <= Math.ceil(dealt / 3) + 2 && fromButton < n - 1;
+
+  // Share of starting hands this bot plays at a six-handed table.
+  const base = { easy: 0.5 - brain.tight * 0.3, medium: 0.4 - brain.tight * 0.25, hard: 0.36 - brain.tight * 0.2 }[brain.level];
+  const tableFactor = Math.min(2.6, Math.max(0.75, (6 / Math.max(2, dealt)) ** 0.8));
+  const posFactor = late ? 1.3 : early ? 0.8 : 1;
+  const range = Math.min(0.95, base * tableFactor * posFactor);
+  const raiseShare = Math.min(0.95, Math.max(0.15, { easy: 0.3, medium: 0.55, hard: 0.7 }[brain.level] + (brain.aggr - 0.5) * 0.3));
+  const stackTotal = seat.stack + seat.bet;
+
+  const raiseTo = (total: number): PlayerAction => {
+    let target = Math.round(total / bb) * bb;
+    target = Math.max(legal.minRaiseTo, Math.min(legal.maxRaiseTo, target));
+    if (target >= legal.maxRaiseTo * 0.6) return { type: 'allin' };
+    return { type: 'raise', amount: target };
+  };
+
+  // --- Nobody has raised ----------------------------------------------------
+  if (s.currentBet <= bb) {
+    const limpers = s.seats.filter((x, i) => x && x.inHand && !x.folded && i !== s.bbSeat && i !== seatIndex && x.bet >= bb).length;
+    const openTo = bb * (2.5 + r() + limpers);
+    if (legal.canCheck) {
+      // Big blind with the option: raise the best hands, otherwise check for free.
+      if (legal.canRaise && pct <= range * raiseShare * 0.45 && r() < 0.5 + brain.aggr * 0.4) return raiseTo(openTo);
+      return { type: 'check' };
+    }
+    const widen = isSB ? 1.25 : 1;
+    if (legal.canRaise && pct <= range * raiseShare * widen && r() < 0.88) return raiseTo(openTo);
+    if (pct <= range * widen) {
+      // Strong regulars rarely limp; they raise or fold.
+      if (legal.canRaise && brain.level === 'hard' && r() < 0.35 + brain.aggr * 0.3) return raiseTo(openTo);
+      return { type: 'call' };
+    }
+    return { type: 'fold' };
+  }
+
+  // --- Facing a raise -------------------------------------------------------
+  const size = s.currentBet / bb;
+  const tier = size <= 5 ? 1 : size <= 14 ? 2 : 3; // open, 3-bet, 4-bet+
+  let defend = range * [0, 0.68, 0.34, 0.16][tier];
+  if (tier === 1) defend /= 1 + Math.max(0, size - 3) * 0.1;
+  if (isBB) defend *= 1.8;
+  else if (isSB) defend *= 1.1;
+  const potOdds = toCall / (pot + toCall);
+  if (potOdds < 0.25) defend *= 1.3;
+  if (brain.level === 'easy') defend *= 1.35;
+  // Calling would commit most of the stack: only strong hands continue.
+  if (toCall >= stackTotal * 0.45) defend = Math.min(defend, { easy: 0.2, medium: 0.12, hard: 0.1 }[brain.level]);
+
+  const reraise = defend * (0.28 + brain.aggr * 0.15);
+  if (legal.canRaise && pct <= reraise && r() < 0.6 + brain.aggr * 0.35) return raiseTo(s.currentBet * (2.8 + r() * 0.6));
+  // Occasional light 3-bets from position or the blinds keep raisers honest.
+  if (
+    legal.canRaise &&
+    tier === 1 &&
+    brain.level !== 'easy' &&
+    (late || isSB || isBB) &&
+    pct > defend &&
+    pct <= defend * 1.7 &&
+    r() < brain.bluff * 0.9
+  )
+    return raiseTo(s.currentBet * (2.8 + r() * 0.5));
+  if (pct <= defend) return { type: 'call' };
   return { type: 'fold' };
 }
