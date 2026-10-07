@@ -363,6 +363,19 @@
     transform 0.3s;
 }
 
+/* The leaderboard champion's crown, tipped on the avatar. */
+.seat__crown {
+  position: absolute;
+  z-index: 6;
+  width: calc(var(--avatar) * 0.44);
+  height: calc(var(--avatar) * 0.44);
+  top: calc(var(--avatar) * -0.27);
+  left: calc(var(--avatar) * -0.06);
+  rotate: -24deg;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+}
+
 .seat__emoji {
   width: 66%;
   height: 66%;
@@ -1475,7 +1488,7 @@
 .table-rail::before {
   content: '';
   position: absolute;
-  inset: clamp(4px, 1.1%, 8px);
+  inset: calc(var(--rail, 20px) * 0.32);
   border-radius: 999px;
   border: 1.5px dashed rgba(214, 178, 118, 0.3);
   pointer-events: none;
@@ -1483,7 +1496,7 @@
 
 /* Felt: woven texture, a spotlight, a brass trim and a printed betting line. */
 .table-felt {
-  inset: clamp(13px, 4.2%, 30px);
+  inset: var(--rail, 20px);
   background:
     radial-gradient(ellipse 55% 50% at 50% 40%, rgba(255, 255, 220, 0.12), transparent 70%),
     radial-gradient(ellipse 85% 75% at 50% 42%, #2b9c65 0%, #1c7c4c 36%, #135f3a 66%, #0a4026 100%);
@@ -1500,7 +1513,7 @@
 .table-felt::before {
   content: '';
   position: absolute;
-  inset: 9%;
+  inset: var(--felt-line, 9%);
   border-radius: 999px;
   border: 1.5px solid rgba(233, 196, 106, 0.2);
   box-shadow: 0 0 0 5px rgba(233, 196, 106, 0.05);
@@ -1508,7 +1521,7 @@
 }
 
 .table-felt::after {
-  inset: 9.6%;
+  inset: calc(var(--felt-line, 9%) + 4px);
   border: 1px solid rgba(233, 196, 106, 0.08);
 }
 

@@ -30,6 +30,7 @@ import { seatPan, sound } from '../lib/sound';
 import { serverNow } from '../lib/clock';
 import { useEffect } from 'react';
 import type { ReactionEvent } from '../hooks/useTable';
+import { useChampion } from '../store/champion';
 
 const NAMES = ['You', 'Maya', 'Leo', 'Priya', 'Sam', 'Jules', 'Kai', 'Noor', 'Ravi'];
 
@@ -98,6 +99,10 @@ function build(scene: string, seats: number, seed: number): EngineState {
 
 export default function Playground() {
   const params = new URLSearchParams(window.location.search);
+  // ?champ=2 crowns seat 2's player as the leaderboard champion.
+  if (params.has('champ') && useChampion.getState().id !== `u${params.get('champ')}`) {
+    useChampion.setState({ id: `u${params.get('champ')}`, at: Date.now() });
+  }
   const scene = params.get('scene') ?? 'flop';
   const seats = Math.max(2, Math.min(9, Number(params.get('seats') ?? 6)));
   const [seed, setSeed] = useState(Number(params.get('seed') ?? 3));

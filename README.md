@@ -36,7 +36,7 @@ Everything runs on free tiers: **Netlify** (static site + serverless functions) 
 - 10,000 starting chips.
 - A daily bonus (2,000 chips, plus 500 per consecutive day up to a 7-day streak) every 24 hours.
 - An emergency reload: if your wallet plus the chips you have at tables drop below 1,000, you can top back up to 2,500. It has a 60-minute cooldown.
-- Leaderboard of saved accounts (guest accounts are left off).
+- Leaderboard of saved accounts (guest accounts are left off); the #1 player gets a champion card and wears a crown at every table.
 
 **Session recovery**
 - All game state lives in Postgres. If you refresh, lose your connection or switch devices, you get your seat, cards and turn back.
@@ -162,7 +162,7 @@ npm test
 ## Releasing updates
 
 - **Players with the game open:** every build writes a `version.json`. Open tabs check it every few minutes and show a "new version ready" banner with a Refresh button. Nobody is reloaded mid-hand, and game state lives in the database, so refreshing is always safe.
-- **Changelog:** add a new entry at the top of `src/changelog.ts` with a new `version`. Each player sees the newest entry once (tracked on their account by `mark_changelog_seen`); accounts created after that release skip it.
+- **Changelog:** add a new entry at the top of `src/changelog.ts` with a `version` that sorts after the previous one (the release date, e.g. `2026-10-07`, plus a letter for a second release that day). Each player sees the releases they missed once (up to the three newest, tracked on their account by `mark_changelog_seen`); releases from before their account was created are skipped.
 
 ## Credits
 

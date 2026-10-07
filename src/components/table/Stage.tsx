@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import clsx from 'clsx';
 import { Plus, WifiOff, Moon, LogOut } from 'lucide-react';
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import type { PublicState, Seat } from '../../../shared/poker/types';
 import { seatIndexOf } from '../../../shared/poker/engine';
 import { describeHolding } from '../../../shared/poker/evaluator';
@@ -16,6 +16,7 @@ import { Chip, ChipStack, chipBreakdown } from '../Chips';
 import { TimerRing } from '../TimerRing';
 import { useSettings } from '../../store/settings';
 import { useServerNow } from '../../hooks/useNow';
+import { refreshChampion, useChampion } from '../../store/champion';
 
 interface StageProps {
   state: PublicState;
@@ -75,6 +76,8 @@ function seatGeometry(pos: Point, center: Point, portrait: boolean, w: number, h
 
 export function Stage({ state, me, myCards, online, reactions, pres, metrics, canSit, onSeatClick }: StageProps) {
   const { w, h, portrait, aspect } = metrics;
+  const championId = useChampion((c) => c.id);
+  useEffect(() => void refreshChampion(), []);
   const n = state.seats.length;
   const mySeat = seatIndexOf(state, me);
   const rotation = mySeat >= 0 ? mySeat : 0;
@@ -115,7 +118,15 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
     // Portrait sizes are bounded by both width and height so short phone
     // screens (browser toolbars visible) never overlap rows of seats.
     const card = (wPct: number, hPct: number, max: number) => Math.min(max, unit * wPct, (vu * hPct) / 1.4);
+    // Rail, stitching and betting line are sized in px from the rail's shorter
+    // side so they stay the same thickness all the way round on tall phones
+    // (percent insets resolve against width on the sides and height on the ends).
+    const railMin = portrait ? Math.min(w * 0.82, h * 0.78) : Math.min(w * 0.88, h * 0.76);
+    const rail = Math.max(12, Math.min(28, railMin * 0.058));
+    const feltLine = Math.max(14, (railMin - rail * 2) * 0.085);
     return {
+      '--rail': `${rail.toFixed(1)}px`,
+      '--felt-line': `${feltLine.toFixed(1)}px`,
       '--card-board': `${portrait ? card(12.2, 11.5, 92) : Math.min(92, unit * 5.9)}px`,
       '--card-seat': `${portrait ? card(8.6, 8.8, 56) : Math.min(56, unit * 3.7)}px`,
       '--card-hero': `${portrait ? card(15, 12.5, 110) : Math.min(110, unit * 6.2)}px`,
@@ -281,6 +292,7 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
             mine={mine}
             revealed={revealed}
             offline={online != null && !seat.isBot && !online.has(seat.userId)}
+            champion={!seat.isBot && seat.userId === championId}
             canClaim={canSit && !!seat.isBot && !seat.reservedFor}
             onClaim={() => onSeatClick(i)}
             winAmount={resultVisible ? payouts.get(i) ?? 0 : 0}
@@ -527,6 +539,8 @@ interface SeatViewProps {
   cardMode: CardMode;
   /** Phone layout: action label shown inside the name plate instead of a floating tag. */
   compact: boolean;
+  /** Top of the leaderboard: wears a crown. */
+  champion: boolean;
   highlight: Set<string> | null;
   board: string[];
   showdown: boolean;
@@ -658,6 +672,7 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
 
       <div className="seat__avatar">
         <Emoji char={seat.avatar} className="seat__emoji" />
+        {props.champion && <Emoji char="👑" className="seat__crown" label="Leaderboard champion" />}
         {isTurn && turnStartedAt && deadline && !seat.isBot && <TimerRing startedAt={turnStartedAt} deadline={deadline} />}
         {isTurn && seat.isBot && (
           <span className="seat__thinking" aria-label="Thinking">

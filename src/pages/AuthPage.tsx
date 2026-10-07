@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useSearch } from 'wouter';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
-import { UserRound, Mail, KeyRound, Sparkles } from 'lucide-react';
+import { UserRound, Mail, KeyRound, Sparkles, Eye, EyeOff, ArrowLeft, Coins, Users, Smartphone } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../store/auth';
 import { Logo } from '../components/Logo';
@@ -11,7 +11,23 @@ import { sound } from '../lib/sound';
 import { chips } from '../lib/format';
 import { ECONOMY } from '../../shared/economy';
 
-type Mode = 'signin' | 'signup' | 'forgot';
+type Mode = 'signin' | 'signup' | 'guest' | 'forgot';
+
+const TABS: { mode: Mode; label: string }[] = [
+  { mode: 'signin', label: 'Sign in' },
+  { mode: 'signup', label: 'Sign up' },
+  { mode: 'guest', label: 'Guest' },
+];
+
+const HEADINGS: Record<Mode, { title: string; sub: string }> = {
+  signin: { title: 'Welcome back', sub: 'Sign in to pick up where you left off.' },
+  signup: { title: 'Create your account', sub: `${chips(ECONOMY.startingChips)} free chips and a spot on the leaderboard.` },
+  guest: { title: 'Jump straight in', sub: 'No sign-up needed. You can save your account with an email later.' },
+  forgot: { title: 'Reset your password', sub: "We'll email you a link to choose a new one." },
+};
+
+/** Desktop gets the cursor in the first field; phones keep the keyboard closed until tapped. */
+const finePointer = typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches;
 
 function safeNext(raw: string | null): string {
   if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return '/';
@@ -23,7 +39,9 @@ export function AuthPage() {
   const search = useSearch();
   const next = safeNext(new URLSearchParams(search).get('next'));
   const [, navigate] = useLocation();
-  const [mode, setMode] = useState<Mode>('signin');
+  const invited = next.startsWith('/t/');
+  const [mode, setMode] = useState<Mode>(invited ? 'guest' : 'signin');
+  const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -109,150 +127,216 @@ export function AuthPage() {
     }
   };
 
-  const invited = next.startsWith('/t/');
-  const guestBlock = (
-    <div className="guest">
-      <input
-        className="input"
-        value={guestName}
-        onChange={(e) => setGuestName(e.target.value)}
-        placeholder="Your name at the table (optional)"
-        maxLength={20}
-        aria-label="Guest name"
-      />
-      <button className={invited ? 'btn btn--gold btn--block btn--lg' : 'btn btn--ghost btn--block'} onClick={guest} disabled={busy}>
-        Play instantly as a guest
-      </button>
-      <p className="muted small center">No sign-up needed. You can save a guest account with an email later.</p>
-    </div>
-  );
+  const head = HEADINGS[mode];
+  const submitLabel = busy ? 'One moment…' : mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Send reset link';
 
   return (
     <div className="auth">
-      <div className="auth__brand">
-        <Logo size="lg" />
-        <h1>
-          Texas Hold'em with friends,
-          <br />
-          <span className="gold">one link away.</span>
-        </h1>
-        <p className="muted">
-          Private tables, real-time play on any device, and {chips(ECONOMY.startingChips)} free chips to start. No downloads.
-        </p>
-        <div className="auth__cards" aria-hidden>
-          {['Ah', 'Ad', 'Kc', 'Ks', 'As'].map((c, i) => (
-            <motion.div
-              key={c}
-              initial={{ y: 60, opacity: 0, rotate: 0 }}
-              animate={{ y: 0, opacity: 1, rotate: (i - 2) * 8 }}
-              transition={{ delay: 0.15 + i * 0.08, type: 'spring', stiffness: 140, damping: 14 }}
-            >
-              <PlayingCard card={c} size="hero" faceUp />
-            </motion.div>
-          ))}
-        </div>
-      </div>
+      <main className="auth__shell">
+        <section className="auth__hero">
+          <div className="auth__brand">
+            <Logo size="lg" />
+            <h1 className="auth__tagline">
+              Texas Hold'em with friends, <span className="gold">one link away.</span>
+            </h1>
+          </div>
+          <ul className="auth__perks">
+            <li>
+              <Coins size={16} /> {chips(ECONOMY.startingChips)} free chips to start
+            </li>
+            <li>
+              <Users size={16} /> Private tables with invite links
+            </li>
+            <li>
+              <Smartphone size={16} /> Real-time on any device, no download
+            </li>
+          </ul>
+          <div className="auth__fan" aria-hidden>
+            {['Ah', 'Ad', 'Kc', 'Ks', 'As'].map((c, i) => (
+              <motion.div
+                key={c}
+                className="auth__fan-card"
+                style={{ '--i': i - 2 } as React.CSSProperties}
+                initial={{ y: 50, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.12 + i * 0.07, type: 'spring', stiffness: 150, damping: 15 }}
+              >
+                <PlayingCard card={c} size="hero" faceUp />
+              </motion.div>
+            ))}
+          </div>
+        </section>
 
-      <div className="auth__panel">
-        <div className="card auth__card">
-          {next.startsWith('/t/') && (
+        <section className="auth__panel">
+          {invited && (
             <div className="invite-note">
-              <Sparkles size={16} /> You've been invited to a table — sign in or play as a guest to take a seat.
+              <Sparkles size={16} /> You've been invited to a table — play as a guest or sign in to take a seat.
             </div>
           )}
-          {invited && mode !== 'forgot' && (
-            <>
-              {guestBlock}
-              <div className="divider">
-                <span>or use an account</span>
-              </div>
-            </>
-          )}
-          {mode !== 'forgot' && (
-            <div className="segmented segmented--full">
-              <button type="button" className={clsx(mode === 'signin' && 'is-on')} onClick={() => setMode('signin')}>
-                Sign in
-              </button>
-              <button type="button" className={clsx(mode === 'signup' && 'is-on')} onClick={() => setMode('signup')}>
-                Create account
-              </button>
-            </div>
-          )}
-          <form className="form" onSubmit={submit}>
-            {mode === 'forgot' && <h2>Reset your password</h2>}
-            {mode === 'signup' && (
-              <label className="field">
-                <span className="field__label">
-                  <UserRound size={13} /> Display name
-                </span>
-                <input
-                  className="input"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="What should the table call you?"
-                  maxLength={20}
-                  autoComplete="nickname"
-                  required
-                />
-              </label>
-            )}
-            <label className="field">
-              <span className="field__label">
-                <Mail size={13} /> Email
-              </span>
-              <input
-                className="input"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                autoComplete="email"
-                required
-              />
-            </label>
-            {mode !== 'forgot' && (
-              <label className="field">
-                <span className="field__label">
-                  <KeyRound size={13} /> Password
-                </span>
-                <input
-                  className="input"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={mode === 'signup' ? 'At least 6 characters' : 'Your password'}
-                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                  required
-                  minLength={6}
-                />
-              </label>
-            )}
-            {error && <p className="form-error">{error}</p>}
-            {notice && <p className="form-notice">{notice}</p>}
-            <button className="btn btn--gold btn--block btn--lg" disabled={busy}>
-              {busy ? 'One moment…' : mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Send reset link'}
+
+          {mode === 'forgot' ? (
+            <button type="button" className="auth__back" onClick={() => setMode('signin')}>
+              <ArrowLeft size={16} /> Back to sign in
             </button>
-            {mode === 'signin' && (
-              <button type="button" className="link-btn" onClick={() => setMode('forgot')}>
-                Forgot your password?
-              </button>
-            )}
-            {mode === 'forgot' && (
-              <button type="button" className="link-btn" onClick={() => setMode('signin')}>
-                Back to sign in
-              </button>
-            )}
-          </form>
-          {!invited && mode !== 'forgot' && (
-            <>
-              <div className="divider">
-                <span>or</span>
-              </div>
-              {guestBlock}
-            </>
+          ) : (
+            <div className="segmented segmented--full auth__tabs" role="tablist" aria-label="How do you want to play?">
+              {TABS.map((t) => (
+                <button
+                  key={t.mode}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === t.mode}
+                  className={clsx(mode === t.mode && 'is-on')}
+                  onClick={() => setMode(t.mode)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
           )}
-        </div>
-      </div>
+
+          <motion.div
+            key={mode}
+            className="auth__body"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className="auth__head">
+              <h2>{head.title}</h2>
+              <p className="muted">{head.sub}</p>
+            </div>
+
+            {mode === 'guest' ? (
+              <form
+                className="form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void guest();
+                }}
+              >
+                <label className="field">
+                  <span className="field__label">
+                    <UserRound size={13} /> Name at the table <em>(optional)</em>
+                  </span>
+                  <input
+                    className="input"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    placeholder="What should the table call you?"
+                    maxLength={20}
+                    autoComplete="nickname"
+                    autoFocus={finePointer}
+                  />
+                </label>
+                {error && <p className="form-error">{error}</p>}
+                <button className="btn btn--gold btn--block btn--lg" disabled={busy}>
+                  {busy ? 'One moment…' : invited ? 'Take a seat' : 'Play now'}
+                </button>
+                <p className="muted small center auth__fine">Guests aren't ranked on the leaderboard. Save your account any time from your profile.</p>
+              </form>
+            ) : (
+              <form className="form" onSubmit={submit}>
+                {mode === 'signup' && (
+                  <label className="field">
+                    <span className="field__label">
+                      <UserRound size={13} /> Display name
+                    </span>
+                    <input
+                      className="input"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="What should the table call you?"
+                      maxLength={20}
+                      autoComplete="nickname"
+                      required
+                    />
+                  </label>
+                )}
+                <label className="field">
+                  <span className="field__label">
+                    <Mail size={13} /> Email
+                  </span>
+                  <input
+                    className="input"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    autoFocus={finePointer && mode !== 'signup'}
+                    required
+                  />
+                </label>
+                {mode !== 'forgot' && (
+                  <div className="field">
+                    <div className="field__row">
+                      <label className="field__label" htmlFor="auth-password">
+                        <KeyRound size={13} /> Password
+                      </label>
+                      {mode === 'signin' && (
+                        <button type="button" className="auth__link" onClick={() => setMode('forgot')}>
+                          Forgot?
+                        </button>
+                      )}
+                    </div>
+                    <div className="input-wrap">
+                      <input
+                        id="auth-password"
+                        className="input"
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder={mode === 'signup' ? 'At least 6 characters' : 'Your password'}
+                        autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                        required
+                        minLength={6}
+                      />
+                      <button
+                        type="button"
+                        className="input-wrap__btn"
+                        onClick={() => setShowPassword((v) => !v)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {error && <p className="form-error">{error}</p>}
+                {notice && <p className="form-notice">{notice}</p>}
+                <button className="btn btn--gold btn--block btn--lg" disabled={busy}>
+                  {submitLabel}
+                </button>
+                {mode === 'signin' && (
+                  <p className="muted small center auth__fine">
+                    New to Stackd?{' '}
+                    <button type="button" className="auth__link" onClick={() => setMode('signup')}>
+                      Create an account
+                    </button>{' '}
+                    or{' '}
+                    <button type="button" className="auth__link" onClick={() => setMode('guest')}>
+                      play as a guest
+                    </button>
+                  </p>
+                )}
+                {mode === 'signup' && (
+                  <p className="muted small center auth__fine">
+                    Already playing?{' '}
+                    <button type="button" className="auth__link" onClick={() => setMode('signin')}>
+                      Sign in
+                    </button>
+                  </p>
+                )}
+              </form>
+            )}
+          </motion.div>
+
+          <p className="auth__perks-line">
+            {chips(ECONOMY.startingChips)} free chips · Private tables · No downloads
+          </p>
+        </section>
+      </main>
     </div>
   );
 }
