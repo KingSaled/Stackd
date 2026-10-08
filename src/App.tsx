@@ -15,6 +15,7 @@ import { NotFoundPage } from './pages/NotFoundPage';
 import { TermsGate } from './components/TermsGate';
 import { AchievementWatcher } from './components/AchievementWatcher';
 import { OnlinePresence } from './components/OnlinePresence';
+import { ChallengeWatcher } from './components/challenges/ChallengeWatcher';
 import { SeasonDecor } from './components/season/SeasonDecor';
 
 // Less-visited pages load on demand to keep the first download small.
@@ -59,6 +60,7 @@ function Routes() {
       {session && <TermsGate />}
       {session && <AchievementWatcher />}
       {session && <OnlinePresence userId={session.user.id} />}
+      {session && <ChallengeWatcher userId={session.user.id} />}
       <Suspense fallback={<Splash />}>
       <Switch>
       <Route path="/auth" component={AuthPage} />

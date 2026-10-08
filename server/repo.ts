@@ -1,6 +1,6 @@
 import type { PublicState, SecretState } from '../shared/poker/types';
 import type { BjPublicState, BjSecretState } from '../shared/blackjack/types';
-import type { HandPayload } from './hands';
+import type { BjRoundPayload, HandPayload } from './hands';
 
 /**
  * A stored table. `state`/`secret` hold whichever game the table plays
@@ -54,6 +54,7 @@ export interface CreateTableInput {
 export interface CatalogRows {
   cosmetics: { id: string; kind: string; price: number; tier: number }[];
   achievements: { id: string; counter: string; target: number; reward: number }[];
+  challenges: { id: string; period: string; slot: string; counter: string; target: number; reward: number }[];
 }
 
 /** Persistence boundary used by the table service (Supabase in production, in-memory in tests). */
@@ -69,6 +70,8 @@ export interface Repo {
   cleanup(): Promise<unknown>;
   /** Store finished hands for stats, achievements and abuse checks (best effort). */
   recordHands(hands: HandPayload[]): Promise<void>;
+  /** Store settled blackjack rounds for stats and challenges (best effort). */
+  recordBlackjackRounds(rounds: BjRoundPayload[]): Promise<void>;
   /** Tables where the player currently has a seat. */
   tablesOf(userId: string): Promise<string[]>;
   /** Permanently delete the login and (by cascade) every row that belongs to the player. */

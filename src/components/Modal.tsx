@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { XIcon } from '@phosphor-icons/react';
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 
 export function Modal({
@@ -24,7 +25,8 @@ export function Modal({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
-  return (
+  // Rendered on <body>: a parent with a blur filter (like the sticky header) would otherwise trap the dialog.
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -53,6 +55,7 @@ export function Modal({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

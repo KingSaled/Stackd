@@ -12,7 +12,7 @@ import { createRoom, deleteAccount, runJanitor, tableOp, JANITOR } from '../serv
 import { blackjackOp, createBlackjackRoom } from '../server/blackjack';
 import type { BjPublicState } from '../shared/blackjack';
 import { seededRng, TIMING, type PublicState } from '../shared/poker';
-import type { HandPayload } from '../server/hands';
+import type { BjRoundPayload, HandPayload } from '../server/hands';
 
 class PgliteRepo implements Repo {
   constructor(private db: PGlite) {}
@@ -94,6 +94,9 @@ class PgliteRepo implements Repo {
   async recordHands(hands: HandPayload[]): Promise<void> {
     await this.db.query('select public.record_hands($1)', [JSON.stringify(hands)]);
   }
+  async recordBlackjackRounds(rounds: BjRoundPayload[]): Promise<void> {
+    await this.db.query('select public.record_bj_rounds($1)', [JSON.stringify(rounds)]);
+  }
   async isMember(tableId: string, userId: string): Promise<boolean> {
     const r = await this.db.query('select 1 from public.table_members where table_id = $1 and user_id = $2', [tableId, userId]);
     return r.rows.length > 0;
@@ -115,6 +118,11 @@ class PgliteRepo implements Repo {
       await this.db.query(
         'insert into public.achievements (id, counter, target, reward) values ($1, $2, $3, $4) on conflict (id) do update set counter = excluded.counter, target = excluded.target, reward = excluded.reward',
         [a.id, a.counter, a.target, a.reward],
+      );
+    for (const c of rows.challenges)
+      await this.db.query(
+        'insert into public.challenges (id, period, slot, counter, target, reward) values ($1, $2, $3, $4, $5, $6) on conflict (id) do update set period = excluded.period, slot = excluded.slot, counter = excluded.counter, target = excluded.target, reward = excluded.reward',
+        [c.id, c.period, c.slot, c.counter, c.target, c.reward],
       );
   }
 }
@@ -390,6 +398,12 @@ describe('blackjack service (with real SQL)', () => {
       st = (await bj(who, { type: 'act', action: 'stand', round: st.roundNo })).state!;
     }
     expect(st.phase).toBe('settled');
+    // The settled round fed the stats counters (and so the challenges) for both players.
+    const counters = await db.query<{ user_id: string; counters: Record<string, number> }>(
+      'select user_id, counters from public.player_stats where user_id in ($1, $2)',
+      [A, B],
+    );
+    for (const row of counters.rows) expect(row.counters.bj_hands, row.user_id).toBe(1);
     const paid = (i: number) => st.seats[i]!.hands.reduce((a, h) => a + h.payout, 0);
     expect(await chips(A)).toBe(9900 + paid(0));
     expect(await chips(B)).toBe(9800 + paid(2));
@@ -454,6 +468,7 @@ describe('shop catalog sync', () => {
     // A database set up before Storm Front existed.
     await db.query(`delete from public.cosmetics where id = 'bg-storm'`);
     await db.query(`delete from public.achievements where id = 'wins_500'`);
+    await db.query(`delete from public.challenges where id = 'w_sweep'`);
     await db.query(`update public.profiles set chips = 100000 where id = $1`, [C]);
     expect((await buyAs(C, 'bg-storm')).reason).toBe('not_found');
 
@@ -463,6 +478,8 @@ describe('shop catalog sync', () => {
     expect(rows.rows[0]).toMatchObject({ id: 'bg-storm', tier: 3 });
     expect(Number(rows.rows[0].price)).toBe(25000);
     expect((await db.query(`select 1 from public.achievements where id = 'wins_500'`)).rows.length).toBe(1);
+    expect(r.challenges).toBeGreaterThan(20);
+    expect((await db.query(`select 1 from public.challenges where id = 'w_sweep'`)).rows.length).toBe(1);
 
     const bought = await buyAs(C, 'bg-storm');
     expect(bought.ok).toBe(true);

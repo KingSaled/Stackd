@@ -3,7 +3,7 @@ import { GameError } from '../shared/poker/engine';
 import type { SecretState } from '../shared/poker/types';
 import { HttpError, VersionConflict } from './errors';
 import type { CatalogRows, CommitPayload, CreateTableInput, ProfileInfo, Repo, StoredTable } from './repo';
-import type { HandPayload } from './hands';
+import type { BjRoundPayload, HandPayload } from './hands';
 
 function env(...names: string[]): string | undefined {
   for (const n of names) {
@@ -192,6 +192,12 @@ export class SupabaseRepo implements Repo {
     if (error) throw new Error(`record_hands failed: ${messageOf(error)}`);
   }
 
+  async recordBlackjackRounds(rounds: BjRoundPayload[]): Promise<void> {
+    if (rounds.length === 0) return;
+    const { error } = await this.db.rpc('record_bj_rounds', { p_rounds: rounds });
+    if (error) throw new Error(`record_bj_rounds failed: ${messageOf(error)}`);
+  }
+
   async tablesOf(userId: string): Promise<string[]> {
     const { data, error } = await this.db.from('table_seats').select('table_id').eq('user_id', userId);
     if (error) throw new Error(`seat lookup failed: ${messageOf(error)}`);
@@ -208,6 +214,11 @@ export class SupabaseRepo implements Repo {
     if (a.error) throw new Error(`cosmetics sync failed: ${messageOf(a.error)}`);
     const b = await this.db.from('achievements').upsert(rows.achievements, { onConflict: 'id' });
     if (b.error) throw new Error(`achievements sync failed: ${messageOf(b.error)}`);
+    // Challenges arrived with a later schema.sql: a database that hasn't run it yet just skips them.
+    const c = await this.db.from('challenges').upsert(rows.challenges, { onConflict: 'id' });
+    if (c.error && !/relation|schema cache|does not exist/i.test(messageOf(c.error))) {
+      throw new Error(`challenges sync failed: ${messageOf(c.error)}`);
+    }
   }
 
   async cleanup(): Promise<unknown> {

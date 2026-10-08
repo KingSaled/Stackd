@@ -440,15 +440,17 @@ function TableRoom({ roomId }: { roomId: string }) {
         </button>
         <div className="table-top__title">
           <span className="table-top__name">
-            {name}
+            <span className="table-top__nametext">{name}</span>
             {t.meta?.hasPassword && <LockIcon size={12} />}
           </span>
           <span className="table-top__meta">
             <span className={clsx('dot', t.connection === 'live' ? 'dot--live' : 'dot--warn')} />
-            {config
-              ? `${blindsLabel(config.smallBlind, config.bigBlind)} · ${seatedCount}/${config.maxSeats} players${botCount ? ` · ${botCount} bot${botCount === 1 ? '' : 's'}` : ''}`
-              : 'Connecting…'}
-            {state && state.handNo > 0 && <span className="table-top__hand"> · Hand #{state.handNo}</span>}
+            <span className="table-top__metatext">
+              {config
+                ? `${blindsLabel(config.smallBlind, config.bigBlind)} · ${seatedCount}/${config.maxSeats} players${botCount ? ` · ${botCount} bot${botCount === 1 ? '' : 's'}` : ''}`
+                : 'Connecting…'}
+              {state && state.handNo > 0 && <span className="table-top__hand"> · Hand #{state.handNo}</span>}
+            </span>
           </span>
         </div>
         <div className="table-top__actions">

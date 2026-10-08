@@ -236,13 +236,15 @@ export default function BlackjackRoom({ roomId }: { roomId: string }) {
         </button>
         <div className="table-top__title">
           <span className="table-top__name">
-            {name}
+            <span className="table-top__nametext">{name}</span>
             {t.meta?.hasPassword && <LockIcon size={12} />}
           </span>
           <span className="table-top__meta">
             <span className={clsx('dot', t.connection === 'live' ? 'dot--live' : 'dot--warn')} />
-            {state ? `Blackjack · ${seated}/${state.config.maxSeats} players` : 'Connecting…'}
-            {state && state.roundNo > 0 && <span className="table-top__hand"> · Round #{state.roundNo}</span>}
+            <span className="table-top__metatext">
+              {state ? `Blackjack · ${seated}/${state.config.maxSeats} players` : 'Connecting…'}
+              {state && state.roundNo > 0 && <span className="table-top__hand"> · Round #{state.roundNo}</span>}
+            </span>
           </span>
         </div>
         <div className="table-top__actions">

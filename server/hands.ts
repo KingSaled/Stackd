@@ -5,6 +5,7 @@
  * input for chip-dumping checks). Bots are left out of both.
  */
 import { isBotId, type HandRecord } from '../shared/poker';
+import type { BjRoundRecord } from '../shared/blackjack/types';
 
 export interface HandPlayerPayload {
   user_id: string;
@@ -78,5 +79,41 @@ export function handPayload(tableId: string, rec: HandRecord): HandPayload | nul
       pfr: p.pfr,
     })),
     transfers: chipTransfers(rec),
+  };
+}
+
+export interface BjRoundPayload {
+  table_id: string;
+  round_no: number;
+  players: {
+    user_id: string;
+    hands: number;
+    wins: number;
+    blackjacks: number;
+    pushes: number;
+    double_wins: number;
+    splits: number;
+    wagered: number;
+    net: number;
+  }[];
+}
+
+/** A settled blackjack round, as stored by the record_bj_rounds() database function. */
+export function bjRoundPayload(tableId: string, rec: BjRoundRecord): BjRoundPayload | null {
+  if (rec.players.length === 0) return null;
+  return {
+    table_id: tableId,
+    round_no: rec.roundNo,
+    players: rec.players.map((p) => ({
+      user_id: p.userId,
+      hands: p.hands,
+      wins: p.wins,
+      blackjacks: p.blackjacks,
+      pushes: p.pushes,
+      double_wins: p.doubleWins,
+      splits: p.splits,
+      wagered: p.wagered,
+      net: p.net,
+    })),
   };
 }

@@ -98,11 +98,37 @@ export type BjState = BjPublicState & BjSecretState;
 
 export type BjAction = 'hit' | 'stand' | 'double' | 'split';
 
+/** How one player's hands in a settled round turned out (feeds stats and challenges). */
+export interface BjRoundPlayer {
+  userId: string;
+  /** Hands played (more than one after a split). */
+  hands: number;
+  /** Hands won, blackjacks included. */
+  wins: number;
+  blackjacks: number;
+  pushes: number;
+  /** Hands won after doubling down. */
+  doubleWins: number;
+  /** Extra hands created by splitting. */
+  splits: number;
+  /** Chips put in play, doubles and splits included. */
+  wagered: number;
+  /** Chips won (positive) or lost (negative) over the round. */
+  net: number;
+}
+
+export interface BjRoundRecord {
+  roundNo: number;
+  players: BjRoundPlayer[];
+}
+
 export interface BjEffects {
   /** userId → chip delta applied to the player's wallet (bets negative, payouts positive). */
   wallet: Record<string, number>;
+  /** Rounds that settled in this transition. */
+  rounds: BjRoundRecord[];
 }
 
 export function newBjEffects(): BjEffects {
-  return { wallet: {} };
+  return { wallet: {}, rounds: [] };
 }

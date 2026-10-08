@@ -181,10 +181,10 @@ export default function BlackjackPlayground() {
         resultsVisible={resultsVisible}
         pending={pending}
         setPending={setPending}
-        onBet={(a) => mutate((st) => bjPlaceBet(st, { wallet: {} }, 'me', a, rng, Date.now()))}
+        onBet={(a) => mutate((st) => bjPlaceBet(st, newBjEffects(), 'me', a, rng, Date.now()))}
         onClear={() => undefined}
-        onAct={(a) => mutate((st) => bjAct(st, { wallet: {} }, 'me', a, rng, Date.now()))}
-        onStand={() => mutate((st) => bjStandUp(st, { wallet: {} }, 'me', rng, Date.now()))}
+        onAct={(a) => mutate((st) => bjAct(st, newBjEffects(), 'me', a, rng, Date.now()))}
+        onStand={() => mutate((st) => bjStandUp(st, newBjEffects(), 'me', rng, Date.now()))}
       />
     </div>
   );

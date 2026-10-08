@@ -312,6 +312,9 @@ create table if not exists public.bonus_claims (
   ip_hash      text,
   created_at   timestamptz not null default now()
 );
+-- Challenge rewards share the same per-device limits as the other bonuses.
+alter table public.bonus_claims drop constraint if exists bonus_claims_kind_check;
+alter table public.bonus_claims add constraint bonus_claims_kind_check check (kind in ('daily', 'reload', 'challenge'));
 create index if not exists bonus_claims_device_idx on public.bonus_claims (kind, device_hash, created_at desc);
 create index if not exists bonus_claims_ip_idx on public.bonus_claims (kind, ip_hash, created_at desc);
 create index if not exists bonus_claims_user_idx on public.bonus_claims (user_id, created_at desc);
@@ -583,7 +586,236 @@ begin
     end if;
   end loop;
   update public.player_stats set counters = v_c, updated_at = now() where user_id = p_user;
+  perform public.advance_challenges(p_user, p_add);
   return public.grant_achievements(p_user);
+end;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- Daily and weekly challenges. Keep the pool in sync with shared/challenges.ts (a test
+-- checks this, and the server copies the list here on deploy). Each period every player
+-- gets one challenge per slot, chosen from the pool by a hash of the id and the period,
+-- so everyone sees the same ones. Days roll over at 08:00 UTC and weeks start on Monday.
+-- -----------------------------------------------------------------------------
+
+create table if not exists public.challenges (
+  id       text primary key,
+  period   text not null check (period in ('daily', 'weekly')),
+  slot     text not null check (slot in ('poker', 'blackjack', 'any', 'bonus')),
+  counter  text not null,
+  target   bigint not null check (target > 0),
+  reward   bigint not null default 0
+);
+
+create table if not exists public.challenge_progress (
+  user_id       uuid not null references public.profiles (id) on delete cascade,
+  challenge_id  text not null references public.challenges (id) on delete cascade,
+  period_key    text not null,
+  progress      bigint not null default 0,
+  claimed_at    timestamptz,
+  updated_at    timestamptz not null default now(),
+  primary key (user_id, challenge_id, period_key)
+);
+create index if not exists challenge_progress_updated_idx on public.challenge_progress (updated_at);
+
+alter table public.challenges         enable row level security;
+alter table public.challenge_progress enable row level security;
+revoke insert, update, delete, truncate, references, trigger on public.challenges, public.challenge_progress from anon, authenticated;
+grant select on public.challenges, public.challenge_progress to authenticated;
+drop policy if exists "challenges readable" on public.challenges;
+create policy "challenges readable" on public.challenges for select to authenticated using (true);
+drop policy if exists "owners read their challenge progress" on public.challenge_progress;
+create policy "owners read their challenge progress" on public.challenge_progress for select to authenticated using (user_id = auth.uid());
+
+-- Keep in sync with shared/challenges.ts.
+insert into public.challenges (id, period, slot, counter, target, reward) values
+  ('d_poker_hands', 'daily', 'poker', 'hands', 20, 1000),
+  ('d_poker_wins', 'daily', 'poker', 'wins', 3, 1500),
+  ('d_poker_showdown', 'daily', 'poker', 'showdown_wins', 2, 1500),
+  ('d_poker_steal', 'daily', 'poker', 'uncontested_wins', 2, 1500),
+  ('d_poker_allin', 'daily', 'poker', 'allins', 2, 1500),
+  ('d_bj_hands', 'daily', 'blackjack', 'bj_hands', 15, 1000),
+  ('d_bj_wins', 'daily', 'blackjack', 'bj_wins', 5, 1500),
+  ('d_bj_double', 'daily', 'blackjack', 'bj_double_wins', 1, 1500),
+  ('d_bj_split', 'daily', 'blackjack', 'bj_splits', 1, 1500),
+  ('d_any_play', 'daily', 'any', 'plays', 20, 1000),
+  ('d_any_wins', 'daily', 'any', 'wins_any', 6, 1500),
+  ('d_any_marathon', 'daily', 'any', 'plays', 50, 2500),
+  ('d_sweep', 'daily', 'bonus', 'daily_challenges', 3, 1000),
+  ('w_poker_hands', 'weekly', 'poker', 'hands', 150, 5000),
+  ('w_poker_wins', 'weekly', 'poker', 'wins', 25, 7500),
+  ('w_poker_showdown', 'weekly', 'poker', 'showdown_wins', 10, 7500),
+  ('w_poker_strong', 'weekly', 'poker', 'win_strong', 3, 8000),
+  ('w_bj_hands', 'weekly', 'blackjack', 'bj_hands', 100, 5000),
+  ('w_bj_wins', 'weekly', 'blackjack', 'bj_wins', 40, 7500),
+  ('w_bj_naturals', 'weekly', 'blackjack', 'bj_blackjacks', 3, 7500),
+  ('w_bj_doubles', 'weekly', 'blackjack', 'bj_double_wins', 5, 6500),
+  ('w_any_play', 'weekly', 'any', 'plays', 250, 6000),
+  ('w_any_daily', 'weekly', 'any', 'daily_claims', 5, 5000),
+  ('w_any_dedicated', 'weekly', 'any', 'daily_challenges', 6, 6000),
+  ('w_sweep', 'weekly', 'bonus', 'weekly_challenges', 3, 5000)
+on conflict (id) do update set period = excluded.period, slot = excluded.slot, counter = excluded.counter, target = excluded.target, reward = excluded.reward;
+
+create or replace function public.challenge_period_start(p_period text, p_at timestamptz default now())
+returns timestamptz
+language sql
+stable
+as $$
+  select (case p_period
+            when 'weekly' then date_trunc('week', (p_at at time zone 'utc') - interval '8 hours')
+            else date_trunc('day', (p_at at time zone 'utc') - interval '8 hours')
+          end at time zone 'utc') + interval '8 hours'
+$$;
+
+create or replace function public.challenge_period_end(p_period text, p_at timestamptz default now())
+returns timestamptz
+language sql
+stable
+as $$
+  select public.challenge_period_start(p_period, p_at) + case p_period when 'weekly' then interval '7 days' else interval '1 day' end
+$$;
+
+create or replace function public.challenge_period_key(p_period text, p_at timestamptz default now())
+returns text
+language sql
+stable
+as $$
+  select left(p_period, 1) || ':' || to_char(public.challenge_period_start(p_period, p_at) at time zone 'utc', 'YYYY-MM-DD')
+$$;
+
+-- The challenges in play right now: one per period and slot.
+create or replace function public.active_challenges(p_at timestamptz default now())
+returns table (id text, period text, slot text, counter text, target bigint, reward bigint, period_key text, ends_at timestamptz)
+language sql
+stable
+as $$
+  select distinct on (c.period, c.slot)
+         c.id, c.period, c.slot, c.counter, c.target, c.reward,
+         public.challenge_period_key(c.period, p_at), public.challenge_period_end(c.period, p_at)
+    from public.challenges c
+   order by c.period, c.slot, md5(c.id || public.challenge_period_key(c.period, p_at))
+$$;
+
+-- Add counter increments (the same jsonb bump_counters receives) to the active challenges.
+create or replace function public.advance_challenges(p_user uuid, p_add jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_user is null or p_add is null or p_add = '{}'::jsonb then return; end if;
+  insert into public.challenge_progress as cp (user_id, challenge_id, period_key, progress)
+  select p_user, a.id, a.period_key, least(a.target, (p_add ->> a.counter)::bigint)
+    from public.active_challenges() a
+   where coalesce((p_add ->> a.counter)::bigint, 0) > 0
+  on conflict (user_id, challenge_id, period_key) do update
+    set progress = least((select ch.target from public.challenges ch where ch.id = cp.challenge_id), cp.progress + excluded.progress),
+        updated_at = now();
+end;
+$$;
+
+-- The caller's progress on the challenges in play right now.
+create or replace function public.my_challenges()
+returns table (id text, period text, slot text, target bigint, reward bigint, progress bigint, claimed boolean, period_key text, ends_at timestamptz)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select a.id, a.period, a.slot, a.target, a.reward, coalesce(cp.progress, 0::bigint), cp.claimed_at is not null, a.period_key, a.ends_at
+    from public.active_challenges() a
+    left join public.challenge_progress cp
+      on cp.user_id = auth.uid() and cp.challenge_id = a.id and cp.period_key = a.period_key
+   order by a.period, case a.slot when 'poker' then 1 when 'blackjack' then 2 when 'any' then 3 else 4 end
+$$;
+
+-- Collect the reward for a finished challenge (once).
+create or replace function public.claim_challenge(p_id text, p_device text default null)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_p public.profiles;
+  v_a record;
+  v_cp public.challenge_progress;
+  v_dev text := public.device_hash(p_device);
+  v_ip text := public.hash_id('ip:' || public.request_ip());
+  v_others integer;
+begin
+  if v_uid is null then raise exception 'not_authenticated'; end if;
+  -- The row lock keeps simultaneous claims (two tabs, two devices) from paying twice.
+  select * into v_p from public.profiles where id = v_uid for update;
+  if not found then raise exception 'profile_missing'; end if;
+  select * into v_a from public.active_challenges() a where a.id = p_id;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'expired', 'chips', v_p.chips); end if;
+  select * into v_cp from public.challenge_progress
+   where user_id = v_uid and challenge_id = p_id and period_key = v_a.period_key for update;
+  if not found or v_cp.progress < v_a.target then
+    return jsonb_build_object('ok', false, 'reason', 'incomplete', 'chips', v_p.chips);
+  end if;
+  if v_cp.claimed_at is not null then
+    return jsonb_build_object('ok', false, 'reason', 'claimed', 'chips', v_p.chips);
+  end if;
+  perform public.link_device(v_uid, v_dev, v_ip);
+  if v_dev is not null then
+    select count(distinct user_id) into v_others
+      from public.bonus_claims
+     where kind = 'challenge' and device_hash = v_dev and user_id <> v_uid and created_at > now() - interval '24 hours';
+    if v_others >= public.bonus_device_limit() then
+      perform public.raise_flag('device_bonus_limit', 'medium', v_uid, null, jsonb_build_object('bonus', 'challenge', 'other_accounts', v_others));
+      return jsonb_build_object('ok', false, 'reason', 'device_limit', 'chips', v_p.chips);
+    end if;
+  end if;
+  update public.challenge_progress set claimed_at = now(), updated_at = now()
+   where user_id = v_uid and challenge_id = p_id and period_key = v_a.period_key;
+  update public.profiles set chips = chips + v_a.reward, updated_at = now() where id = v_uid returning * into v_p;
+  insert into public.bonus_claims (user_id, kind, amount, device_hash, ip_hash) values (v_uid, 'challenge', v_a.reward, v_dev, v_ip);
+  -- Claimed challenges count towards the sweep bonus and the weekly "claim daily challenges" goal.
+  if v_a.slot <> 'bonus' then
+    perform public.advance_challenges(v_uid, jsonb_build_object(case v_a.period when 'daily' then 'daily_challenges' else 'weekly_challenges' end, 1));
+  end if;
+  return jsonb_build_object('ok', true, 'id', p_id, 'amount', v_a.reward, 'chips', v_p.chips);
+end;
+$$;
+
+-- Blackjack rounds feed the same counters as poker hands (called by the Netlify Function after a round settles).
+create or replace function public.record_bj_rounds(p_rounds jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r jsonb;
+  pl jsonb;
+  v_unlocked text[];
+  v_all text[] := '{}';
+begin
+  for r in select * from jsonb_array_elements(coalesce(p_rounds, '[]'::jsonb)) loop
+    for pl in select * from jsonb_array_elements(coalesce(r -> 'players', '[]'::jsonb)) loop
+      v_unlocked := public.bump_counters(
+        (pl ->> 'user_id')::uuid,
+        jsonb_build_object(
+          'bj_hands', coalesce((pl ->> 'hands')::bigint, 0),
+          'bj_wins', coalesce((pl ->> 'wins')::bigint, 0),
+          'bj_blackjacks', coalesce((pl ->> 'blackjacks')::bigint, 0),
+          'bj_pushes', coalesce((pl ->> 'pushes')::bigint, 0),
+          'bj_double_wins', coalesce((pl ->> 'double_wins')::bigint, 0),
+          'bj_splits', coalesce((pl ->> 'splits')::bigint, 0),
+          'bj_wagered', coalesce((pl ->> 'wagered')::bigint, 0),
+          'bj_net', coalesce((pl ->> 'net')::bigint, 0),
+          'plays', coalesce((pl ->> 'hands')::bigint, 0),
+          'wins_any', coalesce((pl ->> 'wins')::bigint, 0)
+        ),
+        '{}'::jsonb);
+      v_all := v_all || coalesce(v_unlocked, '{}');
+    end loop;
+  end loop;
+  return jsonb_build_object('unlocked', to_jsonb(v_all));
 end;
 $$;
 
@@ -694,7 +926,7 @@ begin
      where kind = 'daily' and ip_hash = v_ip and created_at > now() - interval '24 hours') >= 6 then
     perform public.raise_flag('shared_network_bonus', 'low', v_uid, null, jsonb_build_object('bonus', 'daily'));
   end if;
-  perform public.bump_counters(v_uid, '{}'::jsonb, jsonb_build_object('best_streak', v_streak));
+  perform public.bump_counters(v_uid, jsonb_build_object('daily_claims', 1), jsonb_build_object('best_streak', v_streak));
   select * into v_p from public.profiles where id = v_uid;
   return jsonb_build_object(
     'ok', true,
@@ -1102,6 +1334,7 @@ declare
   v_tables integer;
   v_chat integer;
   v_guests integer;
+  v_progress integer;
 begin
   -- Tables that were opened but never had anyone sit down.
   delete from public.tables
@@ -1110,6 +1343,9 @@ begin
   delete from public.chat_messages where created_at < now() - interval '3 days';
   get diagnostics v_chat = row_count;
   delete from public.room_join_failures where last_failed_at < now() - interval '1 day';
+  -- Challenge progress is only needed for the day or week it belongs to.
+  delete from public.challenge_progress where updated_at < now() - interval '45 days';
+  get diagnostics v_progress = row_count;
   -- Guest accounts that were never upgraded to a saved account. Deleting the login removes the
   -- profile and everything attached to it. A guest who is still playing is left alone: one that never
   -- played goes after 2 days, one that did after 30 days without any activity, and anyone seated is kept.
@@ -1127,7 +1363,7 @@ begin
     delete from auth.users u using gone where u.id = gone.id returning 1
   )
   select count(*) into v_guests from removed;
-  return jsonb_build_object('tables_deleted', v_tables, 'chat_deleted', v_chat, 'guests_deleted', v_guests);
+  return jsonb_build_object('tables_deleted', v_tables, 'chat_deleted', v_chat, 'guests_deleted', v_guests, 'challenge_rows_deleted', v_progress);
 end;
 $$;
 
@@ -1187,7 +1423,11 @@ begin
           'win_straight_flush', (v_won > 0 and v_cat = 8)::int,
           'win_royal', (v_won > 0 and v_cat = 9)::int,
           'bot_table_wins', (v_won > 0 and coalesce((h ->> 'bots')::int, 0) > 0)::int,
-          'full_ring_hands', (coalesce((h ->> 'humans')::int, 0) >= 6)::int
+          'full_ring_hands', (coalesce((h ->> 'humans')::int, 0) >= 6)::int,
+          -- For challenges that count both games, and "a straight or better".
+          'plays', 1,
+          'wins_any', (v_won > 0)::int,
+          'win_strong', (v_won > 0 and v_cat >= 4)::int
         ),
         jsonb_build_object('biggest_win', greatest(v_net, 0)));
       v_all := v_all || coalesce(v_unlocked, '{}');
@@ -1390,18 +1630,25 @@ revoke execute on function public.raise_flag(text, text, uuid, uuid, jsonb) from
 revoke execute on function public.grant_achievements(uuid) from public, anon, authenticated;
 revoke execute on function public.bump_counters(uuid, jsonb, jsonb) from public, anon, authenticated;
 revoke execute on function public.record_hands(jsonb) from public, anon, authenticated;
+revoke execute on function public.record_bj_rounds(jsonb) from public, anon, authenticated;
+revoke execute on function public.advance_challenges(uuid, jsonb) from public, anon, authenticated;
 revoke execute on function public.request_ip() from public, anon;
 grant execute on function public.record_hands(jsonb) to service_role;
+grant execute on function public.record_bj_rounds(jsonb) to service_role;
 
 -- Player-facing RPCs added with legal, anti-abuse, achievements and the shop.
 revoke execute on function public.touch_device(text) from public, anon;
 revoke execute on function public.accept_terms(text, boolean) from public, anon;
 revoke execute on function public.buy_cosmetic(text) from public, anon;
 revoke execute on function public.equip_cosmetic(text, text) from public, anon;
+revoke execute on function public.my_challenges() from public, anon;
+revoke execute on function public.claim_challenge(text, text) from public, anon;
 grant execute on function public.touch_device(text) to authenticated;
 grant execute on function public.accept_terms(text, boolean) to authenticated;
 grant execute on function public.buy_cosmetic(text) to authenticated;
 grant execute on function public.equip_cosmetic(text, text) to authenticated;
+grant execute on function public.my_challenges() to authenticated;
+grant execute on function public.claim_challenge(text, text) to authenticated;
 
 revoke execute on function public.update_profile(text, text, text) from public, anon;
 revoke execute on function public.mark_changelog_seen(text) from public, anon;
@@ -1437,7 +1684,7 @@ begin
   if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
     create publication supabase_realtime;
   end if;
-  foreach t in array array['tables', 'player_cards', 'chat_messages', 'profiles', 'player_achievements'] loop
+  foreach t in array array['tables', 'player_cards', 'chat_messages', 'profiles', 'player_achievements', 'challenge_progress'] loop
     if not exists (
       select 1 from pg_publication_tables
        where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t

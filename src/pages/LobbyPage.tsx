@@ -19,6 +19,7 @@ import { BrokeHelp } from '../components/BrokeHelp';
 import { Avatar } from '../components/Avatar';
 import { Emoji } from '../components/Emoji';
 import { Leaderboard, type Leader } from '../components/Leaderboard';
+import { ChallengesPanel } from '../components/challenges/Challenges';
 import { PlayingCard } from '../components/PlayingCard';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../store/auth';
@@ -391,6 +392,8 @@ export function LobbyPage() {
           </div>
 
           <aside className="home-col home-col--side">
+            <ChallengesPanel className="home-panel--challenges" />
+
             <section className="panel home-panel home-panel--bonus bonus">
               <header className="home-panel__head">
                 <h2 className="home-panel__title">

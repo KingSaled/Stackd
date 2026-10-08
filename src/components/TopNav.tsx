@@ -11,6 +11,7 @@ import { useAuth } from '../store/auth';
 import { useEconomy } from '../hooks/useEconomy';
 import { chips, chipsShort, countShort } from '../lib/format';
 import { useOnline } from '../store/online';
+import { ChallengesButton } from './challenges/Challenges';
 
 function AnimatedNumber({ value }: { value: number }) {
   const spring = useSpring(value, { stiffness: 90, damping: 20 });
@@ -55,6 +56,7 @@ export function TopNav() {
           <div className="topnav__games">
             <GameSwitch />
             {/* Phones: the online count sits at the end of the game switch row. */}
+            <ChallengesButton className="chal-pill--row" />
             <OnlinePill className="online-pill--row" />
           </div>
         )}
@@ -74,6 +76,7 @@ export function TopNav() {
           <span className="shop-pill__full">Cosmetic Shop</span>
           <span className="shop-pill__short">Shop</span>
         </Link>
+        <ChallengesButton className="chal-pill--bar" />
         <OnlinePill className="online-pill--bar" />
         <SoundControl />
         {profile && (

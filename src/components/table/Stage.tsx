@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import clsx from 'clsx';
 import { PlusIcon, WifiSlashIcon, MoonIcon, SignOutIcon } from '@phosphor-icons/react';
-import { memo, useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import type { PublicState, Seat } from '../../../shared/poker/types';
 import { seatIndexOf } from '../../../shared/poker/engine';
 import { describeHolding } from '../../../shared/poker/evaluator';
@@ -129,9 +129,9 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
     return {
       '--rail': `${rail.toFixed(1)}px`,
       '--felt-line': `${feltLine.toFixed(1)}px`,
-      '--card-board': `${portrait ? card(12.2, 11.5, 92) : Math.min(92, unit * 5.9)}px`,
+      '--card-board': `${portrait ? card(12.4, 13.6, 92) : Math.min(92, unit * 5.9)}px`,
       '--card-seat': `${portrait ? card(8.6, 8.8, 56) : Math.min(56, unit * 3.7)}px`,
-      '--card-hero': `${portrait ? card(15, 12.5, 110) : Math.min(110, unit * 6.2)}px`,
+      '--card-hero': `${portrait ? card(15.5, 15.5, 110) : Math.min(110, unit * 6.2)}px`,
       '--avatar': `${Math.min(84, portrait ? Math.min(unit * (n > 6 ? 11.5 : 12.5), vu * 8.5) : unit * 5.9)}px`,
       '--fs': `${Math.max(10.5, Math.min(15, portrait ? unit * 3.2 : unit * 1.25))}px`,
     } as React.CSSProperties;
@@ -589,17 +589,34 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
       ? { transform: `translate(calc(-50% + ${cardOffset.x}px), calc(-50% + ${cardOffset.y}px))` }
       : {};
   const actionText = label ? `${label}${labelAmount ? ` ${labelAmount}` : ''}` : null;
-  // In the compact (phone) plate the first line shows what matters most right now.
-  const plateLine = compact ? status ?? (strength && !seat.folded ? strength.name : null) ?? actionText ?? seat.name : seat.name;
-  const plateTone = compact
-    ? status
-      ? 'status'
-      : strength && !seat.folded
-        ? 'strength'
-        : actionText
-          ? seat.lastAction?.type
-          : null
-    : null;
+
+  // Phone plates keep the player's name on show. A new action (fold, call, raise…) takes over the
+  // plate for a couple of seconds, then it goes back to the name; the bet chips, the dimmed seat and
+  // ALL-IN keep the rest of the story on the table.
+  const [flash, setFlash] = useState(false);
+  const lastSeen = useRef<string | null | undefined>(undefined);
+  const actionKey = actionText ? `${handNo}|${seat.lastAction?.type}|${seat.lastAction?.amount ?? 0}` : null;
+  useEffect(() => {
+    // Opening the table mid-hand shouldn't replay old actions.
+    if (lastSeen.current === undefined) {
+      lastSeen.current = actionKey;
+      return;
+    }
+    if (actionKey === lastSeen.current) return;
+    lastSeen.current = actionKey;
+    if (!actionKey) {
+      setFlash(false);
+      return;
+    }
+    setFlash(true);
+    const t = window.setTimeout(() => setFlash(false), 2400);
+    return () => window.clearTimeout(t);
+  }, [actionKey]);
+
+  const showAction = compact && flash && !!actionText && !status;
+  const showStrength = compact && !!strength && !seat.folded && !showAction && !status;
+  const plateLine = compact ? status ?? (showAction ? actionText : null) ?? (showStrength ? strength!.name : null) ?? seat.name : seat.name;
+  const plateTone = compact ? (status ? 'status' : showAction ? seat.lastAction?.type : showStrength ? 'strength' : null) : null;
 
   return (
     <div

@@ -119,8 +119,8 @@ export interface PortraitSlot {
  * Listed clockwise from the bottom (the viewer's own seat).
  */
 const P_SLOTS: Record<string, PortraitSlot> = {
-  H: { pos: { x: 50, y: 88 }, bet: { x: 50, y: 66.5 }, cards: 'hero', dealerSide: -1 },
-  BL: { pos: { x: 18, y: 88 }, bet: { x: 25, y: 75.5 }, cards: 'up', dealerSide: 1 },
+  H: { pos: { x: 50, y: 88 }, bet: { x: 50, y: 64 }, cards: 'hero', dealerSide: -1 },
+  BL: { pos: { x: 18, y: 88 }, bet: { x: 24, y: 77 }, cards: 'up', dealerSide: 1 },
   LL: { pos: { x: 12.5, y: 64.5 }, bet: { x: 30, y: 64.5 }, cards: 'up', dealerSide: 1 },
   LU: { pos: { x: 12.5, y: 27 }, bet: { x: 30, y: 29.5 }, cards: 'up', dealerSide: 1 },
   TL: { pos: { x: 29, y: 10 }, bet: { x: 33, y: 24 }, cards: 'right', dealerSide: -1 },
@@ -128,7 +128,7 @@ const P_SLOTS: Record<string, PortraitSlot> = {
   TR: { pos: { x: 71, y: 10 }, bet: { x: 67, y: 24 }, cards: 'left', dealerSide: 1 },
   RU: { pos: { x: 87.5, y: 27 }, bet: { x: 70, y: 29.5 }, cards: 'up', dealerSide: -1 },
   RL: { pos: { x: 87.5, y: 64.5 }, bet: { x: 70, y: 64.5 }, cards: 'up', dealerSide: -1 },
-  BR: { pos: { x: 82, y: 88 }, bet: { x: 75, y: 75.5 }, cards: 'up', dealerSide: -1 },
+  BR: { pos: { x: 82, y: 88 }, bet: { x: 76, y: 77 }, cards: 'up', dealerSide: -1 },
 };
 
 const P_SETS: Record<number, string[]> = {

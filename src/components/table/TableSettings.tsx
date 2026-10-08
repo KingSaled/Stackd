@@ -2,6 +2,7 @@ import { GearSixIcon } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { useSettings } from '../../store/settings';
 import { MIN_AGE } from '../../legal';
+import { ChallengeMini } from '../challenges/Challenges';
 
 export function TableSettings() {
   const [open, setOpen] = useState(false);
@@ -30,6 +31,7 @@ export function TableSettings() {
             <span className="switch__track" />
             Show my hand strength
           </label>
+          <ChallengeMini />
           <p className="muted small">Shortcuts: F fold · C check/call · R raise · Enter confirm</p>
           <p className="muted small settings-pop__legal">
             Play money only · {MIN_AGE}+ ·{' '}

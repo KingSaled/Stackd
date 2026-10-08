@@ -45,6 +45,11 @@ Everything runs on free tiers: **Netlify** (static site + serverless functions) 
 - The **Cosmetic Shop** (the pill in the top bar) sells five avatar borders (5,000 to 250,000 chips; the top one, Mythic Inferno, is animated) and five backgrounds (3,000 to 120,000). Items are bought with play chips only, show at tables, in the lobby and on the leaderboard, and act as a chip sink.
 - To change achievements or shop items, edit `shared/achievements.ts` / `shared/cosmetics.ts` **and** the matching `insert` in `supabase/schema.sql`; a test fails if they drift apart.
 
+**Daily & weekly challenges**
+- Every day each player gets three challenges (one poker, one blackjack, one that counts hands from either game) and three bigger ones every week, plus a Sweep bonus for claiming all three in a set. Dailies pay 1,000 to 2,500 chips, weeklies 5,000 to 8,000 (Sweep: 1,000 / 5,000). Rewards are collected with a Claim button; progress is tracked on the server from poker hands and blackjack rounds and shown live in the lobby (Challenges panel), the Challenges button in the top bar, and the table menu.
+- Days roll over at 08:00 UTC and weeks start Monday 08:00 UTC. Each period's challenge per slot is picked from the pool by a hash of the challenge id and the period, so every player sees the same ones. Claims share the per-device limit used by the other bonuses.
+- To change the pool, edit `shared/challenges.ts` (the server copies it to the database on deploy, so rewards and targets can change without re-running the schema; adding a brand-new counter needs the matching increment in `record_hands` / `record_bj_rounds`). A test checks the schema's copy of the pool.
+
 **Legal & fair play**
 - Terms of Service (`/terms`) and Privacy Policy (`/privacy`), linked from the sign-in screen, the lobby, profile, shop and table settings, with a "Play money only · 18+" notice.
 - New players tick an "I'm 18 or older and agree" box when signing up or playing as a guest. Existing players get a one-time "Before you play" prompt on their next visit (no account reset); acceptance and the 18+ confirmation are recorded on the account, and the server won't seat anyone who hasn't accepted.

@@ -15,6 +15,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2026-10-08',
+    date: 'October 8, 2026',
+    title: 'Daily and weekly challenges',
+    items: [
+      { icon: 'Trophy', text: 'New Challenges: every day you get three to complete (one for poker, one for blackjack and one that counts hands from either game), plus three bigger ones every week. Just play and watch the bars fill.' },
+      { icon: 'Coins', text: 'Collect each reward with its Claim button: 1,000 to 2,500 chips for a daily challenge and 5,000 to 8,000 for a weekly one. Claim all three in a set for a Sweep bonus on top.' },
+      { icon: 'CalendarCheck', text: 'New dailies arrive at 08:00 UTC (4 am in New York) and new weeklies every Monday at the same time. Find them in the lobby, the Challenges button in the top bar, or the table menu while you play.' },
+    ],
+  },
+  {
     version: '2026-10-07f',
     date: 'October 7, 2026',
     title: 'Quick play and public tables',

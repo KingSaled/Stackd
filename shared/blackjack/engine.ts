@@ -12,7 +12,18 @@
 import { freshDeck, shuffle, type Card, type Rng } from '../poker/cards';
 import { GameError } from '../poker/engine';
 import type { LogKind } from '../poker/types';
-import type { BjAction, BjConfig, BjEffects, BjHand, BjPublicState, BjSeat, BjSecretState, BjState } from './types';
+import type {
+  BjAction,
+  BjConfig,
+  BjEffects,
+  BjHand,
+  BjPublicState,
+  BjRoundPlayer,
+  BjRoundRecord,
+  BjSeat,
+  BjSecretState,
+  BjState,
+} from './types';
 
 export const BJ_DECKS = 6;
 /** Reshuffle when this share of the shoe is left. */
@@ -446,8 +457,10 @@ function settle(s: BjState, fx: BjEffects, _rng: Rng, now: number) {
   s.holeHidden = false;
   const dealer = handTotal(s.dealer).total;
   const dealerBj = s.dealerBlackjack || (s.dealer.length === 2 && dealer === 21);
+  const record: BjRoundRecord = { roundNo: s.roundNo, players: [] };
   for (const seat of seatedPlayers(s)) {
     let net = 0;
+    const who: BjRoundPlayer = { userId: seat.userId, hands: 0, wins: 0, blackjacks: 0, pushes: 0, doubleWins: 0, splits: 0, wagered: 0, net: 0 };
     for (const h of seat.hands) {
       const t = handTotal(h.cards).total;
       if (t > 21) {
@@ -472,12 +485,22 @@ function settle(s: BjState, fx: BjEffects, _rng: Rng, now: number) {
       h.done = true;
       pay(fx, seat.userId, h.payout);
       net += h.payout - h.bet;
+      who.hands += 1;
+      who.wagered += h.bet;
+      if (h.outcome === 'win' || h.outcome === 'blackjack') who.wins += 1;
+      if (h.outcome === 'blackjack') who.blackjacks += 1;
+      if (h.outcome === 'push') who.pushes += 1;
+      if (h.doubled && h.outcome === 'win') who.doubleWins += 1;
     }
     if (seat.hands.length) {
+      who.splits = seat.hands.length - 1;
+      who.net = net;
+      record.players.push(who);
       const verb = net > 0 ? `wins ${money(net)}` : net < 0 ? `loses ${money(-net)}` : 'pushes';
       log(s, net > 0 ? 'win' : 'action', `${seat.name} ${verb}`, now);
     }
   }
+  if (record.players.length) fx.rounds.push(record);
   s.phase = 'settled';
   s.toAct = -1;
   s.turnStartedAt = null;

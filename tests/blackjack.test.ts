@@ -191,6 +191,47 @@ describe('blackjack rounds', () => {
     expect(net(fx)).toBe(-200 + 400);
   });
 
+  it('records each settled round for stats and challenges', () => {
+    // A blackjack.
+    let s = table();
+    let fx = newBjEffects();
+    rig(s, ['As', '9c', 'Kd', '7h']);
+    bjPlaceBet(s, fx, 'u0', 100, rng, T0);
+    expect(fx.rounds).toEqual([
+      { roundNo: 1, players: [{ userId: 'u0', hands: 1, wins: 1, blackjacks: 1, pushes: 0, doubleWins: 0, splits: 0, wagered: 100, net: 150 }] },
+    ]);
+
+    // A doubled win.
+    s = table();
+    fx = newBjEffects();
+    rig(s, ['6s', 'Td', '5d', '7c', 'Th']);
+    bjPlaceBet(s, fx, 'u0', 100, rng, T0);
+    expect(fx.rounds).toHaveLength(0); // still in play
+    bjAct(s, fx, 'u0', 'double', rng, T0 + 5000);
+    expect(fx.rounds[0].players[0]).toMatchObject({ hands: 1, wins: 1, doubleWins: 1, wagered: 200, net: 200 });
+
+    // A split: two hands, one lost and one won.
+    s = table();
+    fx = newBjEffects();
+    rig(s, ['8s', 'Td', '8d', '7c', '3h', 'Th']);
+    bjPlaceBet(s, fx, 'u0', 100, rng, T0);
+    bjAct(s, fx, 'u0', 'split', rng, T0 + 5000);
+    bjAct(s, fx, 'u0', 'stand', rng, T0 + 6000);
+    bjAct(s, fx, 'u0', 'stand', rng, T0 + 7000);
+    expect(fx.rounds[0].players[0]).toMatchObject({ hands: 2, wins: 1, splits: 1, wagered: 200, net: 0 });
+
+    // A dealer blackjack: the player's natural pushes, the other player loses, both are recorded.
+    s = table(2);
+    fx = newBjEffects();
+    rig(s, ['Ts', 'Ah', 'Ad', '9c', 'Kd', 'Kh']);
+    bjPlaceBet(s, fx, 'u0', 100, rng, T0);
+    bjPlaceBet(s, fx, 'u1', 50, rng, T0);
+    expect(fx.rounds[0].players.map((p) => [p.userId, p.wins, p.pushes, p.net])).toEqual([
+      ['u0', 0, 0, -100],
+      ['u1', 0, 1, 0],
+    ]);
+  });
+
   it('a turn that times out stands; two in a row stand every hand', () => {
     const s = table(2);
     const fx = newBjEffects();

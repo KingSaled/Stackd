@@ -28,6 +28,7 @@ import {
 } from '../shared/blackjack';
 import { GameError } from '../shared/poker/engine';
 import { VersionConflict } from './errors';
+import { bjRoundPayload, type BjRoundPayload } from './hands';
 import type { CommitPayload, ProfileInfo, Repo, StoredTable } from './repo';
 import { cryptoRng, generateRoomId, isBlackjackTable, normalizeRoomId, type ServiceOptions } from './common';
 
@@ -62,6 +63,17 @@ export function buildBjCommit(s: BjState, fx: BjEffects): CommitPayload {
   };
 }
 
+/** Stats and challenges never get in the way of the game itself. */
+async function recordRounds(repo: Repo, roomId: string, fx: BjEffects) {
+  const payload = fx.rounds.map((r) => bjRoundPayload(roomId, r)).filter((r): r is BjRoundPayload => r !== null);
+  if (payload.length === 0) return;
+  try {
+    await repo.recordBlackjackRounds(payload);
+  } catch (e) {
+    console.error('[stackd] could not record blackjack stats', roomId, e);
+  }
+}
+
 type BjMutator = (s: BjState, fx: BjEffects, now: number, rec: StoredTable) => boolean | void | Promise<boolean | void>;
 
 export async function mutateBlackjack(repo: Repo, roomId: string, mutator: BjMutator, opts: ServiceOptions = {}) {
@@ -76,6 +88,7 @@ export async function mutateBlackjack(repo: Repo, roomId: string, mutator: BjMut
     if (result === false) return { changed: false, version: rec.version, state: s };
     try {
       const version = await repo.commitTable(roomId, rec.version, buildBjCommit(s, fx));
+      await recordRounds(repo, roomId, fx);
       return { changed: true, version, state: s };
     } catch (e) {
       if (e instanceof VersionConflict) {

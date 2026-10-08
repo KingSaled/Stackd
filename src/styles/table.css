@@ -20,7 +20,8 @@
   background: rgba(7, 10, 18, 0.7);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  z-index: 20;
+  /* Above the table's floating status pills, so the settings menu never sits under them. */
+  z-index: 40;
   flex: none;
 }
 
@@ -43,6 +44,14 @@
   gap: 6px;
 }
 
+.table-top__nametext,
+.table-top__metatext {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .table-top__meta {
   display: flex;
   align-items: center;
@@ -51,7 +60,10 @@
   color: var(--text-dim);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.table-top__meta .dot {
+  flex: none;
 }
 
 .table-top__actions {
@@ -191,6 +203,7 @@
 .stage--portrait .felt-logo {
   top: 70%;
   font-size: calc(var(--fs) * 2);
+  color: rgba(255, 255, 255, 0.035);
 }
 
 /* ---------------------------------------------------------------- Board, pot, status */
@@ -670,7 +683,21 @@
   transform: rotate(3deg);
 }
 
-/* Compact name plate: first line shows hand strength / last action / status. */
+/* After folding, the viewer's cards shrink down onto their avatar instead of hovering large over the rail. */
+.stage--portrait .seat--me.is-folded .seat__cards--hero {
+  scale: 0.6;
+  transform-origin: 50% 100%;
+  filter: saturate(0.5);
+}
+
+.stage--portrait .seat__cards--hero {
+  transition:
+    scale 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    translate 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.35s;
+}
+
+/* Compact name plate: first line shows the name, then briefly the last action or the hand strength. */
 .seat__name--strength {
   color: var(--mint);
   font-weight: 700;
