@@ -300,6 +300,29 @@ describe('schema', () => {
     await db.query(`update public.tables set player_count = 0 where id in ('NOLIST', 'ROOM01')`);
   });
 
+  it('cleans up abandoned guest accounts but keeps saved accounts and active guests', async () => {
+    const G = (n: number) => `00000000-0000-0000-0000-0000000009${n}0`;
+    const [idle, played, active, seated, saved] = [1, 2, 3, 4, 5].map(G);
+    for (const id of [idle, played, active, seated, saved])
+      await db.query(`insert into auth.users (id, email, is_anonymous) values ($1, $2, $3)`, [id, id === saved ? 'saved@example.com' : null, id !== saved]);
+    const old = (days: number) => `now() - interval '${days} days'`;
+    // Never played, 3 days old; played but quiet for 40 days; played 5 days ago; seated at a table; a saved account untouched for ages.
+    await db.query(`update public.profiles set updated_at = ${old(3)}, created_at = ${old(3)} where id = $1`, [idle]);
+    await db.query(`update public.profiles set chips = 4000, hands_played = 12, updated_at = ${old(40)}, created_at = ${old(60)} where id = $1`, [played]);
+    await db.query(`update public.profiles set chips = 4000, hands_played = 12, updated_at = ${old(5)}, created_at = ${old(60)} where id = $1`, [active]);
+    await db.query(`update public.profiles set updated_at = ${old(90)}, created_at = ${old(90)} where id in ($1, $2)`, [seated, saved]);
+    await db.query(`update auth.users set created_at = ${old(90)}, last_sign_in_at = ${old(90)} where id in ($1, $2, $3, $4)`, [played, seated, saved, active]);
+    await db.query(`update auth.users set last_sign_in_at = ${old(5)} where id = $1`, [active]);
+    await db.query(`update auth.users set created_at = ${old(3)} where id = $1`, [idle]);
+    await db.query(`insert into public.tables (id, name, host_id, config, state, version, player_count) values ('GUESTT', 'g', $1, '{}', '{}', 1, 1)`, [seated]);
+    await db.query(`insert into public.table_seats (table_id, user_id, seat, stack) values ('GUESTT', $1, 0, 500)`, [seated]);
+    const [res] = await as<{ r: { guests_deleted: number } }>(null, 'select public.cleanup_stale_data() as r');
+    expect(res.r.guests_deleted).toBe(2);
+    const left = (await db.query<{ id: string }>('select id from public.profiles where id = any($1)', [[idle, played, active, seated, saved]])).rows.map((r) => r.id).sort();
+    expect(left).toEqual([active, seated, saved].sort());
+    await db.query(`delete from public.tables where id = 'GUESTT'`);
+  });
+
   it('cleans up tables nobody ever sat at', async () => {
     await db.query(`update public.tables set updated_at = now() - interval '1 hour' where player_count = 0`);
     const [res] = await as<{ r: { tables_deleted: number } }>(null, 'select public.cleanup_stale_data() as r');

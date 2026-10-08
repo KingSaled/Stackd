@@ -1101,6 +1101,7 @@ as $$
 declare
   v_tables integer;
   v_chat integer;
+  v_guests integer;
 begin
   -- Tables that were opened but never had anyone sit down.
   delete from public.tables
@@ -1109,7 +1110,24 @@ begin
   delete from public.chat_messages where created_at < now() - interval '3 days';
   get diagnostics v_chat = row_count;
   delete from public.room_join_failures where last_failed_at < now() - interval '1 day';
-  return jsonb_build_object('tables_deleted', v_tables, 'chat_deleted', v_chat);
+  -- Guest accounts that were never upgraded to a saved account. Deleting the login removes the
+  -- profile and everything attached to it. A guest who is still playing is left alone: one that never
+  -- played goes after 2 days, one that did after 30 days without any activity, and anyone seated is kept.
+  with gone as (
+    select p.id
+      from public.profiles p
+      join auth.users u on u.id = p.id
+     where p.is_guest
+       and not exists (select 1 from public.table_seats s where s.user_id = p.id)
+       and greatest(p.updated_at, u.last_sign_in_at, u.created_at) <
+           now() - case when p.hands_played = 0 and p.chips = 10000 then interval '2 days' else interval '30 days' end
+     limit 500
+  ),
+  removed as (
+    delete from auth.users u using gone where u.id = gone.id returning 1
+  )
+  select count(*) into v_guests from removed;
+  return jsonb_build_object('tables_deleted', v_tables, 'chat_deleted', v_chat, 'guests_deleted', v_guests);
 end;
 $$;
 
