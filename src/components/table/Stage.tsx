@@ -84,7 +84,7 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
   const mySeat = seatIndexOf(state, me);
   const rotation = mySeat >= 0 ? mySeat : 0;
   const positions = seatPositions(n, portrait, aspect);
-  const slots = portrait ? portraitSlots(n) : null;
+  const slots = useMemo(() => (portrait ? portraitSlots(n, aspect) : null), [portrait, n, aspect]);
   const center = stageGeometry(portrait).center;
   const cPx = px(center, w, h);
   const posOf = (i: number): Point => {
@@ -129,7 +129,7 @@ export function Stage({ state, me, myCards, online, reactions, pres, metrics, ca
     return {
       '--rail': `${rail.toFixed(1)}px`,
       '--felt-line': `${feltLine.toFixed(1)}px`,
-      '--card-board': `${portrait ? card(12.4, 13.6, 92) : Math.min(92, unit * 5.9)}px`,
+      '--card-board': `${portrait ? card(n >= 8 ? 11.2 : 12.4, 13.6, 92) : Math.min(92, unit * 5.9)}px`,
       '--card-seat': `${portrait ? card(8.6, 8.8, 56) : Math.min(56, unit * 3.7)}px`,
       '--card-hero': `${portrait ? card(15.5, 15.5, 110) : Math.min(110, unit * 6.2)}px`,
       '--avatar': `${Math.min(84, portrait ? Math.min(unit * (n > 6 ? 11.5 : 12.5), vu * 8.5) : unit * 5.9)}px`,

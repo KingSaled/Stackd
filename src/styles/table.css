@@ -686,7 +686,9 @@
 /* After folding, the viewer's cards shrink down onto their avatar instead of hovering large over the rail. */
 .stage--portrait .seat--me.is-folded .seat__cards--hero {
   scale: 0.6;
-  transform-origin: 50% 100%;
+  /* The scale applies after the centring translate, so its origin is the box's top-left corner,
+     which is the point under the middle of the avatar: the cards shrink in place, centred. */
+  transform-origin: 0 0;
   filter: saturate(0.5);
 }
 

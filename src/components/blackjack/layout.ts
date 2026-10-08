@@ -110,3 +110,49 @@ export function cardOffset(j: number, spot: Pick<SeatSpot, 'across' | 'up'>, car
   const u = cardW * 0.3 * j;
   return { x: spot.across.x * a + spot.up.x * u, y: spot.across.y * a + spot.up.y * u };
 }
+
+export interface HeroFit {
+  /** Card width for the player's own hand(s). */
+  cardW: number;
+  /** Gap between overlapping cards in a hand. */
+  step: number;
+  /** Where each hand's first card goes and the hand's middle (for its total). */
+  hands: { first: number; mid: number }[];
+  /** Vertical centre of the cards and where the label above them goes. */
+  y: number;
+  labelY: number;
+}
+
+/**
+ * Phone layout for the player's own hand(s) under the table. Cards fan out
+ * sideways only (never climbing back up into the table), split hands sit side
+ * by side, and everything shrinks as needed to stay on screen.
+ */
+export function heroFit(L: BjLayout, stageW: number, stageH: number, counts: number[]): HeroFit {
+  const hero = L.hero!;
+  const H = Math.max(1, counts.length);
+  const stepF = 0.36;
+  const gapF = 0.3;
+  const avail = stageW - 40;
+  const span = (cw: number) => counts.reduce((a, n) => a + cw * (1 + Math.max(0, n - 1) * stepF), 0) + (H - 1) * cw * gapF;
+  // Room between the bottom of the table (and the player's avatar on it) and the bottom of the stage.
+  const tableBottom = L.top + L.R + L.avatar * 0.5 + 18;
+  const room = stageH - tableBottom;
+  let cw = hero.cardW * (H > 1 ? 0.86 : 1);
+  // Label (22) + cards (1.4 cw) + total below (34) must fit the room.
+  cw = Math.min(cw, (room - 22 - 34) / 1.4);
+  const need = span(cw);
+  if (need > avail) cw *= avail / need;
+  cw = Math.max(26, cw);
+  const step = cw * stepF;
+  // The cards sit a little above the middle of the room, never closer to the table than the label allows.
+  const y = Math.max(tableBottom + 22 + cw * 0.7, Math.min(hero.y, stageH - 34 - cw * 0.7));
+  let x = L.cx - span(cw) / 2;
+  const hands = counts.map((n) => {
+    const w = cw * (1 + Math.max(0, n - 1) * stepF);
+    const r = { first: x + cw / 2, mid: x + w / 2 };
+    x += w + cw * gapF;
+    return r;
+  });
+  return { cardW: cw, step, hands, y, labelY: y - cw * 0.7 - 14 };
+}

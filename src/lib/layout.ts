@@ -120,7 +120,6 @@ export interface PortraitSlot {
  */
 const P_SLOTS: Record<string, PortraitSlot> = {
   H: { pos: { x: 50, y: 88 }, bet: { x: 50, y: 64 }, cards: 'hero', dealerSide: -1 },
-  BL: { pos: { x: 18, y: 88 }, bet: { x: 24, y: 77 }, cards: 'up', dealerSide: 1 },
   LL: { pos: { x: 12.5, y: 64.5 }, bet: { x: 30, y: 64.5 }, cards: 'up', dealerSide: 1 },
   LU: { pos: { x: 12.5, y: 27 }, bet: { x: 30, y: 29.5 }, cards: 'up', dealerSide: 1 },
   TL: { pos: { x: 29, y: 10 }, bet: { x: 33, y: 24 }, cards: 'right', dealerSide: -1 },
@@ -128,7 +127,12 @@ const P_SLOTS: Record<string, PortraitSlot> = {
   TR: { pos: { x: 71, y: 10 }, bet: { x: 67, y: 24 }, cards: 'left', dealerSide: 1 },
   RU: { pos: { x: 87.5, y: 27 }, bet: { x: 70, y: 29.5 }, cards: 'up', dealerSide: -1 },
   RL: { pos: { x: 87.5, y: 64.5 }, bet: { x: 70, y: 64.5 }, cards: 'up', dealerSide: -1 },
-  BR: { pos: { x: 82, y: 88 }, bet: { x: 76, y: 77 }, cards: 'up', dealerSide: -1 },
+  // With 8 or 9 seats two more players sit on the table's lower corners, so the lower
+  // side seats move up to the middle of the sides to give them room, and the viewer's
+  // bet sits a touch higher.
+  H8: { pos: { x: 50, y: 88 }, bet: { x: 50, y: 61.5 }, cards: 'hero', dealerSide: -1 },
+  LL8: { pos: { x: 11.5, y: 50 }, bet: { x: 28, y: 57.5 }, cards: 'up', dealerSide: 1 },
+  RL8: { pos: { x: 88.5, y: 50 }, bet: { x: 72, y: 57.5 }, cards: 'up', dealerSide: -1 },
 };
 
 const P_SETS: Record<number, string[]> = {
@@ -138,12 +142,44 @@ const P_SETS: Record<number, string[]> = {
   5: ['H', 'LL', 'TL', 'TR', 'RL'],
   6: ['H', 'LL', 'LU', 'T', 'RU', 'RL'],
   7: ['H', 'LL', 'LU', 'TL', 'TR', 'RU', 'RL'],
-  8: ['H', 'BL', 'LL', 'LU', 'T', 'RU', 'RL', 'BR'],
-  9: ['H', 'BL', 'LL', 'LU', 'TL', 'TR', 'RU', 'RL', 'BR'],
+  8: ['H8', 'BL', 'LL8', 'LU', 'T', 'RU', 'RL8', 'BR'],
+  9: ['H8', 'BL', 'LL8', 'LU', 'TL', 'TR', 'RU', 'RL8', 'BR'],
 };
 
+/**
+ * A point on the middle of the rail's lower curve, `deg` degrees round from
+ * straight down (positive = towards the viewer's left). Follows the same pill
+ * outline as the table, so it lands on the rail whatever the screen's shape.
+ */
+export function lowerRailPoint(deg: number, aspect: number): Point {
+  const g = stageGeometry(true);
+  const W = 1000;
+  const H = 1000 / aspect;
+  const x0 = (g.rail.left / 100) * W;
+  const x1 = W - (g.rail.right / 100) * W;
+  const y1 = H - (g.rail.bottom / 100) * H;
+  const inset = Math.min(x1 - x0, y1 - (g.rail.top / 100) * H) * 0.029;
+  const r = (x1 - x0) / 2 - inset;
+  const cx = (x0 + x1) / 2;
+  const cy = y1 - inset - r;
+  const a = (deg * Math.PI) / 180;
+  return { x: ((cx - Math.sin(a) * r) / W) * 100, y: ((cy + Math.cos(a) * r) / H) * 100 };
+}
+
+/** The lower corner seats of an 8 or 9 seat table, on the rail either side of the viewer. */
+function cornerSlot(side: -1 | 1, aspect: number): PortraitSlot {
+  const pos = lowerRailPoint(46 * -side, aspect);
+  return {
+    pos,
+    // The bet goes in towards the middle of the table, above the cards and clear of the viewer's.
+    bet: { x: pos.x - side * 9.8, y: pos.y - 9.6 },
+    cards: 'up',
+    dealerSide: side < 0 ? 1 : -1,
+  };
+}
+
 /** Slots indexed by display position (0 = bottom/viewer, clockwise). */
-export function portraitSlots(n: number): PortraitSlot[] {
+export function portraitSlots(n: number, aspect = 0.75): PortraitSlot[] {
   const set = P_SETS[Math.max(2, Math.min(9, n))];
-  return set.map((k) => P_SLOTS[k]);
+  return set.map((k) => (k === 'BL' ? cornerSlot(-1, aspect) : k === 'BR' ? cornerSlot(1, aspect) : P_SLOTS[k]));
 }

@@ -15,7 +15,7 @@ import { frameClass } from '../../../shared/cosmetics';
 import { handTotal, totalLabel } from '../../../shared/blackjack/engine';
 import type { BjHand, BjOutcome, BjPublicState, BjSeat } from '../../../shared/blackjack/types';
 import type { ReactionEvent } from '../../hooks/useTable';
-import { bjLayout, cardOffset, type BjLayout, type Pt, type SeatSpot } from './layout';
+import { bjLayout, cardOffset, heroFit, type BjLayout, type Pt, type SeatSpot } from './layout';
 import { bjTimeline } from './timeline';
 
 /** Re-render exactly when the next scheduled card or result is due. */
@@ -122,8 +122,9 @@ export function BlackjackStage({ state, me, w, h, portrait, online, reactions, c
   const dealerTotal = dealerShown.length ? handTotal(dealerShown).total : 0;
   const dealerBust = dealerTotal > 21;
   const dealerAt = (i: number, n: number): Pt => ({ x: L.dealer.x + (i - (n - 1) / 2) * dealerStep, y: L.dealer.y });
+  // The dealer's total sits right under the cards (on phones it overlaps their bottom edge to stay clear of the seats).
   const dealerBadgeAt: Pt = portrait
-    ? { x: L.dealer.x + (Math.max(dealerSlots, 2) / 2) * dealerStep + L.dealerCardW * 0.55 + 28, y: L.dealer.y }
+    ? { x: L.dealer.x, y: L.dealer.y + L.dealerCardW * 0.7 + 4 }
     : { x: L.dealer.x, y: L.dealer.y + L.dealerCardW * 0.7 + 16 };
 
   const dealerCards: React.ReactNode[] = [];
@@ -232,7 +233,7 @@ export function BlackjackStage({ state, me, w, h, portrait, online, reactions, c
         Bets {chipsShort(state.config.minBet)}–{chipsShort(state.config.maxBet)} from your wallet
       </span>
     </div>
-  ) : L.hero && mine ? <HeroHand L={L} seat={mine} seatIdx={mySeat} state={state} now={now} showResults={showResults} renderCard={renderCard} handCards={handCards} pendingBet={pendingBet} /> : null;
+  ) : L.hero && mine ? <HeroHand L={L} w={w} h={h} seat={mine} seatIdx={mySeat} state={state} now={now} showResults={showResults} renderCard={renderCard} handCards={handCards} pendingBet={pendingBet} /> : null;
 
   // ------------------------------------------------------------------ sounds
   useEffect(() => {
@@ -302,7 +303,7 @@ export function BlackjackStage({ state, me, w, h, portrait, online, reactions, c
         {state.shuffled && state.dealtAt && now - state.dealtAt < 2500 && (
           <motion.div
             className="bj-shuffle"
-            style={{ left: L.cx, top: L.dealer.y + L.dealerCardW * (portrait ? 1.1 : 1.5) }}
+            style={{ left: L.cx, top: L.dealer.y + L.dealerCardW * (portrait ? 0.7 + 0.62 : 1.5) + (portrait ? 14 : 0) }}
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
@@ -320,6 +321,8 @@ export function BlackjackStage({ state, me, w, h, portrait, online, reactions, c
 
 function HeroHand({
   L,
+  w,
+  h,
   seat,
   seatIdx,
   state,
@@ -330,6 +333,8 @@ function HeroHand({
   pendingBet,
 }: {
   L: BjLayout;
+  w: number;
+  h: number;
   seat: BjSeat;
   seatIdx: number;
   state: BjPublicState;
@@ -341,8 +346,6 @@ function HeroHand({
 }) {
   const hero = L.hero!;
   const H = seat.hands.length;
-  const cw = hero.cardW * (H > 1 ? 0.78 : 1);
-  const base = { x: hero.x, y: hero.y };
   if (H === 0) {
     const amount = seat.bet || pendingBet;
     return (
@@ -352,13 +355,20 @@ function HeroHand({
       </div>
     );
   }
+  const fit = heroFit(L, w, h, seat.hands.map((x) => x.cards.length));
+  const cw = fit.cardW;
   return (
-    <>
-      <div className="bj-hero__label bj-hero__label--top" style={{ left: hero.x, top: hero.y - cw * 0.7 - cw * 0.3 - 30 }}>
+    // The wrapper only carries the card size for this layout; the cards are placed on the stage.
+    <div style={{ '--card-hero': `${cw}px` } as React.CSSProperties}>
+      <div className="bj-hero__label bj-hero__label--top" style={{ left: hero.x, top: fit.labelY }}>
         {H > 1 ? 'Your hands' : 'Your hand'} · bet {chipsShort(seat.hands.reduce((a, x) => a + x.bet, 0))}
       </div>
       {seat.hands.map((hand, k) => {
-        const placed = handCards(seatIdx, hand, k, H, base, HERO_FRAME, cw);
+        const spot = fit.hands[k];
+        const placed = handCards(seatIdx, hand, k, H, { x: hero.x, y: fit.y }, HERO_FRAME, cw).map((p) => ({
+          ...p,
+          at: { x: spot.first + p.j * fit.step, y: fit.y },
+        }));
         const active = state.phase === 'playing' && state.toAct === seatIdx && state.handIdx === k;
         const visible = placed.filter((p) => now >= p.appear).map((p) => p.card);
         const outcome = showResults ? hand.outcome : null;
@@ -375,12 +385,12 @@ function HeroHand({
               }),
             )}
             {visible.length > 0 && (
-              <HandBadge at={{ x: base.x + (k - (H - 1) / 2) * cw * 1.5, y: base.y + cw * 0.7 + 26 }} hand={hand} cards={visible} active={active} outcome={outcome} />
+              <HandBadge at={{ x: spot.mid, y: fit.y + cw * 0.7 + 18 }} hand={hand} cards={visible} active={active} outcome={outcome} />
             )}
           </div>
         );
       })}
-    </>
+    </div>
   );
 }
 
