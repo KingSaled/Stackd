@@ -61,6 +61,9 @@ interface Props {
   pendingBet?: number;
 }
 
+/** Distance between split hands at a seat, in card widths. */
+const SPLIT_STEP = 1.55;
+
 const HERO_FRAME: Pick<SeatSpot, 'across' | 'up'> = { across: { x: 1, y: 0 }, up: { x: 0, y: -1 } };
 
 export function BlackjackStage({ state, me, w, h, portrait, online, reactions, canSit, onSit, pendingBet = 0 }: Props) {
@@ -137,9 +140,21 @@ export function BlackjackStage({ state, me, w, h, portrait, online, reactions, c
   // ------------------------------------------------------------------ hands
   /** Card positions for one of a seat's hands, centred on `base`, laid out in `frame`. */
   const handCards: HandCards = (seatIdx, hand, k, H, base, frame, cw) => {
-    // Split hands sit side by side with room for a sideways double-down card.
-    const shift = (k - (H - 1) / 2) * cw * (frame === HERO_FRAME ? 1.5 : 1.9);
-    const center = { x: base.x + frame.across.x * shift, y: base.y + frame.across.y * shift };
+    // Split hands sit side by side with room for a sideways double-down card. At a seat, a third
+    // and fourth hand go in a second row just behind (towards the dealer) so they stay in this
+    // player's space instead of spreading over the neighbours.
+    let center: Pt;
+    if (frame === HERO_FRAME) {
+      const shift = (k - (H - 1) / 2) * cw * 1.5;
+      center = { x: base.x + frame.across.x * shift, y: base.y + frame.across.y * shift };
+    } else {
+      const row = H > 2 && k >= 2 ? 1 : 0;
+      const inRow = H > 2 ? (row === 0 ? 2 : H - 2) : H;
+      const idx = row === 0 ? k : k - 2;
+      const shift = (idx - (inRow - 1) / 2) * cw * SPLIT_STEP;
+      const back = row * cw * 2.4;
+      center = { x: base.x + frame.across.x * shift + frame.up.x * back, y: base.y + frame.across.y * shift + frame.up.y * back };
+    }
     const mid = cardOffset((hand.cards.length - 1) / 2, frame, cw);
     return hand.cards.map((c, j) => {
       const off = cardOffset(j, frame, cw);
@@ -159,7 +174,10 @@ export function BlackjackStage({ state, me, w, h, portrait, online, reactions, c
     const isMe = seat.userId === me;
     const hands = seat.hands;
     const H = hands.length;
-    const cw = L.cardW * (H > 1 ? 0.8 : 1);
+    // Split hands share this seat's slice of the table: shrink the cards so all of them fit
+    // between the neighbours (each hand is about 1.3 cards wide, spaced SPLIT_STEP apart, at most two hands to a row).
+    const slice = Math.hypot(spot.cards.x - L.cx, spot.cards.y - L.top) * ((28.8 * Math.PI) / 180) * 0.94;
+    const cw = H > 1 ? Math.min(L.cardW * 0.8, slice / (SPLIT_STEP * (Math.min(H, 2) - 1) + 1.3)) : L.cardW;
     const inPlay = hands.reduce((a, x) => a + (x.outcome && showResults ? 0 : x.bet), 0);
     const ghost = isMe && seat.bet === 0 && inPlay === 0 && state.phase !== 'playing' && pendingBet > 0;
     const circleAmount = seat.bet > 0 ? seat.bet : inPlay > 0 ? inPlay : ghost ? pendingBet : 0;
@@ -185,6 +203,8 @@ export function BlackjackStage({ state, me, w, h, portrait, online, reactions, c
               />
             );
           })}
+        {/* The cards are drawn at this seat's card size (smaller once the hand is split). */}
+        <div style={{ '--card-seat': `${cw}px` } as React.CSSProperties}>
         {!portrait && hands.map((hand, k) => {
           const placed = handCards(i, hand, k, H, spot.cards, spot, cw);
           const active = state.phase === 'playing' && state.toAct === i && state.handIdx === k;
@@ -207,6 +227,7 @@ export function BlackjackStage({ state, me, w, h, portrait, online, reactions, c
             </div>
           );
         })}
+        </div>
         <SeatView
           seat={seat}
           at={spot.avatar}
