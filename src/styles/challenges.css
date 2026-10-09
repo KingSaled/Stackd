@@ -355,13 +355,13 @@
   display: none;
 }
 
-@media (min-width: 1180px) {
+@media (min-width: 1240px) {
   .chal-pill__label {
     display: inline;
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 950px) {
   .chal-pill.chal-pill--bar {
     display: none;
   }
@@ -459,16 +459,8 @@
   opacity: 0.55;
 }
 
-/* Very small phones: the game switch drops its little cards so both names stay readable next to the pills. */
+/* Very small phones: slimmer pills in the game-switch row. */
 @media (max-width: 380px) {
-  .game-pill__cards {
-    display: none;
-  }
-
-  .game-pill {
-    padding: 0 8px;
-  }
-
   .chal-pill.chal-pill--row,
   .online-pill.online-pill--row {
     padding: 0 9px;

@@ -11,7 +11,9 @@ import { useAuth } from '../store/auth';
 import { useEconomy } from '../hooks/useEconomy';
 import { chips, chipsShort, countShort } from '../lib/format';
 import { useOnline } from '../store/online';
+import { useWalletHold } from '../store/walletHold';
 import { ChallengesButton } from './challenges/Challenges';
+import { MenuButton } from './SideMenu';
 
 function AnimatedNumber({ value }: { value: number }) {
   const spring = useSpring(value, { stiffness: 90, damping: 20 });
@@ -45,6 +47,7 @@ function OnlinePill({ className }: { className: string }) {
 export function TopNav() {
   const profile = useAuth((s) => s.profile);
   const econ = useEconomy();
+  const held = useWalletHold((h) => h.held);
   const [location] = useLocation();
   return (
     <header className="topnav">
@@ -54,6 +57,7 @@ export function TopNav() {
         </Link>
         {profile && (
           <div className="topnav__games">
+            <MenuButton />
             <GameSwitch />
             {/* Phones: the online count sits at the end of the game switch row. */}
             <ChallengesButton className="chal-pill--row" />
@@ -69,7 +73,7 @@ export function TopNav() {
         )}
         <div className="wallet-pill" title="Your chips">
           <CoinsIcon size={15} weight="fill" />
-          <AnimatedNumber value={profile?.chips ?? 0} />
+          <AnimatedNumber value={(profile?.chips ?? 0) - held} />
         </div>
         <Link href="/shop" className={clsx('shop-pill', location === '/shop' && 'is-on')} aria-label="Cosmetic Shop">
           <StorefrontIcon size={16} weight="fill" />

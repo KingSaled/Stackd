@@ -210,7 +210,7 @@
 }
 
 /* Phones and small tablets: the game switch gets its own row under the header. */
-@media (max-width: 900px) {
+@media (max-width: 950px) {
   .topnav {
     flex-wrap: wrap;
     row-gap: 8px;
@@ -250,7 +250,7 @@
 }
 
 /* On a tablet the switch keeps its natural width instead of stretching across. */
-@media (min-width: 641px) and (max-width: 900px) {
+@media (min-width: 641px) and (max-width: 950px) {
   .game-switch {
     flex: none;
   }
@@ -836,12 +836,16 @@
     order: 4;
   }
 
-  .home-panel--leaders {
+  .home-panel--minigames {
     order: 5;
   }
 
-  .home-panel--guest {
+  .home-panel--leaders {
     order: 6;
+  }
+
+  .home-panel--guest {
+    order: 7;
   }
 }
 
@@ -2847,7 +2851,7 @@
   display: none;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 950px) {
   .online-pill.online-pill--bar {
     display: none;
   }
@@ -2862,7 +2866,7 @@
 }
 
 /* The one-row header condenses in steps as the screen narrows (checked with a 7-digit wallet). */
-@media (max-width: 1120px) {
+@media (max-width: 1160px) {
   .shop-pill__full {
     display: none;
   }
@@ -2872,8 +2876,9 @@
   }
 }
 
-@media (max-width: 1040px) {
-  .online-pill__label {
+@media (max-width: 1080px) {
+  .online-pill__label,
+  .topnav .hide-md {
     display: none;
   }
 

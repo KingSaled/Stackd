@@ -1,7 +1,7 @@
 {
-  "name": "Stackd — Hold'em & Blackjack with friends",
+  "name": "Stackd Casino",
   "short_name": "Stackd",
-  "description": "Real-time Texas Hold'em and blackjack with friends in your browser.",
+  "description": "Real-time Hold'em, blackjack and casino minigames with friends. Play money only.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",

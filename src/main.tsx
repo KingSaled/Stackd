@@ -8,6 +8,7 @@ import './styles/cosmetics.css';
 import './styles/table.css';
 import './styles/pages.css';
 import './styles/challenges.css';
+import './styles/minigames.css';
 import './styles/halloween.css';
 import { IconContext } from '@phosphor-icons/react';
 import { App } from './App';

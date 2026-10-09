@@ -151,7 +151,7 @@ export function AuthPage() {
           <div className="auth__brand">
             <Logo size="lg" />
             <h1 className="auth__tagline">
-              Hold'em and blackjack with friends, <span className="gold">one link away.</span>
+              Stackd Casino: play with friends, <span className="gold">one link away.</span>
             </h1>
           </div>
           <ul className="auth__perks">
@@ -159,7 +159,7 @@ export function AuthPage() {
               <CoinsIcon size={16} /> {chips(ECONOMY.startingChips)} free chips to start
             </li>
             <li>
-              <UsersIcon size={16} /> Texas Hold'em and blackjack tables with invite links
+              <UsersIcon size={16} /> Hold'em and blackjack tables, plus Crash, Coin Flip, Roulette and Cases
             </li>
             <li>
               <DeviceMobileIcon size={16} /> Real-time on any device, no download

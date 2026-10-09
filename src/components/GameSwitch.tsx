@@ -3,9 +3,9 @@ import { useLocation } from 'wouter';
 import { useGameMode, type GameMode } from '../store/game';
 import { sound } from '../lib/sound';
 
-/** A tiny pair of playing cards for each game's pill. */
-function MiniCards({ game }: { game: GameMode }) {
-  const [a, b] = game === 'holdem' ? [['A', '♠', false], ['K', '♠', false]] : [['A', '♥', true], ['J', '♣', false]];
+/** A tiny pair of playing cards for each game: pocket aces for Hold'em, ace-king for blackjack. */
+export function MiniCards({ game }: { game: GameMode }) {
+  const [a, b] = game === 'holdem' ? [['A', '♠', false], ['A', '♥', true]] : [['A', '♣', false], ['K', '♦', true]];
   return (
     <span className="game-pill__cards" aria-hidden>
       {[a, b].map(([rank, suit, red], i) => (
@@ -28,6 +28,8 @@ export function GameSwitch() {
   const mode = useGameMode((s) => s.mode);
   const setMode = useGameMode((s) => s.setMode);
   const [location, navigate] = useLocation();
+  // On a minigame page neither table game is the one being played.
+  const inLobbyGames = !location.startsWith('/games/');
   return (
     <div className="game-switch" role="tablist" aria-label="Choose a game">
       {GAMES.map((g) => (
@@ -35,8 +37,10 @@ export function GameSwitch() {
           key={g.id}
           type="button"
           role="tab"
-          aria-selected={mode === g.id}
-          className={clsx('game-pill', `game-pill--${g.id}`, mode === g.id && 'is-on')}
+          aria-selected={inLobbyGames && mode === g.id}
+          aria-label={g.label}
+          title={g.label}
+          className={clsx('game-pill', `game-pill--${g.id}`, inLobbyGames && mode === g.id && 'is-on')}
           onClick={() => {
             if (mode !== g.id) sound.play('click');
             setMode(g.id);

@@ -20,6 +20,8 @@ import { Avatar } from '../components/Avatar';
 import { Emoji } from '../components/Emoji';
 import { Leaderboard, type Leader } from '../components/Leaderboard';
 import { ChallengesPanel } from '../components/challenges/Challenges';
+import { MinigameArt } from '../components/minigames/MinigameArt';
+import { MINIGAMES } from '../../shared/minigames';
 import { PlayingCard } from '../components/PlayingCard';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../store/auth';
@@ -388,6 +390,25 @@ export function LobbyPage() {
                   })}
                 </ul>
               )}
+            </section>
+            <section className="panel home-panel home-panel--minigames">
+              <header className="home-panel__head">
+                <h2 className="home-panel__title">
+                  <LightningIcon size={18} weight="fill" /> Minigames
+                </h2>
+                <span className="home-panel__hint">Quick rounds</span>
+              </header>
+              <div className="mg-tiles">
+                {MINIGAMES.map((g) => (
+                  <Link key={g.id} href={g.path} className="mg-tile" onClick={() => sound.play('click')}>
+                    <MinigameArt id={g.id} size={46} />
+                    <span className="mg-tile__text">
+                      <strong>{g.name}</strong>
+                      <small>{g.tagline}</small>
+                    </span>
+                  </Link>
+                ))}
+              </div>
             </section>
           </div>
 

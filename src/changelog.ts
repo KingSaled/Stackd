@@ -15,6 +15,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2026-10-09',
+    date: 'October 9, 2026',
+    title: 'Stackd Casino: four new minigames',
+    items: [
+      { icon: 'Lightning', text: 'Crash: bet before launch, then cash out while the multiplier climbs. Wait too long and the rocket crashes with your bet. Set an auto cash-out to bank it automatically.' },
+      { icon: 'Users', text: 'Coin Flip: open a lobby with any stake and another player matches it, picks heads or tails, and the winner takes the whole pot after a 3, 2, 1 countdown.' },
+      { icon: 'PokerChip', text: 'Roulette: one wheel for everyone, a new spin every 25 seconds. Red and black pay 2x, the single green pays 14x.' },
+      { icon: 'Diamond', text: 'Case Opening: pick a price, open the case and watch the reel. Most drops pay back part of the price, rare ones 2x to 5x, and Covert drops 10x to 50x.' },
+      { icon: 'Sparkle', text: "Find them all in the new ☰ menu next to the game switch, or in the Minigames panel in the lobby. On phones the Hold'em and Blackjack switch is now just the cards: pocket aces for Hold'em, ace-king for Blackjack." },
+      { icon: 'Coins', text: 'Bigger reloads: if you drop under 1,000 chips you can now reload to 100,000, once every 3 hours.' },
+    ],
+  },
+  {
     version: '2026-10-08',
     date: 'October 8, 2026',
     title: 'Daily and weekly challenges',

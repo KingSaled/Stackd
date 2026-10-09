@@ -83,7 +83,7 @@ describe('schema', () => {
     expect(notBroke.r).toMatchObject({ ok: false, reason: 'not_broke' });
     await db.query('update public.profiles set chips = 120 where id = $1', [B]);
     const [ok] = await as<{ r: { ok: boolean; amount: number; chips: number } }>(B, 'select public.emergency_reload() as r');
-    expect(ok.r).toMatchObject({ ok: true, amount: 2380, chips: 2500 });
+    expect(ok.r).toMatchObject({ ok: true, amount: 99880, chips: 100000 });
     await db.query('update public.profiles set chips = 0 where id = $1', [B]);
     const [cool] = await as<{ r: { ok: boolean; reason: string } }>(B, 'select public.emergency_reload() as r');
     expect(cool.r).toMatchObject({ ok: false, reason: 'cooldown' });
@@ -216,7 +216,7 @@ describe('schema', () => {
     // 100 wallet + 500 seated = 600 → topped up to 2,500 total.
     await db.query('update public.profiles set chips = 100 where id = $1', [B]);
     const [reload2] = await as<{ r: { ok: boolean; amount: number } }>(B, 'select public.emergency_reload() as r');
-    expect(reload2.r).toMatchObject({ ok: true, amount: 1900 });
+    expect(reload2.r).toMatchObject({ ok: true, amount: 99400 });
     await db.query('update public.profiles set chips = 10000 where id = $1', [B]);
   });
 

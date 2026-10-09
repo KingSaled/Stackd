@@ -11,8 +11,8 @@ export const ECONOMY = {
   /** Wallet + chips at tables below this amount qualifies for an emergency reload. */
   reloadThreshold: 1_000,
   /** An emergency reload tops the player's total back up to this amount. */
-  reloadTarget: 2_500,
-  reloadCooldownMinutes: 60,
+  reloadTarget: 100_000,
+  reloadCooldownMinutes: 180,
 };
 
 export function dailyBonusFor(streak: number): number {

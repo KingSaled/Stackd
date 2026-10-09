@@ -37,13 +37,20 @@ Everything runs on free tiers: **Netlify** (static site + serverless functions) 
 - Players can delete their account and all of its data from the profile.
 - 10,000 starting chips.
 - A daily bonus (2,000 chips, plus 500 per consecutive day up to a 7-day streak) every 24 hours.
-- An emergency reload: if your wallet plus the chips you have at tables drop below 1,000, you can top back up to 2,500. It has a 60-minute cooldown.
+- An emergency reload: if your wallet plus the chips you have at tables drop below 1,000, you can top back up to 100,000. It has a 3-hour cooldown.
 - Leaderboard of saved accounts (guest accounts are left off); the #1 player gets a champion card and wears a crown at every table.
 
 **Achievements & Cosmetic Shop**
 - 23 achievements (bronze to platinum) for milestones such as hands played, pots won, all-in wins, premium hands and daily streaks. Each pays a one-time chip reward (500 to 50,000, about 142,500 in total). Progress only counts from launch; nothing is awarded retroactively. Unlocks pop up live, wherever the player is.
 - The **Cosmetic Shop** (the pill in the top bar) sells five avatar borders (5,000 to 250,000 chips; the top one, Mythic Inferno, is animated) and five backgrounds (3,000 to 120,000). Items are bought with play chips only, show at tables, in the lobby and on the leaderboard, and act as a chip sink.
 - To change achievements or shop items, edit `shared/achievements.ts` / `shared/cosmetics.ts` **and** the matching `insert` in `supabase/schema.sql`; a test fails if they drift apart.
+
+**Minigames** (the ☰ menu next to the game switch, or the lobby's Minigames panel)
+- **Crash**: shared rounds with an 8 second betting window, then the multiplier climbs as e^(0.08·t). Players cash out (or set an auto cash-out) before the crash. The crash point is drawn when the round opens with P(crash ≥ x) = 0.97/x, so every strategy pays back 97%.
+- **Coin Flip**: player-vs-player lobbies (100 to 1,000,000 chips, up to 3 open per player). The challenger picks heads or tails, the winner takes both stakes (no house cut). Untaken lobbies refund after 2 hours.
+- **Roulette**: one shared wheel with 7 red, 7 black and 1 green slot, a spin every 25 seconds. Red/black pay 2x and green 14x (93.3% payback).
+- **Case Opening**: any price from 100 to 500,000. Tiers: Common 75% (0.5–0.7x), Uncommon 20% (1–1.2x), Rare 4% (2–5x), Covert 1% (10–50x), about 95.7% payback (see `shared/cases.ts`).
+- All chips move inside Postgres functions with the player's row locked; randomness uses pgcrypto's secure generator; Roulette and Crash results are drawn when a round opens and kept in tables players can't read until they happen. Rounds move on lazily when anyone looks or bets, so there's no server loop to run.
 
 **Daily & weekly challenges**
 - Every day each player gets three challenges (one poker, one blackjack, one that counts hands from either game) and three bigger ones every week, plus a Sweep bonus for claiming all three in a set. Dailies pay 1,000 to 2,500 chips, weeklies 5,000 to 8,000 (Sweep: 1,000 / 5,000). Rewards are collected with a Claim button; progress is tracked on the server from poker hands and blackjack rounds and shown live in the lobby (Challenges panel), the Challenges button in the top bar, and the table menu.

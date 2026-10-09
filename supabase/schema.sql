@@ -963,11 +963,11 @@ begin
   if v_total >= 1000 then
     return jsonb_build_object('ok', false, 'reason', 'not_broke', 'chips', v_p.chips, 'total', v_total);
   end if;
-  if v_p.last_reload_at is not null and v_p.last_reload_at > now() - interval '60 minutes' then
+  if v_p.last_reload_at is not null and v_p.last_reload_at > now() - interval '3 hours' then
     return jsonb_build_object(
       'ok', false,
       'reason', 'cooldown',
-      'next_reload_at', v_p.last_reload_at + interval '60 minutes',
+      'next_reload_at', v_p.last_reload_at + interval '3 hours',
       'chips', v_p.chips);
   end if;
   if v_dev is not null then
@@ -979,7 +979,8 @@ begin
       return jsonb_build_object('ok', false, 'reason', 'device_limit', 'chips', v_p.chips);
     end if;
   end if;
-  v_amount := 2500 - v_total;
+  -- Tops the player back up to 100,000 so they can get back into any game (poker buy-ins included).
+  v_amount := 100000 - v_total;
   update public.profiles
      set chips = chips + v_amount, last_reload_at = now(), reload_count = reload_count + 1, updated_at = now()
    where id = v_uid
@@ -989,9 +990,19 @@ begin
     'ok', true,
     'amount', v_amount,
     'chips', v_p.chips,
-    'next_reload_at', v_p.last_reload_at + interval '60 minutes');
+    'next_reload_at', v_p.last_reload_at + interval '3 hours');
 end;
 $$;
+
+-- The reload went from 2,500 to 100,000. Anyone whose last reload was an old 2,500 one can claim
+-- the new one straight away (their 3-hour cooldown starts with it). Players who have already had a
+-- 100,000 reload are left alone, so re-running this file never resets a real cooldown.
+update public.profiles p
+   set last_reload_at = null
+ where p.last_reload_at is not null
+   and not exists (
+     select 1 from public.bonus_claims b
+      where b.user_id = p.id and b.kind = 'reload' and b.amount > 2500);
 
 -- Record acceptance of the current Terms of Service + Privacy Policy and the 18+ confirmation.
 create or replace function public.accept_terms(p_version text, p_age_confirmed boolean)
@@ -1343,6 +1354,20 @@ begin
   delete from public.chat_messages where created_at < now() - interval '3 days';
   get diagnostics v_chat = row_count;
   delete from public.room_join_failures where last_failed_at < now() - interval '1 day';
+  -- Coin flip lobbies nobody took within 2 hours: hand the stake back.
+  with stale as (
+    update public.coinflips set status = 'cancelled', updated_at = now()
+     where status = 'open' and created_at < now() - interval '2 hours'
+    returning creator, stake
+  )
+  update public.profiles p set chips = p.chips + r.total, updated_at = now()
+    from (select creator, sum(stake) as total from stale group by creator) r
+   where p.id = r.creator;
+  -- Roulette rounds (and their bets) are only needed while they're on screen.
+  delete from public.roulette_rounds where settled_at < now() - interval '1 day';
+  delete from public.crash_rounds where crashed_at < now() - interval '1 day';
+  -- Finished flips older than a week only clutter the history.
+  delete from public.coinflips where status <> 'open' and updated_at < now() - interval '7 days';
   -- Challenge progress is only needed for the day or week it belongs to.
   delete from public.challenge_progress where updated_at < now() - interval '45 days';
   get diagnostics v_progress = row_count;
@@ -1605,6 +1630,635 @@ end;
 $$;
 
 -- -----------------------------------------------------------------------------
+-- Minigames (Case Opening, Coin Flip, Roulette, Crash). Every chip moves inside
+-- these functions, with the player's profile row locked, so results can't be
+-- forged from the browser. Randomness comes from pgcrypto's secure generator.
+-- -----------------------------------------------------------------------------
+
+-- A uniform random number in [0, 1) from 48 secure random bits.
+create or replace function public.rand_unit()
+returns double precision
+language sql
+volatile
+as $$
+  select ('x' || encode(extensions.gen_random_bytes(6), 'hex'))::bit(48)::bigint / 281474976710656.0
+$$;
+
+-- Case Opening: one case, the player picks the price. Keep the tiers in sync with shared/cases.ts.
+create table if not exists public.case_openings (
+  id          bigint generated always as identity primary key,
+  user_id     uuid not null references public.profiles (id) on delete cascade,
+  cost        bigint not null,
+  tier        text not null check (tier in ('common', 'uncommon', 'rare', 'covert')),
+  multiplier  numeric(8, 3) not null,
+  prize       bigint not null,
+  created_at  timestamptz not null default now()
+);
+create index if not exists case_openings_user_idx on public.case_openings (user_id, created_at desc);
+create index if not exists case_openings_big_idx on public.case_openings (created_at desc) where tier in ('rare', 'covert');
+alter table public.case_openings enable row level security;
+revoke insert, update, delete, truncate, references, trigger on public.case_openings from anon, authenticated;
+grant select on public.case_openings to authenticated;
+drop policy if exists "owners read their case openings" on public.case_openings;
+create policy "owners read their case openings" on public.case_openings for select to authenticated using (user_id = auth.uid());
+
+create or replace function public.open_case(p_cost bigint)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_p public.profiles;
+  v_roll double precision := public.rand_unit();
+  v_u double precision := public.rand_unit();
+  v_tier text;
+  v_mult numeric;
+  v_prize bigint;
+  v_id bigint;
+begin
+  if v_uid is null then raise exception 'not_authenticated'; end if;
+  if p_cost is null or p_cost < 100 or p_cost > 500000 then
+    return jsonb_build_object('ok', false, 'reason', 'bad_cost');
+  end if;
+  select * into v_p from public.profiles where id = v_uid for update;
+  if not found then raise exception 'profile_missing'; end if;
+  if v_p.chips < p_cost then
+    return jsonb_build_object('ok', false, 'reason', 'insufficient_chips', 'chips', v_p.chips);
+  end if;
+  -- 75% common (0.5-0.7x), 20% uncommon (1-1.2x), 4% rare (2-5x), 1% covert (10-50x).
+  if v_roll < 0.75 then
+    v_tier := 'common';   v_mult := 0.5 + 0.2 * v_u;
+  elsif v_roll < 0.95 then
+    v_tier := 'uncommon'; v_mult := 1.0 + 0.2 * v_u;
+  elsif v_roll < 0.99 then
+    v_tier := 'rare';     v_mult := 2 + 3 * power(v_u, 2);
+  else
+    v_tier := 'covert';   v_mult := 10 + 40 * power(v_u, 5);
+  end if;
+  v_mult := round(v_mult, 3);
+  v_prize := floor(p_cost * v_mult);
+  update public.profiles set chips = chips - p_cost + v_prize, updated_at = now() where id = v_uid returning * into v_p;
+  insert into public.case_openings (user_id, cost, tier, multiplier, prize) values (v_uid, p_cost, v_tier, v_mult, v_prize)
+  returning id into v_id;
+  return jsonb_build_object('ok', true, 'id', v_id, 'tier', v_tier, 'multiplier', v_mult, 'prize', v_prize, 'cost', p_cost, 'chips', v_p.chips);
+end;
+$$;
+
+-- The latest rare and covert drops across all players, for the live feed.
+create or replace function public.recent_case_drops()
+returns table (id bigint, display_name text, avatar text, color text, tier text, multiplier numeric, prize bigint, created_at timestamptz)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select c.id, p.display_name, p.avatar, p.color, c.tier, c.multiplier, c.prize, c.created_at
+    from public.case_openings c
+    join public.profiles p on p.id = c.user_id
+   where c.tier in ('rare', 'covert')
+   order by c.created_at desc
+   limit 12
+$$;
+
+-- Coin Flip: a player opens a lobby with a stake, a challenger matches it and picks heads
+-- or tails, and the winner takes both stakes. The coin is tossed when the challenger joins;
+-- the result is revealed to everyone after a 3 second countdown (flip_at).
+create table if not exists public.coinflips (
+  id                 bigint generated always as identity primary key,
+  creator            uuid not null references public.profiles (id) on delete cascade,
+  creator_name       text not null,
+  creator_avatar     text not null,
+  creator_color      text not null,
+  creator_frame      text,
+  stake              bigint not null check (stake > 0),
+  status             text not null default 'open' check (status in ('open', 'flipped', 'cancelled')),
+  challenger         uuid references public.profiles (id) on delete set null,
+  challenger_name    text,
+  challenger_avatar  text,
+  challenger_color   text,
+  challenger_frame   text,
+  challenger_side    text check (challenger_side in ('heads', 'tails')),
+  result             text check (result in ('heads', 'tails')),
+  winner             uuid,
+  flip_at            timestamptz,
+  created_at         timestamptz not null default now(),
+  updated_at         timestamptz not null default now()
+);
+create index if not exists coinflips_open_idx on public.coinflips (status, stake desc);
+create index if not exists coinflips_recent_idx on public.coinflips (flip_at desc) where status = 'flipped';
+alter table public.coinflips enable row level security;
+revoke insert, update, delete, truncate, references, trigger on public.coinflips from anon, authenticated;
+grant select on public.coinflips to authenticated;
+drop policy if exists "coin flips are public" on public.coinflips;
+create policy "coin flips are public" on public.coinflips for select to authenticated using (true);
+
+create or replace function public.create_coinflip(p_stake bigint)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_p public.profiles;
+  v_id bigint;
+begin
+  if v_uid is null then raise exception 'not_authenticated'; end if;
+  if p_stake is null or p_stake < 100 or p_stake > 1000000 then
+    return jsonb_build_object('ok', false, 'reason', 'bad_stake');
+  end if;
+  select * into v_p from public.profiles where id = v_uid for update;
+  if not found then raise exception 'profile_missing'; end if;
+  if (select count(*) from public.coinflips where creator = v_uid and status = 'open') >= 3 then
+    return jsonb_build_object('ok', false, 'reason', 'too_many', 'chips', v_p.chips);
+  end if;
+  if v_p.chips < p_stake then
+    return jsonb_build_object('ok', false, 'reason', 'insufficient_chips', 'chips', v_p.chips);
+  end if;
+  update public.profiles set chips = chips - p_stake, updated_at = now() where id = v_uid returning * into v_p;
+  insert into public.coinflips (creator, creator_name, creator_avatar, creator_color, creator_frame, stake)
+  values (v_uid, v_p.display_name, v_p.avatar, v_p.color, v_p.frame, p_stake)
+  returning id into v_id;
+  return jsonb_build_object('ok', true, 'id', v_id, 'chips', v_p.chips);
+end;
+$$;
+
+create or replace function public.cancel_coinflip(p_id bigint)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_f public.coinflips;
+  v_chips bigint;
+begin
+  if v_uid is null then raise exception 'not_authenticated'; end if;
+  select * into v_f from public.coinflips where id = p_id for update;
+  if not found or v_f.creator <> v_uid then return jsonb_build_object('ok', false, 'reason', 'not_found'); end if;
+  if v_f.status <> 'open' then return jsonb_build_object('ok', false, 'reason', 'taken'); end if;
+  update public.coinflips set status = 'cancelled', updated_at = now() where id = p_id;
+  update public.profiles set chips = chips + v_f.stake, updated_at = now() where id = v_uid returning chips into v_chips;
+  return jsonb_build_object('ok', true, 'chips', v_chips);
+end;
+$$;
+
+create or replace function public.join_coinflip(p_id bigint, p_side text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_f public.coinflips;
+  v_p public.profiles;
+  v_result text;
+  v_winner uuid;
+  v_chips bigint;
+begin
+  if v_uid is null then raise exception 'not_authenticated'; end if;
+  if p_side not in ('heads', 'tails') then return jsonb_build_object('ok', false, 'reason', 'bad_side'); end if;
+  -- Lock the lobby first so only one challenger can ever take it.
+  select * into v_f from public.coinflips where id = p_id for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_found'); end if;
+  if v_f.status <> 'open' then return jsonb_build_object('ok', false, 'reason', 'taken'); end if;
+  if v_f.creator = v_uid then return jsonb_build_object('ok', false, 'reason', 'own_lobby'); end if;
+  select * into v_p from public.profiles where id = v_uid for update;
+  if not found then raise exception 'profile_missing'; end if;
+  if v_p.chips < v_f.stake then
+    return jsonb_build_object('ok', false, 'reason', 'insufficient_chips', 'chips', v_p.chips);
+  end if;
+  v_result := case when public.rand_unit() < 0.5 then 'heads' else 'tails' end;
+  v_winner := case when v_result = p_side then v_uid else v_f.creator end;
+  update public.profiles set chips = chips - v_f.stake, updated_at = now() where id = v_uid;
+  update public.profiles set chips = chips + v_f.stake * 2, updated_at = now() where id = v_winner;
+  update public.coinflips
+     set status = 'flipped', challenger = v_uid, challenger_name = v_p.display_name, challenger_avatar = v_p.avatar,
+         challenger_color = v_p.color, challenger_frame = v_p.frame, challenger_side = p_side, result = v_result,
+         winner = v_winner, flip_at = now() + interval '3 seconds', updated_at = now()
+   where id = p_id
+  returning * into v_f;
+  select chips into v_chips from public.profiles where id = v_uid;
+  return jsonb_build_object('ok', true, 'id', v_f.id, 'result', v_result, 'winner', v_winner, 'flip_at', v_f.flip_at, 'chips', v_chips);
+end;
+$$;
+
+-- Roulette: one shared wheel with 15 slots (slot 0 green, odd slots red, even slots black).
+-- Each round takes bets for 25 seconds, then spins; red and black pay 2x, green pays 14x.
+-- The winning slot is drawn when the round opens and kept in roulette_secrets (which
+-- players can't read) until the spin. Rounds move on lazily: whoever calls
+-- roulette_state() or bets after a deadline settles the round and opens the next one.
+create table if not exists public.roulette_rounds (
+  id           bigint generated always as identity primary key,
+  opens_at     timestamptz not null default now(),
+  spin_at      timestamptz not null,
+  result_slot  smallint,
+  settled_at   timestamptz
+);
+create table if not exists public.roulette_secrets (
+  round_id  bigint primary key references public.roulette_rounds (id) on delete cascade,
+  slot      smallint not null check (slot between 0 and 14)
+);
+create table if not exists public.roulette_bets (
+  id            bigint generated always as identity primary key,
+  round_id      bigint not null references public.roulette_rounds (id) on delete cascade,
+  user_id       uuid not null references public.profiles (id) on delete cascade,
+  display_name  text not null,
+  avatar        text not null,
+  color         text not null,
+  bet_color     text not null check (bet_color in ('red', 'black', 'green')),
+  amount        bigint not null check (amount > 0),
+  payout        bigint,
+  created_at    timestamptz not null default now(),
+  unique (round_id, user_id, bet_color)
+);
+create index if not exists roulette_bets_round_idx on public.roulette_bets (round_id);
+alter table public.roulette_rounds  enable row level security;
+alter table public.roulette_secrets enable row level security;
+alter table public.roulette_bets    enable row level security;
+revoke all on public.roulette_secrets from anon, authenticated;
+revoke insert, update, delete, truncate, references, trigger on public.roulette_rounds, public.roulette_bets from anon, authenticated;
+grant select on public.roulette_rounds, public.roulette_bets to authenticated;
+drop policy if exists "roulette rounds are public" on public.roulette_rounds;
+create policy "roulette rounds are public" on public.roulette_rounds for select to authenticated using (true);
+drop policy if exists "roulette bets are public" on public.roulette_bets;
+create policy "roulette bets are public" on public.roulette_bets for select to authenticated using (true);
+
+create or replace function public.roulette_color(p_slot integer)
+returns text
+language sql
+immutable
+as $$
+  select case when p_slot = 0 then 'green' when p_slot % 2 = 1 then 'red' else 'black' end
+$$;
+
+-- Reveal a round's slot and pay its winners (caller holds the roulette lock).
+create or replace function public.roulette_settle(p_round bigint)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_slot smallint;
+  v_color text;
+begin
+  select slot into v_slot from public.roulette_secrets where round_id = p_round;
+  v_color := public.roulette_color(v_slot);
+  update public.roulette_rounds set result_slot = v_slot, settled_at = now() where id = p_round and settled_at is null;
+  if not found then return; end if;
+  update public.roulette_bets
+     set payout = case when bet_color = v_color then amount * (case v_color when 'green' then 14 else 2 end) else 0 end
+   where round_id = p_round;
+  update public.profiles p
+     set chips = p.chips + w.total, updated_at = now()
+    from (select user_id, sum(payout) as total from public.roulette_bets where round_id = p_round and payout > 0 group by user_id) w
+   where p.id = w.user_id;
+end;
+$$;
+
+-- Bring the wheel up to date and return the current round's id: settle a round whose
+-- betting has closed, and open the next one once the result has been on show.
+create or replace function public.roulette_advance()
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r public.roulette_rounds;
+  v_id bigint;
+begin
+  select * into r from public.roulette_rounds order by id desc limit 1;
+  -- Most calls find nothing to do and take no lock.
+  if r.id is not null and ((r.settled_at is null and now() < r.spin_at) or (r.settled_at is not null and now() < r.spin_at + interval '9 seconds')) then
+    return r.id;
+  end if;
+  perform pg_advisory_xact_lock(7302001);
+  select * into r from public.roulette_rounds order by id desc limit 1;
+  if r.id is not null and r.settled_at is null and now() >= r.spin_at then
+    perform public.roulette_settle(r.id);
+    select * into r from public.roulette_rounds where id = r.id;
+  end if;
+  if r.id is null or now() >= r.spin_at + interval '9 seconds' then
+    insert into public.roulette_rounds (opens_at, spin_at) values (now(), now() + interval '25 seconds') returning id into v_id;
+    insert into public.roulette_secrets (round_id, slot) values (v_id, least(14, floor(public.rand_unit() * 15)::int));
+    return v_id;
+  end if;
+  return r.id;
+end;
+$$;
+
+create or replace function public.roulette_state()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id bigint := public.roulette_advance();
+  r public.roulette_rounds;
+begin
+  select * into r from public.roulette_rounds where id = v_id;
+  return jsonb_build_object(
+    'round', jsonb_build_object('id', r.id, 'opens_at', r.opens_at, 'spin_at', r.spin_at, 'result_slot', r.result_slot, 'settled', r.settled_at is not null),
+    'bets', coalesce((select jsonb_agg(jsonb_build_object('user_id', b.user_id, 'display_name', b.display_name, 'avatar', b.avatar, 'color', b.color,
+                        'bet_color', b.bet_color, 'amount', b.amount, 'payout', b.payout) order by b.amount desc)
+                        from public.roulette_bets b where b.round_id = v_id), '[]'::jsonb),
+    'history', coalesce((select jsonb_agg(h.result_slot order by h.id desc)
+                           from (select id, result_slot from public.roulette_rounds where settled_at is not null and id <> v_id order by id desc limit 24) h), '[]'::jsonb),
+    'now', now());
+end;
+$$;
+
+create or replace function public.place_roulette_bet(p_color text, p_amount bigint)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_id bigint;
+  r public.roulette_rounds;
+  v_p public.profiles;
+  v_have bigint;
+begin
+  if v_uid is null then raise exception 'not_authenticated'; end if;
+  if p_color not in ('red', 'black', 'green') then return jsonb_build_object('ok', false, 'reason', 'bad_color'); end if;
+  if p_amount is null or p_amount < 10 then return jsonb_build_object('ok', false, 'reason', 'bad_amount'); end if;
+  v_id := public.roulette_advance();
+  perform pg_advisory_xact_lock(7302001);
+  select * into r from public.roulette_rounds where id = v_id;
+  -- Bets close half a second before the spin.
+  if r.settled_at is not null or now() >= r.spin_at - interval '500 milliseconds' then
+    return jsonb_build_object('ok', false, 'reason', 'closed');
+  end if;
+  select coalesce(sum(amount), 0) into v_have from public.roulette_bets where round_id = v_id and user_id = v_uid and bet_color = p_color;
+  if v_have + p_amount > 500000 then return jsonb_build_object('ok', false, 'reason', 'over_limit'); end if;
+  select * into v_p from public.profiles where id = v_uid for update;
+  if not found then raise exception 'profile_missing'; end if;
+  if v_p.chips < p_amount then return jsonb_build_object('ok', false, 'reason', 'insufficient_chips', 'chips', v_p.chips); end if;
+  update public.profiles set chips = chips - p_amount, updated_at = now() where id = v_uid returning * into v_p;
+  insert into public.roulette_bets as b (round_id, user_id, display_name, avatar, color, bet_color, amount)
+  values (v_id, v_uid, v_p.display_name, v_p.avatar, v_p.color, p_color, p_amount)
+  on conflict (round_id, user_id, bet_color) do update set amount = b.amount + excluded.amount;
+  return jsonb_build_object('ok', true, 'round', v_id, 'chips', v_p.chips);
+end;
+$$;
+
+-- Take back all of this round's bets before the wheel spins.
+create or replace function public.clear_roulette_bets()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_id bigint;
+  r public.roulette_rounds;
+  v_total bigint;
+  v_chips bigint;
+begin
+  if v_uid is null then raise exception 'not_authenticated'; end if;
+  v_id := public.roulette_advance();
+  perform pg_advisory_xact_lock(7302001);
+  select * into r from public.roulette_rounds where id = v_id;
+  if r.settled_at is not null or now() >= r.spin_at - interval '500 milliseconds' then
+    return jsonb_build_object('ok', false, 'reason', 'closed');
+  end if;
+  with gone as (delete from public.roulette_bets where round_id = v_id and user_id = v_uid returning amount)
+  select coalesce(sum(amount), 0) into v_total from gone;
+  update public.profiles set chips = chips + v_total, updated_at = now() where id = v_uid returning chips into v_chips;
+  return jsonb_build_object('ok', true, 'refunded', v_total, 'chips', v_chips);
+end;
+$$;
+
+-- Crash: one shared rocket. Players bet during an 8 second window, then the multiplier climbs
+-- as e^(0.08 * seconds) until it crashes; cash out before the crash to win bet x multiplier.
+-- The crash point is drawn when the round opens and kept in crash_secrets until it happens:
+-- P(crash >= x) = 0.97 / x, so every strategy pays back 97% on average (3% of rounds crash at 1.00x).
+-- Keep the timing in sync with shared/crash.ts.
+create table if not exists public.crash_rounds (
+  id           bigint generated always as identity primary key,
+  opens_at     timestamptz not null default now(),
+  run_at       timestamptz not null,
+  crash_point  numeric(10, 2),
+  crashed_at   timestamptz
+);
+create table if not exists public.crash_secrets (
+  round_id     bigint primary key references public.crash_rounds (id) on delete cascade,
+  crash_point  numeric(10, 2) not null check (crash_point >= 1)
+);
+create table if not exists public.crash_bets (
+  id             bigint generated always as identity primary key,
+  round_id       bigint not null references public.crash_rounds (id) on delete cascade,
+  user_id        uuid not null references public.profiles (id) on delete cascade,
+  display_name   text not null,
+  avatar         text not null,
+  color          text not null,
+  amount         bigint not null check (amount > 0),
+  auto_cashout   numeric(10, 2),
+  cashout_mult   numeric(10, 2),
+  payout         bigint,
+  created_at     timestamptz not null default now(),
+  unique (round_id, user_id)
+);
+create index if not exists crash_bets_round_idx on public.crash_bets (round_id);
+alter table public.crash_rounds  enable row level security;
+alter table public.crash_secrets enable row level security;
+alter table public.crash_bets    enable row level security;
+revoke all on public.crash_secrets from anon, authenticated;
+revoke insert, update, delete, truncate, references, trigger on public.crash_rounds, public.crash_bets from anon, authenticated;
+grant select on public.crash_rounds, public.crash_bets to authenticated;
+drop policy if exists "crash rounds are public" on public.crash_rounds;
+create policy "crash rounds are public" on public.crash_rounds for select to authenticated using (true);
+drop policy if exists "crash bets are public" on public.crash_bets;
+create policy "crash bets are public" on public.crash_bets for select to authenticated using (true);
+
+-- Seconds after launch at which a multiplier is reached.
+create or replace function public.crash_seconds(p_mult numeric)
+returns double precision
+language sql
+immutable
+as $$
+  select ln(greatest(p_mult, 1)::double precision) / 0.08
+$$;
+
+-- Reveal the crash and settle the round: automatic cash-outs below the crash point are paid,
+-- everyone still in loses their bet (caller holds the crash lock).
+create or replace function public.crash_settle(p_round bigint)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_cp numeric;
+  r public.crash_rounds;
+begin
+  select * into r from public.crash_rounds where id = p_round;
+  if r.crashed_at is not null then return; end if;
+  select crash_point into v_cp from public.crash_secrets where round_id = p_round;
+  update public.crash_rounds
+     set crash_point = v_cp, crashed_at = r.run_at + make_interval(secs => public.crash_seconds(v_cp))
+   where id = p_round;
+  -- Pay exactly the automatic cash-outs settled here (manual ones were paid when they happened).
+  with paid as (
+    update public.crash_bets
+       set cashout_mult = auto_cashout, payout = floor(amount * auto_cashout)
+     where round_id = p_round and cashout_mult is null and auto_cashout is not null and auto_cashout < v_cp
+    returning user_id, payout
+  )
+  update public.profiles p
+     set chips = p.chips + paid.payout, updated_at = now()
+    from paid
+   where p.id = paid.user_id;
+  update public.crash_bets set payout = 0 where round_id = p_round and cashout_mult is null;
+end;
+$$;
+
+-- Bring the rocket up to date: crash a round whose time has come, open the next one after the show.
+create or replace function public.crash_advance()
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r public.crash_rounds;
+  v_cp numeric;
+  v_id bigint;
+  v_u double precision;
+begin
+  select * into r from public.crash_rounds order by id desc limit 1;
+  if r.id is not null then
+    if r.crashed_at is null then
+      select crash_point into v_cp from public.crash_secrets where round_id = r.id;
+      if now() < r.run_at + make_interval(secs => public.crash_seconds(v_cp)) then return r.id; end if;
+    elsif now() < r.crashed_at + interval '4 seconds' then
+      return r.id;
+    end if;
+  end if;
+  perform pg_advisory_xact_lock(7302002);
+  select * into r from public.crash_rounds order by id desc limit 1;
+  if r.id is not null and r.crashed_at is null then
+    select crash_point into v_cp from public.crash_secrets where round_id = r.id;
+    if now() >= r.run_at + make_interval(secs => public.crash_seconds(v_cp)) then
+      perform public.crash_settle(r.id);
+      select * into r from public.crash_rounds where id = r.id;
+    end if;
+  end if;
+  if r.id is null or (r.crashed_at is not null and now() >= r.crashed_at + interval '4 seconds') then
+    v_u := public.rand_unit();
+    insert into public.crash_rounds (opens_at, run_at) values (now(), now() + interval '8 seconds') returning id into v_id;
+    insert into public.crash_secrets (round_id, crash_point)
+    values (v_id, least(1000, greatest(1, floor(97 / (1 - v_u)) / 100.0)));
+    return v_id;
+  end if;
+  return r.id;
+end;
+$$;
+
+create or replace function public.crash_state()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id bigint := public.crash_advance();
+  r public.crash_rounds;
+begin
+  select * into r from public.crash_rounds where id = v_id;
+  return jsonb_build_object(
+    'round', jsonb_build_object('id', r.id, 'opens_at', r.opens_at, 'run_at', r.run_at, 'crash_point', r.crash_point, 'crashed_at', r.crashed_at),
+    'bets', coalesce((select jsonb_agg(jsonb_build_object('user_id', b.user_id, 'display_name', b.display_name, 'avatar', b.avatar, 'color', b.color,
+                        'amount', b.amount, 'auto_cashout', b.auto_cashout, 'cashout_mult', b.cashout_mult, 'payout', b.payout) order by b.amount desc)
+                        from public.crash_bets b where b.round_id = v_id), '[]'::jsonb),
+    'history', coalesce((select jsonb_agg(h.crash_point order by h.id desc)
+                           from (select id, crash_point from public.crash_rounds where crashed_at is not null and id <> v_id order by id desc limit 24) h), '[]'::jsonb),
+    'now', now());
+end;
+$$;
+
+create or replace function public.place_crash_bet(p_amount bigint, p_auto numeric default null)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_id bigint;
+  r public.crash_rounds;
+  v_p public.profiles;
+begin
+  if v_uid is null then raise exception 'not_authenticated'; end if;
+  if p_amount is null or p_amount < 10 or p_amount > 500000 then return jsonb_build_object('ok', false, 'reason', 'bad_amount'); end if;
+  if p_auto is not null and (p_auto < 1.01 or p_auto > 1000) then return jsonb_build_object('ok', false, 'reason', 'bad_auto'); end if;
+  v_id := public.crash_advance();
+  perform pg_advisory_xact_lock(7302002);
+  select * into r from public.crash_rounds where id = v_id;
+  if now() >= r.run_at - interval '300 milliseconds' then return jsonb_build_object('ok', false, 'reason', 'closed'); end if;
+  if exists (select 1 from public.crash_bets where round_id = v_id and user_id = v_uid) then
+    return jsonb_build_object('ok', false, 'reason', 'already_in');
+  end if;
+  select * into v_p from public.profiles where id = v_uid for update;
+  if not found then raise exception 'profile_missing'; end if;
+  if v_p.chips < p_amount then return jsonb_build_object('ok', false, 'reason', 'insufficient_chips', 'chips', v_p.chips); end if;
+  update public.profiles set chips = chips - p_amount, updated_at = now() where id = v_uid returning * into v_p;
+  insert into public.crash_bets (round_id, user_id, display_name, avatar, color, amount, auto_cashout)
+  values (v_id, v_uid, v_p.display_name, v_p.avatar, v_p.color, p_amount, round(p_auto, 2));
+  return jsonb_build_object('ok', true, 'round', v_id, 'chips', v_p.chips);
+end;
+$$;
+
+create or replace function public.crash_cashout()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_id bigint;
+  r public.crash_rounds;
+  b public.crash_bets;
+  v_cp numeric;
+  v_mult numeric;
+  v_chips bigint;
+begin
+  if v_uid is null then raise exception 'not_authenticated'; end if;
+  v_id := public.crash_advance();
+  perform pg_advisory_xact_lock(7302002);
+  select * into r from public.crash_rounds where id = v_id;
+  select * into b from public.crash_bets where round_id = v_id and user_id = v_uid for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'no_bet'); end if;
+  if b.cashout_mult is not null then return jsonb_build_object('ok', false, 'reason', 'already_out', 'mult', b.cashout_mult); end if;
+  if r.crashed_at is not null then return jsonb_build_object('ok', false, 'reason', 'crashed', 'crash_point', r.crash_point); end if;
+  if now() < r.run_at then return jsonb_build_object('ok', false, 'reason', 'not_started'); end if;
+  select crash_point into v_cp from public.crash_secrets where round_id = v_id;
+  -- The multiplier right now, by the server's clock (rounded down to 2 decimals).
+  v_mult := floor(exp(0.08 * extract(epoch from (now() - r.run_at))) * 100) / 100;
+  -- An automatic cash-out that was already passed pays its own target.
+  if b.auto_cashout is not null and b.auto_cashout <= v_mult then v_mult := b.auto_cashout; end if;
+  if v_mult >= v_cp then
+    perform public.crash_settle(v_id);
+    return jsonb_build_object('ok', false, 'reason', 'crashed', 'crash_point', v_cp);
+  end if;
+  update public.crash_bets set cashout_mult = v_mult, payout = floor(amount * v_mult) where id = b.id;
+  update public.profiles set chips = chips + floor(b.amount * v_mult), updated_at = now() where id = v_uid returning chips into v_chips;
+  return jsonb_build_object('ok', true, 'mult', v_mult, 'payout', floor(b.amount * v_mult), 'chips', v_chips);
+end;
+$$;
+
+-- -----------------------------------------------------------------------------
 -- Function privileges
 -- -----------------------------------------------------------------------------
 
@@ -1648,6 +2302,33 @@ grant execute on function public.accept_terms(text, boolean) to authenticated;
 grant execute on function public.buy_cosmetic(text) to authenticated;
 grant execute on function public.equip_cosmetic(text, text) to authenticated;
 grant execute on function public.my_challenges() to authenticated;
+revoke execute on function public.rand_unit() from public, anon, authenticated;
+revoke execute on function public.open_case(bigint) from public, anon;
+revoke execute on function public.recent_case_drops() from public, anon;
+grant execute on function public.open_case(bigint) to authenticated;
+revoke execute on function public.crash_settle(bigint) from public, anon, authenticated;
+revoke execute on function public.crash_advance() from public, anon, authenticated;
+revoke execute on function public.crash_state() from public, anon;
+revoke execute on function public.place_crash_bet(bigint, numeric) from public, anon;
+revoke execute on function public.crash_cashout() from public, anon;
+grant execute on function public.crash_state() to authenticated;
+grant execute on function public.place_crash_bet(bigint, numeric) to authenticated;
+grant execute on function public.crash_cashout() to authenticated;
+revoke execute on function public.roulette_settle(bigint) from public, anon, authenticated;
+revoke execute on function public.roulette_advance() from public, anon, authenticated;
+revoke execute on function public.roulette_state() from public, anon;
+revoke execute on function public.place_roulette_bet(text, bigint) from public, anon;
+revoke execute on function public.clear_roulette_bets() from public, anon;
+grant execute on function public.roulette_state() to authenticated;
+grant execute on function public.place_roulette_bet(text, bigint) to authenticated;
+grant execute on function public.clear_roulette_bets() to authenticated;
+revoke execute on function public.create_coinflip(bigint) from public, anon;
+revoke execute on function public.cancel_coinflip(bigint) from public, anon;
+revoke execute on function public.join_coinflip(bigint, text) from public, anon;
+grant execute on function public.create_coinflip(bigint) to authenticated;
+grant execute on function public.cancel_coinflip(bigint) to authenticated;
+grant execute on function public.join_coinflip(bigint, text) to authenticated;
+grant execute on function public.recent_case_drops() to authenticated;
 grant execute on function public.claim_challenge(text, text) to authenticated;
 
 revoke execute on function public.update_profile(text, text, text) from public, anon;
@@ -1684,7 +2365,7 @@ begin
   if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
     create publication supabase_realtime;
   end if;
-  foreach t in array array['tables', 'player_cards', 'chat_messages', 'profiles', 'player_achievements', 'challenge_progress'] loop
+  foreach t in array array['tables', 'player_cards', 'chat_messages', 'profiles', 'player_achievements', 'challenge_progress', 'coinflips', 'roulette_rounds', 'roulette_bets', 'crash_rounds', 'crash_bets'] loop
     if not exists (
       select 1 from pg_publication_tables
        where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t

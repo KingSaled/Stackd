@@ -17,10 +17,15 @@ import { AchievementWatcher } from './components/AchievementWatcher';
 import { OnlinePresence } from './components/OnlinePresence';
 import { ChallengeWatcher } from './components/challenges/ChallengeWatcher';
 import { SeasonDecor } from './components/season/SeasonDecor';
+import { SideMenu } from './components/SideMenu';
 
 // Less-visited pages load on demand to keep the first download small.
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const ShopPage = lazy(() => import('./pages/ShopPage').then((m) => ({ default: m.ShopPage })));
+const CasesPage = lazy(() => import('./pages/minigames/CasesPage').then((m) => ({ default: m.CasesPage })));
+const CoinFlipPage = lazy(() => import('./pages/minigames/CoinFlipPage').then((m) => ({ default: m.CoinFlipPage })));
+const RoulettePage = lazy(() => import('./pages/minigames/RoulettePage').then((m) => ({ default: m.RoulettePage })));
+const CrashPage = lazy(() => import('./pages/minigames/CrashPage').then((m) => ({ default: m.CrashPage })));
 const LegalPage = lazy(() => import('./pages/LegalPage').then((m) => ({ default: m.LegalPage })));
 
 function Splash() {
@@ -61,6 +66,7 @@ function Routes() {
       {session && <AchievementWatcher />}
       {session && <OnlinePresence userId={session.user.id} />}
       {session && <ChallengeWatcher userId={session.user.id} />}
+      {session && <SideMenu />}
       <Suspense fallback={<Splash />}>
       <Switch>
       <Route path="/auth" component={AuthPage} />
@@ -73,6 +79,10 @@ function Routes() {
       </Route>
       <Route path="/shop">{session ? <ShopPage /> : <Redirect to={authRedirect()} />}</Route>
       <Route path="/t/:id">{(params) => (session ? <TablePage id={params.id} /> : <Redirect to={authRedirect()} />)}</Route>
+      <Route path="/games/cases">{session ? <CasesPage /> : <Redirect to={authRedirect()} />}</Route>
+      <Route path="/games/coinflip">{session ? <CoinFlipPage /> : <Redirect to={authRedirect()} />}</Route>
+      <Route path="/games/roulette">{session ? <RoulettePage /> : <Redirect to={authRedirect()} />}</Route>
+      <Route path="/games/crash">{session ? <CrashPage /> : <Redirect to={authRedirect()} />}</Route>
       <Route path="/profile">{session ? <ProfilePage /> : <Redirect to={authRedirect()} />}</Route>
       <Route path="/">{session ? <LobbyPage /> : <Redirect to="/auth" />}</Route>
       <Route component={NotFoundPage} />
