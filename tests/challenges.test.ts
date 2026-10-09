@@ -60,8 +60,9 @@ beforeAll(async () => {
 describe('challenge catalog', () => {
   it('matches shared/challenges.ts', async () => {
     const rows = (await db.query<Record<string, string>>('select * from public.challenges order by id')).rows;
-    expect(rows.map((r) => ({ id: r.id, period: r.period, slot: r.slot, counter: r.counter, target: Number(r.target), reward: Number(r.reward) }))).toEqual(
-      CHALLENGES.map((c) => ({ id: c.id, period: c.period, slot: c.slot, counter: c.counter, target: c.target, reward: c.reward })).sort((x, y) => (x.id < y.id ? -1 : 1)),
+    const cap = (v: unknown) => (v == null ? null : Number(v));
+    expect(rows.map((r) => ({ id: r.id, period: r.period, slot: r.slot, counter: r.counter, target: Number(r.target), cap: cap(r.daily_cap), reward: Number(r.reward) }))).toEqual(
+      CHALLENGES.map((c) => ({ id: c.id, period: c.period, slot: c.slot, counter: c.counter, target: c.target, cap: c.dailyCap ?? null, reward: c.reward })).sort((x, y) => (x.id < y.id ? -1 : 1)),
     );
   });
 
@@ -72,6 +73,14 @@ describe('challenge catalog', () => {
         expect(n, `${period} ${slot}`).toBeGreaterThanOrEqual(slot === 'bonus' ? 1 : 3);
         if (slot === 'bonus') expect(n).toBe(1);
       }
+  });
+
+  it('makes weekly challenges take several days of play', () => {
+    for (const c of CHALLENGES.filter((x) => x.period === 'weekly' && x.slot !== 'bonus')) {
+      // Either a daily cap or a goal that can only move once a day (daily bonus, active days, claimed dailies).
+      const days = c.dailyCap ? Math.ceil(c.target / c.dailyCap) : { daily_claims: c.target, active_days: c.target, daily_challenges: Math.ceil(c.target / 3) }[c.counter];
+      expect(days, c.id).toBeGreaterThanOrEqual(4);
+    }
   });
 
   it('keeps rewards sensible: harder challenges pay more, and weekly ones pay more than daily ones', () => {
@@ -237,5 +246,59 @@ describe('progress and claiming', () => {
     await db.query(`insert into public.challenge_progress (user_id, challenge_id, period_key, progress, updated_at) values ($1, 'd_sweep', 'd:2025-01-01', 1, now() - interval '60 days')`, [D]);
     const [{ r }] = (await as(null, 'select public.cleanup_stale_data() as r')) as { r: { challenge_rows_deleted: number } }[];
     expect(r.challenge_rows_deleted).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('daily caps, active days and minigames', () => {
+  const E = '00000000-0000-0000-0000-0000000000e1';
+  const F = '00000000-0000-0000-0000-0000000000f1';
+  beforeAll(async () => {
+    for (const [id, name] of [[E, 'Eve'], [F, 'Fin']])
+      await db.query(`insert into auth.users (id, email, raw_user_meta_data) values ($1, $2, $3)`, [id, `${name}@example.com`, JSON.stringify({ display_name: name })]);
+    await db.query('delete from public.challenges');
+    await db.query(`insert into public.challenges (id, period, slot, counter, target, daily_cap, reward) values
+      ('w_cap', 'weekly', 'poker', 'hands', 10, 3, 12000),
+      ('w_days', 'weekly', 'any', 'active_days', 6, null, 12000),
+      ('d_mg', 'daily', 'any', 'mg_rounds', 10, null, 1000),
+      ('d_flip', 'daily', 'poker', 'coinflip_wins', 1, null, 1500)`);
+  });
+
+  it('counts only the daily cap each day, and picks up again the next day', async () => {
+    for (let i = 0; i < 5; i++) await as(null, 'select public.record_hands($1)', [poker(E, 0)]);
+    let row = (await mine(E)).find((r) => r.id === 'w_cap') as Row & { daily_cap: string; today: string };
+    expect(Number(row.progress)).toBe(3);
+    expect(Number(row.daily_cap)).toBe(3);
+    expect(Number(row.today)).toBe(3);
+    // Pretend the 3 were counted yesterday: today's play counts again.
+    await db.query(`update public.challenge_progress set day_key = 'd:2000-01-01' where user_id = $1 and challenge_id = 'w_cap'`, [E]);
+    for (let i = 0; i < 5; i++) await as(null, 'select public.record_hands($1)', [poker(E, 0)]);
+    row = (await mine(E)).find((r) => r.id === 'w_cap') as Row & { daily_cap: string; today: string };
+    expect(Number(row.progress)).toBe(6);
+    expect(Number(row.today)).toBe(3);
+  });
+
+  it('counts each day played once', async () => {
+    expect(await progressOf(E, 'w_days')).toBe(1);
+    await db.query(`update public.player_stats set last_active_day = 'd:2000-01-01' where user_id = $1`, [E]);
+    await as(null, 'select public.record_hands($1)', [poker(E, 0)]);
+    await as(null, 'select public.record_hands($1)', [poker(E, 0)]);
+    expect(await progressOf(E, 'w_days')).toBe(2);
+  });
+
+  it('counts minigame rounds and coin flip wins for both players', async () => {
+    await as(E, 'select public.open_case(100)');
+    expect(await progressOf(E, 'd_mg')).toBe(1);
+    const [{ r }] = (await as<{ r: { id: number } }>(E, 'select public.create_coinflip(100) as r'));
+    const [{ j }] = (await as<{ j: { winner: string } }>(F, 'select public.join_coinflip($1, $2) as j', [r.id, 'heads']));
+    expect(await progressOf(E, 'd_mg')).toBe(2);
+    expect(await progressOf(F, 'd_mg')).toBe(1);
+    expect(await progressOf(j.winner, 'd_flip')).toBe(1);
+    expect(await progressOf(j.winner === E ? F : E, 'd_flip')).toBe(0);
+  });
+
+  it('records the one-time challenge reset so re-running the schema never repeats it', async () => {
+    const rows = (await db.query(`select id from public.schema_migrations where id = '2026-10-challenges-v2'`)).rows;
+    expect(rows).toHaveLength(1);
+    await expect(as(A, 'select * from public.schema_migrations')).rejects.toThrow(/permission/);
   });
 });

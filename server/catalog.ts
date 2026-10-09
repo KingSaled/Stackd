@@ -13,7 +13,7 @@ export function catalogRows(): CatalogRows {
   return {
     cosmetics: [...FRAMES, ...BACKDROPS].map((c) => ({ id: c.id, kind: c.kind, price: c.price, tier: c.tier })),
     achievements: ACHIEVEMENTS.map((a) => ({ id: a.id, counter: a.counter, target: a.target, reward: a.reward })),
-    challenges: CHALLENGES.map((c) => ({ id: c.id, period: c.period, slot: c.slot, counter: c.counter, target: c.target, reward: c.reward })),
+    challenges: CHALLENGES.map((c) => ({ id: c.id, period: c.period, slot: c.slot, counter: c.counter, target: c.target, daily_cap: c.dailyCap ?? null, reward: c.reward })),
   };
 }
 

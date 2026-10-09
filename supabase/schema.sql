@@ -473,6 +473,8 @@ create table if not exists public.player_stats (
   since       timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
+-- The last challenge day (08:00 UTC rollover) the player played anything, for "play on N days".
+alter table public.player_stats add column if not exists last_active_day text;
 
 create table if not exists public.achievements (
   id       text primary key,
@@ -571,10 +573,20 @@ declare
   v_c jsonb;
   k text;
   v jsonb;
+  v_last_day text;
+  v_today text;
 begin
   if p_user is null or not exists (select 1 from public.profiles where id = p_user) then return '{}'; end if;
   insert into public.player_stats (user_id) values (p_user) on conflict do nothing;
-  select counters into v_c from public.player_stats where user_id = p_user for update;
+  select counters, last_active_day into v_c, v_last_day from public.player_stats where user_id = p_user for update;
+  -- The first hand or minigame round of each challenge day counts one active day.
+  if coalesce((p_add ->> 'plays')::bigint, 0) + coalesce((p_add ->> 'mg_rounds')::bigint, 0) > 0 then
+    v_today := public.challenge_period_key('daily');
+    if v_last_day is distinct from v_today then
+      p_add := p_add || jsonb_build_object('active_days', 1);
+      update public.player_stats set last_active_day = v_today where user_id = p_user;
+    end if;
+  end if;
   for k, v in select * from jsonb_each(coalesce(p_add, '{}'::jsonb)) loop
     if (v #>> '{}')::bigint <> 0 then
       v_c := jsonb_set(v_c, array[k], to_jsonb(coalesce((v_c ->> k)::bigint, 0) + (v #>> '{}')::bigint));
@@ -617,6 +629,10 @@ create table if not exists public.challenge_progress (
   primary key (user_id, challenge_id, period_key)
 );
 create index if not exists challenge_progress_updated_idx on public.challenge_progress (updated_at);
+-- Weekly challenges can cap how much progress counts per day, so they take several days.
+alter table public.challenges add column if not exists daily_cap bigint check (daily_cap > 0);
+alter table public.challenge_progress add column if not exists day_key text;
+alter table public.challenge_progress add column if not exists day_progress bigint not null default 0;
 
 alter table public.challenges         enable row level security;
 alter table public.challenge_progress enable row level security;
@@ -628,33 +644,48 @@ drop policy if exists "owners read their challenge progress" on public.challenge
 create policy "owners read their challenge progress" on public.challenge_progress for select to authenticated using (user_id = auth.uid());
 
 -- Keep in sync with shared/challenges.ts.
-insert into public.challenges (id, period, slot, counter, target, reward) values
-  ('d_poker_hands', 'daily', 'poker', 'hands', 20, 1000),
-  ('d_poker_wins', 'daily', 'poker', 'wins', 3, 1500),
-  ('d_poker_showdown', 'daily', 'poker', 'showdown_wins', 2, 1500),
-  ('d_poker_steal', 'daily', 'poker', 'uncontested_wins', 2, 1500),
-  ('d_poker_allin', 'daily', 'poker', 'allins', 2, 1500),
-  ('d_bj_hands', 'daily', 'blackjack', 'bj_hands', 15, 1000),
-  ('d_bj_wins', 'daily', 'blackjack', 'bj_wins', 5, 1500),
-  ('d_bj_double', 'daily', 'blackjack', 'bj_double_wins', 1, 1500),
-  ('d_bj_split', 'daily', 'blackjack', 'bj_splits', 1, 1500),
-  ('d_any_play', 'daily', 'any', 'plays', 20, 1000),
-  ('d_any_wins', 'daily', 'any', 'wins_any', 6, 1500),
-  ('d_any_marathon', 'daily', 'any', 'plays', 50, 2500),
-  ('d_sweep', 'daily', 'bonus', 'daily_challenges', 3, 1000),
-  ('w_poker_hands', 'weekly', 'poker', 'hands', 150, 5000),
-  ('w_poker_wins', 'weekly', 'poker', 'wins', 25, 7500),
-  ('w_poker_showdown', 'weekly', 'poker', 'showdown_wins', 10, 7500),
-  ('w_poker_strong', 'weekly', 'poker', 'win_strong', 3, 8000),
-  ('w_bj_hands', 'weekly', 'blackjack', 'bj_hands', 100, 5000),
-  ('w_bj_wins', 'weekly', 'blackjack', 'bj_wins', 40, 7500),
-  ('w_bj_naturals', 'weekly', 'blackjack', 'bj_blackjacks', 3, 7500),
-  ('w_bj_doubles', 'weekly', 'blackjack', 'bj_double_wins', 5, 6500),
-  ('w_any_play', 'weekly', 'any', 'plays', 250, 6000),
-  ('w_any_daily', 'weekly', 'any', 'daily_claims', 5, 5000),
-  ('w_any_dedicated', 'weekly', 'any', 'daily_challenges', 6, 6000),
-  ('w_sweep', 'weekly', 'bonus', 'weekly_challenges', 3, 5000)
-on conflict (id) do update set period = excluded.period, slot = excluded.slot, counter = excluded.counter, target = excluded.target, reward = excluded.reward;
+insert into public.challenges (id, period, slot, counter, target, daily_cap, reward) values
+('d_poker_hands', 'daily', 'poker', 'hands', 20, null, 1000),
+  ('d_poker_wins', 'daily', 'poker', 'wins', 3, null, 1500),
+  ('d_poker_showdown', 'daily', 'poker', 'showdown_wins', 2, null, 1500),
+  ('d_poker_steal', 'daily', 'poker', 'uncontested_wins', 2, null, 1500),
+  ('d_poker_allin', 'daily', 'poker', 'allins', 2, null, 1500),
+  ('d_poker_raise', 'daily', 'poker', 'pfr_hands', 5, null, 1500),
+  ('d_poker_allin_win', 'daily', 'poker', 'allin_wins', 1, null, 2000),
+  ('d_bj_hands', 'daily', 'blackjack', 'bj_hands', 15, null, 1000),
+  ('d_bj_wins', 'daily', 'blackjack', 'bj_wins', 5, null, 1500),
+  ('d_bj_double', 'daily', 'blackjack', 'bj_double_wins', 1, null, 1500),
+  ('d_bj_split', 'daily', 'blackjack', 'bj_splits', 1, null, 1500),
+  ('d_bj_natural', 'daily', 'blackjack', 'bj_blackjacks', 1, null, 1500),
+  ('d_bj_shift', 'daily', 'blackjack', 'bj_hands', 40, null, 2000),
+  ('d_any_play', 'daily', 'any', 'plays', 20, null, 1000),
+  ('d_any_wins', 'daily', 'any', 'wins_any', 6, null, 1500),
+  ('d_any_marathon', 'daily', 'any', 'plays', 50, null, 2500),
+  ('d_mg_rounds', 'daily', 'any', 'mg_rounds', 10, null, 1000),
+  ('d_mg_wins', 'daily', 'any', 'mg_wins', 5, null, 1500),
+  ('d_crash_2x', 'daily', 'any', 'crash_2x', 3, null, 1500),
+  ('d_flip_wins', 'daily', 'any', 'coinflip_wins', 2, null, 1500),
+  ('d_sweep', 'daily', 'bonus', 'daily_challenges', 3, null, 1000),
+  ('w_poker_hands', 'weekly', 'poker', 'hands', 500, 100, 12000),
+  ('w_poker_wins', 'weekly', 'poker', 'wins', 80, 16, 15000),
+  ('w_poker_showdown', 'weekly', 'poker', 'showdown_wins', 35, 7, 15000),
+  ('w_poker_strong', 'weekly', 'poker', 'win_strong', 8, 2, 18000),
+  ('w_poker_steal', 'weekly', 'poker', 'uncontested_wins', 40, 8, 14000),
+  ('w_bj_hands', 'weekly', 'blackjack', 'bj_hands', 400, 80, 12000),
+  ('w_bj_wins', 'weekly', 'blackjack', 'bj_wins', 150, 30, 15000),
+  ('w_bj_naturals', 'weekly', 'blackjack', 'bj_blackjacks', 12, 3, 16000),
+  ('w_bj_doubles', 'weekly', 'blackjack', 'bj_double_wins', 15, 3, 15000),
+  ('w_any_play', 'weekly', 'any', 'plays', 1000, 200, 15000),
+  ('w_any_daily', 'weekly', 'any', 'daily_claims', 6, null, 12000),
+  ('w_any_dedicated', 'weekly', 'any', 'daily_challenges', 15, null, 15000),
+  ('w_any_days', 'weekly', 'any', 'active_days', 6, null, 12000),
+  ('w_mg_rounds', 'weekly', 'any', 'mg_rounds', 150, 30, 12000),
+  ('w_crash_5x', 'weekly', 'any', 'crash_5x', 5, 1, 16000),
+  ('w_sweep', 'weekly', 'bonus', 'weekly_challenges', 3, null, 10000)
+on conflict (id) do update set period = excluded.period, slot = excluded.slot, counter = excluded.counter, target = excluded.target,
+  daily_cap = excluded.daily_cap, reward = excluded.reward;
+-- Retired challenges leave the pool (and their old progress with them).
+delete from public.challenges where id <> all (array['d_poker_hands', 'd_poker_wins', 'd_poker_showdown', 'd_poker_steal', 'd_poker_allin', 'd_poker_raise', 'd_poker_allin_win', 'd_bj_hands', 'd_bj_wins', 'd_bj_double', 'd_bj_split', 'd_bj_natural', 'd_bj_shift', 'd_any_play', 'd_any_wins', 'd_any_marathon', 'd_mg_rounds', 'd_mg_wins', 'd_crash_2x', 'd_flip_wins', 'd_sweep', 'w_poker_hands', 'w_poker_wins', 'w_poker_showdown', 'w_poker_strong', 'w_poker_steal', 'w_bj_hands', 'w_bj_wins', 'w_bj_naturals', 'w_bj_doubles', 'w_any_play', 'w_any_daily', 'w_any_dedicated', 'w_any_days', 'w_mg_rounds', 'w_crash_5x', 'w_sweep']);
 
 create or replace function public.challenge_period_start(p_period text, p_at timestamptz default now())
 returns timestamptz
@@ -684,50 +715,88 @@ as $$
 $$;
 
 -- The challenges in play right now: one per period and slot.
+drop function if exists public.active_challenges(timestamptz);
 create or replace function public.active_challenges(p_at timestamptz default now())
-returns table (id text, period text, slot text, counter text, target bigint, reward bigint, period_key text, ends_at timestamptz)
+returns table (id text, period text, slot text, counter text, target bigint, reward bigint, period_key text, ends_at timestamptz, daily_cap bigint)
 language sql
 stable
 as $$
   select distinct on (c.period, c.slot)
          c.id, c.period, c.slot, c.counter, c.target, c.reward,
-         public.challenge_period_key(c.period, p_at), public.challenge_period_end(c.period, p_at)
+         public.challenge_period_key(c.period, p_at), public.challenge_period_end(c.period, p_at), c.daily_cap
     from public.challenges c
    order by c.period, c.slot, md5(c.id || public.challenge_period_key(c.period, p_at))
 $$;
 
 -- Add counter increments (the same jsonb bump_counters receives) to the active challenges.
+-- A challenge with a daily cap only counts that much progress per challenge day.
 create or replace function public.advance_challenges(p_user uuid, p_add jsonb)
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  a record;
+  v_amt bigint;
+  v_day text;
+  v_used bigint;
+  v_room bigint;
+  v_cp public.challenge_progress;
 begin
   if p_user is null or p_add is null or p_add = '{}'::jsonb then return; end if;
-  insert into public.challenge_progress as cp (user_id, challenge_id, period_key, progress)
-  select p_user, a.id, a.period_key, least(a.target, (p_add ->> a.counter)::bigint)
-    from public.active_challenges() a
-   where coalesce((p_add ->> a.counter)::bigint, 0) > 0
-  on conflict (user_id, challenge_id, period_key) do update
-    set progress = least((select ch.target from public.challenges ch where ch.id = cp.challenge_id), cp.progress + excluded.progress),
-        updated_at = now();
+  v_day := public.challenge_period_key('daily');
+  for a in select * from public.active_challenges() ac where coalesce((p_add ->> ac.counter)::bigint, 0) > 0 loop
+    v_amt := (p_add ->> a.counter)::bigint;
+    insert into public.challenge_progress (user_id, challenge_id, period_key) values (p_user, a.id, a.period_key)
+    on conflict (user_id, challenge_id, period_key) do nothing;
+    select * into v_cp from public.challenge_progress
+     where user_id = p_user and challenge_id = a.id and period_key = a.period_key for update;
+    v_used := case when v_cp.day_key = v_day then v_cp.day_progress else 0 end;
+    v_room := case when a.daily_cap is null then v_amt else greatest(0, least(v_amt, a.daily_cap - v_used)) end;
+    v_room := least(v_room, greatest(0, a.target - v_cp.progress));
+    update public.challenge_progress
+       set progress = progress + v_room, day_key = v_day, day_progress = v_used + v_room, updated_at = now()
+     where user_id = p_user and challenge_id = a.id and period_key = a.period_key;
+  end loop;
 end;
 $$;
 
 -- The caller's progress on the challenges in play right now.
+drop function if exists public.my_challenges();
 create or replace function public.my_challenges()
-returns table (id text, period text, slot text, target bigint, reward bigint, progress bigint, claimed boolean, period_key text, ends_at timestamptz)
+returns table (id text, period text, slot text, target bigint, reward bigint, progress bigint, claimed boolean, period_key text, ends_at timestamptz,
+               daily_cap bigint, today bigint)
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select a.id, a.period, a.slot, a.target, a.reward, coalesce(cp.progress, 0::bigint), cp.claimed_at is not null, a.period_key, a.ends_at
+  select a.id, a.period, a.slot, a.target, a.reward, coalesce(cp.progress, 0::bigint), cp.claimed_at is not null, a.period_key, a.ends_at,
+         a.daily_cap, case when cp.day_key = public.challenge_period_key('daily') then cp.day_progress else 0::bigint end
     from public.active_challenges() a
     left join public.challenge_progress cp
       on cp.user_id = auth.uid() and cp.challenge_id = a.id and cp.period_key = a.period_key
    order by a.period, case a.slot when 'poker' then 1 when 'blackjack' then 2 when 'any' then 3 else 4 end
+$$;
+
+-- One-time data fixes, recorded so re-running this file never repeats them.
+create table if not exists public.schema_migrations (
+  id          text primary key,
+  applied_at  timestamptz not null default now()
+);
+alter table public.schema_migrations enable row level security;
+revoke all on public.schema_migrations from anon, authenticated;
+
+-- October 2026 challenge overhaul: start this day's and this week's challenges fresh with the new pool.
+do $$
+begin
+  if not exists (select 1 from public.schema_migrations where id = '2026-10-challenges-v2') then
+    delete from public.challenge_progress
+     where period_key in (public.challenge_period_key('daily'), public.challenge_period_key('weekly'));
+    insert into public.schema_migrations (id) values ('2026-10-challenges-v2');
+  end if;
+end;
 $$;
 
 -- Collect the reward for a finished challenge (once).
@@ -1702,6 +1771,8 @@ begin
   update public.profiles set chips = chips - p_cost + v_prize, updated_at = now() where id = v_uid returning * into v_p;
   insert into public.case_openings (user_id, cost, tier, multiplier, prize) values (v_uid, p_cost, v_tier, v_mult, v_prize)
   returning id into v_id;
+  -- Challenges: a minigame round, won when the drop is worth more than the case.
+  perform public.bump_counters(v_uid, jsonb_build_object('mg_rounds', 1, 'mg_wins', (v_prize > p_cost)::int, 'case_opens', 1));
   return jsonb_build_object('ok', true, 'id', v_id, 'tier', v_tier, 'multiplier', v_mult, 'prize', v_prize, 'cost', p_cost, 'chips', v_p.chips);
 end;
 $$;
@@ -1842,6 +1913,9 @@ begin
          winner = v_winner, flip_at = now() + interval '3 seconds', updated_at = now()
    where id = p_id
   returning * into v_f;
+  -- Challenges: a minigame round for both players, and a win for the winner.
+  perform public.bump_counters(v_uid, jsonb_build_object('mg_rounds', 1, 'mg_wins', (v_winner = v_uid)::int, 'coinflip_wins', (v_winner = v_uid)::int));
+  perform public.bump_counters(v_f.creator, jsonb_build_object('mg_rounds', 1, 'mg_wins', (v_winner = v_f.creator)::int, 'coinflip_wins', (v_winner = v_f.creator)::int));
   select chips into v_chips from public.profiles where id = v_uid;
   return jsonb_build_object('ok', true, 'id', v_f.id, 'result', v_result, 'winner', v_winner, 'flip_at', v_f.flip_at, 'chips', v_chips);
 end;
@@ -1906,6 +1980,7 @@ as $$
 declare
   v_slot smallint;
   v_color text;
+  b record;
 begin
   select slot into v_slot from public.roulette_secrets where round_id = p_round;
   v_color := public.roulette_color(v_slot);
@@ -1918,6 +1993,10 @@ begin
      set chips = p.chips + w.total, updated_at = now()
     from (select user_id, sum(payout) as total from public.roulette_bets where round_id = p_round and payout > 0 group by user_id) w
    where p.id = w.user_id;
+  -- Challenges: one round per player, won if any of their bets paid.
+  for b in select user_id, bool_or(payout > 0) as won from public.roulette_bets where round_id = p_round group by user_id loop
+    perform public.bump_counters(b.user_id, jsonb_build_object('mg_rounds', 1, 'mg_wins', b.won::int, 'roulette_wins', b.won::int));
+  end loop;
 end;
 $$;
 
@@ -2101,6 +2180,7 @@ as $$
 declare
   v_cp numeric;
   r public.crash_rounds;
+  b record;
 begin
   select * into r from public.crash_rounds where id = p_round;
   if r.crashed_at is not null then return; end if;
@@ -2120,6 +2200,12 @@ begin
     from paid
    where p.id = paid.user_id;
   update public.crash_bets set payout = 0 where round_id = p_round and cashout_mult is null;
+  -- Challenges: every bet is a minigame round; cash-outs count as wins (and 2x / 5x ones).
+  for b in select user_id, cashout_mult from public.crash_bets where round_id = p_round loop
+    perform public.bump_counters(b.user_id, jsonb_build_object(
+      'mg_rounds', 1, 'mg_wins', (b.cashout_mult is not null)::int,
+      'crash_2x', (coalesce(b.cashout_mult, 0) >= 2)::int, 'crash_5x', (coalesce(b.cashout_mult, 0) >= 5)::int));
+  end loop;
 end;
 $$;
 

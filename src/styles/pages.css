@@ -2433,6 +2433,19 @@
   margin-top: 16px;
 }
 
+.stat-tabs .game-pill__cards {
+  transform: scale(0.82);
+  margin-left: -4px;
+}
+
+.stat-tile--up .stat-tile__value {
+  color: var(--mint, #3ef0a8);
+}
+
+.stat-tile--down .stat-tile__value {
+  color: #ff7a7a;
+}
+
 .profile__h3 {
   margin: 0;
   font-size: 0.95rem;

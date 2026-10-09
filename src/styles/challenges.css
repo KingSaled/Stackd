@@ -156,6 +156,19 @@
   text-wrap: pretty;
 }
 
+.chal__cap {
+  margin: -4px 0 8px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  opacity: 0.85;
+}
+
+.chal__cap.is-full {
+  color: var(--gold);
+  opacity: 1;
+}
+
 .chal__meter {
   display: flex;
   align-items: center;

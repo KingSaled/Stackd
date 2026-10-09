@@ -73,7 +73,8 @@ describe('case opening', () => {
     await setChips(C, 100_000);
     const r = await rpc<{ ok: boolean; tier: string; multiplier: string; prize: number; chips: number }>(C, 'public.open_case(10000)');
     expect(r.ok).toBe(true);
-    expect(Number(r.prize)).toBe(Math.floor(10000 * Number(r.multiplier)));
+    // The multiplier has 3 decimals; multiply in whole thousandths so float error can't round the prize down.
+    expect(Number(r.prize)).toBe(Math.floor((10000 * Math.round(Number(r.multiplier) * 1000)) / 1000));
     expect(await chipsOf(C)).toBe(100_000 - 10_000 + Number(r.prize));
     const mine = await as(C, 'select * from public.case_openings');
     expect(mine).toHaveLength(1);

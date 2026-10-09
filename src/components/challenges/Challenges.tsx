@@ -10,6 +10,7 @@ import { inPeriod, nextRollover, selectClaimable, useChallenges } from '../../st
 import { sound } from '../../lib/sound';
 import {
   CHALLENGE_BY_ID,
+  dailyCapLabel,
   isClaimable,
   isComplete,
   type ChallengePeriod,
@@ -69,6 +70,11 @@ export function ChallengeRow({ c }: { c: ChallengeStatus }) {
           </div>
         </div>
         <p className="chal__desc">{def.description}</p>
+        {c.dailyCap && !done && !c.claimed ? (
+          <p className={clsx('chal__cap', (c.today ?? 0) >= c.dailyCap && 'is-full')}>
+            {(c.today ?? 0) >= c.dailyCap ? 'Daily limit reached: more counts tomorrow' : `${dailyCapLabel(c.dailyCap)} · ${chips(c.today ?? 0)} today`}
+          </p>
+        ) : null}
         <div className="chal__meter">
           <span
             className="chal__bar"

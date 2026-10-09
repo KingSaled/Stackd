@@ -12,6 +12,7 @@ import {
   TrashIcon,
 } from '@phosphor-icons/react';
 import { TopNav } from '../components/TopNav';
+import { MiniCards } from '../components/GameSwitch';
 import { Avatar, Portrait } from '../components/Avatar';
 import { Modal } from '../components/Modal';
 import { LegalFooter } from '../components/LegalFooter';
@@ -105,6 +106,20 @@ export function ProfilePage() {
   const earned = useMemo(() => ACHIEVEMENTS.filter((a) => unlocked.has(a.id)).reduce((sum, a) => sum + a.reward, 0), [unlocked]);
   const totalRewards = ACHIEVEMENTS.reduce((sum, a) => sum + a.reward, 0);
   const [focusId, setFocusId] = useState<string | null>(null);
+  const [statGame, setStatGame] = useState<'holdem' | 'blackjack'>(() => {
+    try {
+      return localStorage.getItem('stackd:stats-game') === 'blackjack' ? 'blackjack' : 'holdem';
+    } catch {
+      return 'holdem';
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem('stackd:stats-game', statGame);
+    } catch {
+      /* private mode: just don't remember */
+    }
+  }, [statGame]);
   // Default to the locked achievement the player is closest to finishing.
   const focus = useMemo(() => {
     if (focusId) return ACHIEVEMENTS.find((a) => a.id === focusId) ?? null;
@@ -173,20 +188,39 @@ export function ProfilePage() {
 
   const frame = cosmeticById(profile.frame);
   const backdrop = cosmeticById(profile.backdrop);
-  const lifetime = [
-    { label: 'Chips', value: chipsShort(profile.chips) },
-    { label: 'Hands played', value: chips(profile.hands_played) },
-    { label: 'Hands won', value: chips(profile.hands_won) },
-    { label: 'Win rate', value: pct(profile.hands_won, profile.hands_played) },
-    { label: 'Biggest pot', value: chipsShort(profile.biggest_pot) },
-  ];
   const best = profile.best_hand >= 0 && profile.best_hand < HAND_SHORT.length ? profile.best_hand : -1;
-  const detailed = [
-    { label: 'Biggest win', value: chipsShort(n('biggest_win')), hint: 'Most profit in one hand' },
-    { label: 'Showdowns won', value: pct(n('showdown_wins'), n('showdowns')), hint: `${chips(n('showdown_wins'))} of ${chips(n('showdowns'))}` },
-    { label: 'All-ins won', value: pct(n('allin_wins'), n('allins')), hint: `${chips(n('allin_wins'))} of ${chips(n('allins'))}` },
-    { label: 'Best streak', value: `${n('best_streak') || profile.daily_streak} days`, hint: 'Daily bonus streak' },
-  ];
+  const poker = {
+    main: [
+      { label: 'Hands played', value: chips(profile.hands_played) },
+      { label: 'Hands won', value: chips(profile.hands_won) },
+      { label: 'Win rate', value: pct(profile.hands_won, profile.hands_played) },
+      { label: 'Biggest pot', value: chipsShort(profile.biggest_pot) },
+      { label: 'Biggest win', value: chipsShort(n('biggest_win')) },
+    ],
+    style: [
+      { label: 'Showdowns won', value: pct(n('showdown_wins'), n('showdowns')), hint: `${chips(n('showdown_wins'))} of ${chips(n('showdowns'))}` },
+      { label: 'All-ins won', value: pct(n('allin_wins'), n('allins')), hint: `${chips(n('allin_wins'))} of ${chips(n('allins'))}` },
+      { label: 'Hands played in', value: pct(n('vpip_hands'), n('hands')), hint: 'Put chips in voluntarily' },
+      { label: 'Pre-flop raises', value: pct(n('pfr_hands'), n('hands')), hint: 'Raised before the flop' },
+    ],
+  };
+  const bjNet = n('bj_net');
+  const blackjack = {
+    main: [
+      { label: 'Hands played', value: chips(n('bj_hands')) },
+      { label: 'Hands won', value: chips(n('bj_wins')) },
+      { label: 'Win rate', value: pct(n('bj_wins'), n('bj_hands')) },
+      { label: 'Blackjacks', value: chips(n('bj_blackjacks')) },
+      { label: 'Pushes', value: chips(n('bj_pushes')) },
+      { label: 'Net result', value: `${bjNet > 0 ? '+' : bjNet < 0 ? '−' : ''}${chipsShort(Math.abs(bjNet))}`, tone: bjNet > 0 ? 'up' : bjNet < 0 ? 'down' : undefined },
+    ],
+    style: [
+      { label: 'Doubles won', value: chips(n('bj_double_wins')), hint: 'Hands won after doubling down' },
+      { label: 'Splits', value: chips(n('bj_splits')), hint: 'Pairs split' },
+      { label: 'Total wagered', value: chipsShort(n('bj_wagered')), hint: 'All bets, doubles and splits' },
+      { label: 'Average bet', value: n('bj_hands') ? chipsShort(Math.round(n('bj_wagered') / n('bj_hands'))) : '—', hint: 'Per hand' },
+    ],
+  };
   const since = tracked ? new Date(tracked.since).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null;
 
   return (
@@ -214,7 +248,13 @@ export function ProfilePage() {
               </p>
               <p className="profile-head__badges">
                 <span className="pill-stat">
+                  <strong>{chipsShort(profile.chips)}</strong> chips
+                </span>
+                <span className="pill-stat">
                   <strong>{unlockedCount}</strong>/{ACHIEVEMENTS.length} achievements
+                </span>
+                <span className="pill-stat" title="Longest daily bonus streak">
+                  <strong>{n('best_streak') || profile.daily_streak}</strong>-day best streak
                 </span>
               </p>
             </div>
@@ -284,35 +324,63 @@ export function ProfilePage() {
         <section className="panel">
           <div className="home-panel__head">
             <h2 className="home-panel__title">Stats</h2>
-            <span className="home-panel__hint">Lifetime</span>
-          </div>
-          <div className="stat-grid stat-grid--6">
-            {lifetime.map((s) => (
-              <div key={s.label} className="stat-tile">
-                <span className="stat-tile__value">{s.value}</span>
-                <span className="stat-tile__label">{s.label}</span>
-              </div>
-            ))}
-            <div className="stat-tile" title={best >= 0 ? HAND_SHORT[best] : undefined}>
-              <span className="stat-tile__value">{best >= 0 ? HAND_SHORT[best] : '—'}</span>
-              <span className="stat-tile__label stat-tile__label--hand">
-                Best hand {best >= 0 && <BestHand category={best} />}
-              </span>
+            <div className="chal-tabs stat-tabs" role="tablist" aria-label="Game">
+              {(['holdem', 'blackjack'] as const).map((g) => (
+                <button
+                  key={g}
+                  role="tab"
+                  aria-selected={statGame === g}
+                  className={clsx('chal-tab', statGame === g && 'is-on')}
+                  onClick={() => {
+                    if (statGame !== g) sound.play('click');
+                    setStatGame(g);
+                  }}
+                >
+                  <MiniCards game={g} />
+                  {g === 'holdem' ? 'Poker' : 'Blackjack'}
+                </button>
+              ))}
             </div>
           </div>
-          <div className="home-panel__head profile__subhead">
-            <h3 className="profile__h3">Play style</h3>
-            <span className="home-panel__hint">{since ? `Since ${since}` : 'Starts with your next hand'}</span>
-          </div>
-          <div className="stat-grid stat-grid--4">
-            {detailed.map((s) => (
-              <div key={s.label} className="stat-tile" title={s.hint}>
-                <span className="stat-tile__value">{s.value}</span>
-                <span className="stat-tile__label">{s.label}</span>
-                <span className="stat-tile__hint">{s.hint}</span>
+          {statGame === 'holdem' ? (
+            <>
+              <div className="stat-grid stat-grid--6">
+                {poker.main.map((s) => (
+                  <div key={s.label} className="stat-tile">
+                    <span className="stat-tile__value">{s.value}</span>
+                    <span className="stat-tile__label">{s.label}</span>
+                  </div>
+                ))}
+                <div className="stat-tile" title={best >= 0 ? HAND_SHORT[best] : undefined}>
+                  <span className="stat-tile__value">{best >= 0 ? HAND_SHORT[best] : '—'}</span>
+                  <span className="stat-tile__label stat-tile__label--hand">
+                    Best hand {best >= 0 && <BestHand category={best} />}
+                  </span>
+                </div>
               </div>
-            ))}
-          </div>
+              <div className="home-panel__head profile__subhead">
+                <h3 className="profile__h3">Play style</h3>
+                <span className="home-panel__hint">{since ? `Since ${since}` : 'Starts with your next hand'}</span>
+              </div>
+              <StatTiles items={poker.style} />
+            </>
+          ) : (
+            <>
+              <div className="stat-grid stat-grid--6">
+                {blackjack.main.map((s) => (
+                  <div key={s.label} className={clsx('stat-tile', s.tone && `stat-tile--${s.tone}`)}>
+                    <span className="stat-tile__value">{s.value}</span>
+                    <span className="stat-tile__label">{s.label}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="home-panel__head profile__subhead">
+                <h3 className="profile__h3">Play style</h3>
+                <span className="home-panel__hint">{n('bj_hands') ? 'All your blackjack hands' : 'Starts with your next hand'}</span>
+              </div>
+              <StatTiles items={blackjack.style} />
+            </>
+          )}
         </section>
 
         <section className="panel">
@@ -514,6 +582,21 @@ export function ProfilePage() {
           </button>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+/** A row of four stat tiles with a short explanation under each. */
+function StatTiles({ items }: { items: { label: string; value: string; hint: string }[] }) {
+  return (
+    <div className="stat-grid stat-grid--4">
+      {items.map((s) => (
+        <div key={s.label} className="stat-tile" title={s.hint}>
+          <span className="stat-tile__value">{s.value}</span>
+          <span className="stat-tile__label">{s.label}</span>
+          <span className="stat-tile__hint">{s.hint}</span>
+        </div>
+      ))}
     </div>
   );
 }

@@ -69,6 +69,8 @@ export function AuthPage() {
     else navigate(next, { replace: true });
   }, [session, next, navigate]);
 
+  const halloween = useSeason((s) => s.season) === 'halloween';
+
   if (session) return null;
 
   const go = () => sound.play('chips', { count: 5 });
@@ -141,7 +143,6 @@ export function AuthPage() {
   };
 
   const head = HEADINGS[mode];
-  const halloween = useSeason((s) => s.season) === 'halloween';
   const submitLabel = busy ? 'One moment…' : mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Send reset link';
 
   return (

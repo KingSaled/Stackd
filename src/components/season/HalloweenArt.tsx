@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 
 /**
  * Vector art for the Halloween look: crisp at any size and coloured in code,
@@ -111,18 +111,32 @@ export function Leaf({ className, color }: { className?: string; color: string }
   );
 }
 
-/** Rolling hills with a graveyard, a bare tree and a haunted house with its lights on. */
+/**
+ * A prop pinned to a spot on the hills. The hills stretch to any screen width, but each prop
+ * keeps its shape and scales with the skyline's height only, so it is never squashed or cut off.
+ * `at` and `w` are in the 1440 x 200 design space.
+ */
+function Prop({ at, w, children }: { at: number; w: number; children: ReactNode }) {
+  return (
+    <svg x={`${(at / 1440) * 100}%`} y="0" width="100%" height="100%" viewBox={`${at} 0 ${w} 200`} preserveAspectRatio="xMinYMax meet" overflow="visible">
+      {children}
+    </svg>
+  );
+}
+
+/** Rolling hills with a fenced graveyard, a bare tree and a haunted house with its lights on. */
 export function HauntedSkyline({ className }: { className?: string }) {
   const id = useId().replace(/:/g, '');
-  const tombs = [
-    [250, 146, 'round'],
-    [292, 143, 'cross'],
-    [330, 148, 'round'],
-    [742, 150, 'cross'],
-    [784, 148, 'round'],
-  ] as const;
+  const tomb = (x: number, y: number, kind: 'round' | 'cross') =>
+    kind === 'cross' ? (
+      <path key={x} d={`M${x - 3} ${y} L${x - 3} ${y - 20} L${x - 10} ${y - 20} L${x - 10} ${y - 26} L${x - 3} ${y - 26} L${x - 3} ${y - 33} L${x + 3} ${y - 33} L${x + 3} ${y - 26} L${x + 10} ${y - 26} L${x + 10} ${y - 20} L${x + 3} ${y - 20} L${x + 3} ${y} Z`} />
+    ) : (
+      <path key={x} d={`M${x - 11} ${y} L${x - 11} ${y - 20} A11 11 0 0 1 ${x + 11} ${y - 20} L${x + 11} ${y} Z`} />
+    );
+  // Graveyard fence: pickets between two stone gate posts, sunk into the hill.
+  const pickets = Array.from({ length: 15 }, (_, i) => 214 + i * 11);
   return (
-    <svg className={className} viewBox="0 0 1440 200" preserveAspectRatio="xMidYMax slice" aria-hidden>
+    <svg className={className} aria-hidden>
       <defs>
         <linearGradient id={`${id}far`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#24143f" />
@@ -133,56 +147,78 @@ export function HauntedSkyline({ className }: { className?: string }) {
           <stop offset="1" stopColor="#ff8a1c" stopOpacity="0" />
         </radialGradient>
       </defs>
-      {/* Far hill with the house */}
-      <path d="M0 128 C200 92 380 112 560 104 C760 94 900 70 1080 80 C1240 88 1360 104 1440 98 L1440 200 L0 200 Z" fill={`url(#${id}far)`} />
-      <g fill="#140a24">
-        <path d="M1050 82 L1050 46 L1090 22 L1130 46 L1130 82 Z" />
-        <path d="M1120 82 L1120 30 L1132 10 L1144 30 L1144 82 Z" />
-        <path d="M1086 26 L1086 12 L1094 12 L1094 22 Z" />
-        <path d="M1046 48 L1090 20 L1134 48 L1130 50 L1090 26 L1050 50 Z" fill="#1d1033" />
-      </g>
-      <g className="hw-windows">
-        <circle cx="1072" cy="58" r="16" fill={`url(#${id}win)`} />
-        <circle cx="1132" cy="40" r="12" fill={`url(#${id}win)`} />
-        <rect x="1066" y="52" width="10" height="12" rx="1" fill="#ffb347" />
-        <rect x="1098" y="56" width="10" height="12" rx="1" fill="#ff9a2e" opacity="0.85" />
-        <rect x="1128" y="34" width="8" height="10" rx="4" fill="#ffc46b" />
-      </g>
+      {/* Far hill (flat-topped around the house) */}
+      <svg width="100%" height="100%" viewBox="0 0 1440 200" preserveAspectRatio="none">
+        <path d="M0 128 C200 92 380 112 560 104 C760 94 900 82 1000 84 L1180 84 C1280 86 1360 100 1440 98 L1440 200 L0 200 Z" fill={`url(#${id}far)`} />
+      </svg>
+      {/* Haunted house sitting on the far hill */}
+      <Prop at={1040} w={110}>
+        <g fill="#170c29">
+          <path d="M1050 90 L1050 46 L1090 22 L1130 46 L1130 90 Z" />
+          <path d="M1120 90 L1120 30 L1132 10 L1144 30 L1144 90 Z" />
+          <path d="M1086 26 L1086 12 L1094 12 L1094 22 Z" />
+          <path d="M1046 48 L1090 20 L1134 48 L1130 50 L1090 26 L1050 50 Z" fill="#1d1033" />
+          <path d="M1084 90 L1084 74 A6 6 0 0 1 1096 74 L1096 90 Z" fill="#0f0820" />
+        </g>
+        <g className="hw-windows">
+          <circle cx="1071" cy="60" r="16" fill={`url(#${id}win)`} />
+          <circle cx="1132" cy="40" r="12" fill={`url(#${id}win)`} />
+          <rect x="1066" y="54" width="10" height="12" rx="1" fill="#ffb347" />
+          <rect x="1104" y="54" width="10" height="12" rx="1" fill="#ff9a2e" opacity="0.85" />
+          <rect x="1128" y="34" width="8" height="10" rx="4" fill="#ffc46b" />
+        </g>
+      </Prop>
       {/* Near hill */}
-      <path d="M0 158 C180 134 320 146 470 142 C640 138 760 158 940 154 C1120 150 1260 136 1440 146 L1440 200 L0 200 Z" fill="#0c0716" />
+      <svg width="100%" height="100%" viewBox="0 0 1440 200" preserveAspectRatio="none">
+        <path d="M0 158 C180 134 320 146 470 142 C640 138 760 158 940 154 C1120 150 1260 136 1440 146 L1440 200 L0 200 Z" fill="#0c0716" />
+      </svg>
       {/* Bare tree */}
-      <g stroke="#0c0716" strokeLinecap="round" fill="none">
-        <path d="M120 150 C118 120 124 96 116 70" strokeWidth="9" />
-        <path d="M118 104 C100 92 92 80 78 74" strokeWidth="5" />
-        <path d="M120 92 C136 80 146 70 162 66" strokeWidth="5" />
-        <path d="M116 74 C110 60 112 50 104 40" strokeWidth="4" />
-        <path d="M117 76 C126 62 132 56 140 46" strokeWidth="3.5" />
-        <path d="M84 77 C80 70 72 68 66 62" strokeWidth="2.5" />
-        <path d="M150 69 C156 60 160 58 168 56" strokeWidth="2.5" />
-        <path d="M106 44 C100 38 94 38 90 32" strokeWidth="2" />
-      </g>
-      {/* Graveyard */}
-      <g fill="#0c0716">
-        {tombs.map(([x, y, kind]) =>
-          kind === 'cross' ? (
-            <path key={x} d={`M${x - 3} ${y} L${x - 3} ${y - 20} L${x - 10} ${y - 20} L${x - 10} ${y - 26} L${x - 3} ${y - 26} L${x - 3} ${y - 33} L${x + 3} ${y - 33} L${x + 3} ${y - 26} L${x + 10} ${y - 26} L${x + 10} ${y - 20} L${x + 3} ${y - 20} L${x + 3} ${y} Z`} />
-          ) : (
-            <path key={x} d={`M${x - 11} ${y} L${x - 11} ${y - 20} A11 11 0 0 1 ${x + 11} ${y - 20} L${x + 11} ${y} Z`} />
-          ),
-        )}
-        {Array.from({ length: 13 }, (_, i) => 560 + i * 12).map((x) => (
-          <path key={x} d={`M${x - 2} 144 L${x - 2} 128 L${x} 123 L${x + 2} 128 L${x + 2} 144 Z`} />
-        ))}
-        <rect x="556" y="131" width="156" height="2.5" />
-        <rect x="556" y="139" width="156" height="2.5" />
-      </g>
-      {/* Pumpkins glowing by the gate */}
-      <g className="hw-windows">
-        <circle cx="990" cy="150" r="14" fill={`url(#${id}win)`} />
-        <ellipse cx="990" cy="152" rx="8" ry="6" fill="#e8730f" />
-        <circle cx="1012" cy="153" r="11" fill={`url(#${id}win)`} />
-        <ellipse cx="1012" cy="154" rx="6" ry="4.5" fill="#d9620b" />
-      </g>
+      <Prop at={60} w={110}>
+        <g stroke="#0c0716" strokeLinecap="round" fill="none">
+          <path d="M120 170 C118 120 124 96 116 70" strokeWidth="9" />
+          <path d="M118 104 C100 92 92 80 78 74" strokeWidth="5" />
+          <path d="M120 92 C136 80 146 70 162 66" strokeWidth="5" />
+          <path d="M116 74 C110 60 112 50 104 40" strokeWidth="4" />
+          <path d="M117 76 C126 62 132 56 140 46" strokeWidth="3.5" />
+          <path d="M84 77 C80 70 72 68 66 62" strokeWidth="2.5" />
+          <path d="M150 69 C156 60 160 58 168 56" strokeWidth="2.5" />
+          <path d="M106 44 C100 38 94 38 90 32" strokeWidth="2" />
+        </g>
+      </Prop>
+      {/* Fenced graveyard */}
+      <Prop at={200} w={190}>
+        <g fill="#0c0716">
+          {tomb(244, 146, 'round')}
+          {tomb(282, 143, 'cross')}
+          {tomb(318, 146, 'round')}
+          {tomb(352, 144, 'cross')}
+          {pickets.map((x) => (
+            <path key={x} d={`M${x - 1.6} 170 L${x - 1.6} 129 L${x} 124 L${x + 1.6} 129 L${x + 1.6} 170 Z`} />
+          ))}
+          <rect x="204" y="131" width="174" height="2.4" />
+          <rect x="204" y="139" width="174" height="2.4" />
+          <path d="M200 170 L200 122 L198 122 L198 118 L210 118 L210 122 L208 122 L208 170 Z" />
+          <circle cx="204" cy="115" r="3.4" />
+          <path d="M374 170 L374 122 L372 122 L372 118 L384 118 L384 122 L382 122 L382 170 Z" />
+          <circle cx="378" cy="115" r="3.4" />
+        </g>
+      </Prop>
+      {/* Two more graves down the hill */}
+      <Prop at={730} w={70}>
+        <g fill="#0c0716">
+          {tomb(745, 160, 'cross')}
+          {tomb(784, 160, 'round')}
+        </g>
+      </Prop>
+      {/* Pumpkins glowing on the hillside */}
+      <Prop at={970} w={60}>
+        <g className="hw-windows">
+          <circle cx="990" cy="150" r="14" fill={`url(#${id}win)`} />
+          <ellipse cx="990" cy="152" rx="8" ry="6" fill="#e8730f" />
+          <circle cx="1012" cy="153" r="11" fill={`url(#${id}win)`} />
+          <ellipse cx="1012" cy="154" rx="6" ry="4.5" fill="#d9620b" />
+        </g>
+      </Prop>
     </svg>
   );
 }

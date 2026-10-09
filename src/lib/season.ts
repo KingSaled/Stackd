@@ -49,12 +49,15 @@ export const useSeason = create<{ season: Season | null }>(() => ({ season: null
 export const isSeason = (s: Season) => useSeason.getState().season === s;
 
 const THEME_COLOR: Record<Season | 'none', string> = { halloween: '#0b0714', none: '#070a12' };
+/** Browser-tab icon per season: the Sd mark with the d in the season's accent colour. */
+const TAB_ICON: Record<Season | 'none', string> = { halloween: '/favicon-halloween.svg', none: '/favicon-v2.svg' };
 
 function apply(season: Season | null) {
   const root = document.documentElement;
   if (season) root.dataset.season = season;
   else delete root.dataset.season;
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLOR[season ?? 'none']);
+  document.querySelector('link[rel="icon"][type="image/svg+xml"]')?.setAttribute('href', TAB_ICON[season ?? 'none']);
   if (useSeason.getState().season !== season) useSeason.setState({ season });
 }
 

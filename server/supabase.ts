@@ -219,6 +219,12 @@ export class SupabaseRepo implements Repo {
     if (c.error && !/relation|schema cache|does not exist/i.test(messageOf(c.error))) {
       throw new Error(`challenges sync failed: ${messageOf(c.error)}`);
     }
+    // Retired challenges leave the pool, so the daily and weekly picks only use current ones.
+    if (!c.error) {
+      const ids = rows.challenges.map((r) => r.id);
+      const d = await this.db.from('challenges').delete().not('id', 'in', `(${ids.join(',')})`);
+      if (d.error) throw new Error(`challenges cleanup failed: ${messageOf(d.error)}`);
+    }
   }
 
   async cleanup(): Promise<unknown> {

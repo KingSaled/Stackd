@@ -54,7 +54,7 @@ export interface CreateTableInput {
 export interface CatalogRows {
   cosmetics: { id: string; kind: string; price: number; tier: number }[];
   achievements: { id: string; counter: string; target: number; reward: number }[];
-  challenges: { id: string; period: string; slot: string; counter: string; target: number; reward: number }[];
+  challenges: { id: string; period: string; slot: string; counter: string; target: number; daily_cap: number | null; reward: number }[];
 }
 
 /** Persistence boundary used by the table service (Supabase in production, in-memory in tests). */

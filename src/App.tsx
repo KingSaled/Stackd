@@ -18,6 +18,7 @@ import { OnlinePresence } from './components/OnlinePresence';
 import { ChallengeWatcher } from './components/challenges/ChallengeWatcher';
 import { SeasonDecor } from './components/season/SeasonDecor';
 import { SideMenu } from './components/SideMenu';
+import { CrashGuard } from './components/CrashGuard';
 
 // Less-visited pages load on demand to keep the first download small.
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
@@ -96,7 +97,9 @@ export function App() {
   if (!isConfigured) return <SetupPage />;
   return (
     <>
-      <Routes />
+      <CrashGuard>
+        <Routes />
+      </CrashGuard>
       <Toaster />
       <UpdateBanner />
     </>

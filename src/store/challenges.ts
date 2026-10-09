@@ -17,6 +17,8 @@ interface Row {
   claimed: boolean;
   period_key: string;
   ends_at: string;
+  daily_cap?: number | string | null;
+  today?: number | string | null;
 }
 
 const fromRow = (r: Row): ChallengeStatus => ({
@@ -29,6 +31,8 @@ const fromRow = (r: Row): ChallengeStatus => ({
   claimed: !!r.claimed,
   periodKey: r.period_key,
   endsAt: r.ends_at,
+  dailyCap: r.daily_cap == null ? null : Number(r.daily_cap),
+  today: Number(r.today ?? 0),
 });
 
 /** The row Realtime sends when a challenge's progress changes. */
@@ -37,6 +41,8 @@ export interface ProgressRow {
   period_key: string;
   progress: number | string;
   claimed_at: string | null;
+  day_key?: string | null;
+  day_progress?: number | string | null;
 }
 
 interface ChallengeState {
@@ -88,9 +94,12 @@ export const useChallenges = create<ChallengeState>((set, get) => ({
     }
     const progress = Number(row.progress);
     const claimed = !!row.claimed_at;
-    if (progress === known.progress && claimed === known.claimed) return;
+    // Today's share of a daily-capped challenge (the row's day matches today's daily challenges).
+    const dayKey = items.find((c) => c.period === 'daily')?.periodKey;
+    const today = row.day_key != null && row.day_key === dayKey ? Number(row.day_progress ?? 0) : known.today;
+    if (progress === known.progress && claimed === known.claimed && today === known.today) return;
     const done = isComplete({ progress, target: known.target });
-    set({ items: items.map((c) => (c === known ? { ...c, progress, claimed } : c)) });
+    set({ items: items.map((c) => (c === known ? { ...c, progress, claimed, today } : c)) });
     if (done && !isComplete(known)) announceDone(known.id, known.slot === 'bonus');
   },
 
