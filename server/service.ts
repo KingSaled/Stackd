@@ -112,7 +112,16 @@ function requireTerms(profile: ProfileInfo) {
 }
 
 function identityOf(userId: string, p: ProfileInfo) {
-  return { userId, name: p.display_name, avatar: p.avatar, color: p.color, frame: p.frame ?? null, backdrop: p.backdrop ?? null };
+  return {
+    userId,
+    name: p.display_name,
+    avatar: p.avatar,
+    color: p.color,
+    frame: p.frame ?? null,
+    backdrop: p.backdrop ?? null,
+    nameFx: p.name_fx ?? null,
+    club: p.club ?? null,
+  };
 }
 
 export async function mutateTable(

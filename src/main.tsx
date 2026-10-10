@@ -5,6 +5,7 @@ import '@fontsource-variable/outfit';
 import './styles/base.css';
 import './styles/components.css';
 import './styles/cosmetics.css';
+import './styles/flair.css';
 import './styles/table.css';
 import './styles/pages.css';
 import './styles/challenges.css';

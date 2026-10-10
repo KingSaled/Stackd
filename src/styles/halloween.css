@@ -849,6 +849,13 @@
     linear-gradient(180deg, rgba(40, 24, 62, 0.82), rgba(17, 10, 29, 0.86));
 }
 
+:root[data-season='halloween'] .shop-item.tier-8 {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255, 210, 77, 0.2), transparent 70%) padding-box,
+    linear-gradient(180deg, rgba(40, 24, 50, 0.94), rgba(17, 10, 24, 0.96)) padding-box,
+    conic-gradient(from var(--shop-angle, 0deg), #ffd24d, #fff6cf, #b5780f, #ff9a1a, #ffd24d) border-box;
+}
+
 /* ---------------------------------------------------------------- Tables */
 
 /* The room: candlelight over the table, the night sky beyond. */

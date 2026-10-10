@@ -3,6 +3,8 @@ import { Link, useLocation } from 'wouter';
 import { motion } from 'framer-motion';
 import { ArrowRightIcon, RobotIcon, CaretRightIcon, PlusIcon, ArrowsClockwiseIcon, UsersIcon, GiftIcon, FireIcon, ArmchairIcon, LockIcon, SignInIcon, TrophyIcon, LightningIcon, GearSixIcon } from '@phosphor-icons/react';
 import clsx from 'clsx';
+import { PlayerName } from '../components/flair/PlayerName';
+import { profileLink } from '../store/profileViewer';
 import { TopNav } from '../components/TopNav';
 import { CreateTableDialog } from '../components/CreateTableDialog';
 import { CreateBlackjackDialog } from '../components/CreateBlackjackDialog';
@@ -161,13 +163,15 @@ export function LobbyPage() {
                 transition={{ type: 'spring', stiffness: 320, damping: 20 }}
               >
                 {isChampion && <Emoji char="👑" className="home-hero__crown" label="Champion" />}
-                <Avatar avatar={profile.avatar} color={profile.color} frame={profile.frame} backdrop={profile.backdrop} size={56} />
+                <span className="is-profile-link" {...profileLink(profile.id)}>
+                  <Avatar avatar={profile.avatar} color={profile.color} frame={profile.frame} backdrop={profile.backdrop} size={56} />
+                </span>
               </motion.div>
             )}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
               <p className="home-hero__eyebrow">{halloween ? 'Happy Halloween' : profile ? 'Welcome back' : 'Welcome to Stackd'}</p>
               <h1 className={clsx('home-hero__name', (profile?.display_name.length ?? 0) > 12 && 'is-long')}>
-                {profile ? profile.display_name : 'Ready to play?'}
+                {profile ? <PlayerName name={profile.display_name} fx={profile.name_fx} club={profile.club} /> : 'Ready to play?'}
               </h1>
               <p className="home-hero__sub">
                 {isChampion

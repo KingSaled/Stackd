@@ -1,4 +1,6 @@
 import clsx from 'clsx';
+import { PlayerName } from '../flair/PlayerName';
+import { profileLink } from '../../store/profileViewer';
 import { HandWavingIcon, ArrowDownIcon, PaperPlaneRightIcon, ScrollIcon, ChatCircleIcon } from '@phosphor-icons/react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { LogEntry } from '../../../shared/poker/types';
@@ -92,12 +94,12 @@ export function ChatPanel({ chat, log, me, onSend, onReact, canChat }: Props) {
           ) : (
             chat.map((m) => (
               <div key={m.id} className={clsx('msg', m.user_id === me && 'msg--me')}>
-                <span className="msg__avatar" style={{ '--c': m.color } as React.CSSProperties}>
+                <span className="msg__avatar is-profile-link" style={{ '--c': m.color } as React.CSSProperties} {...profileLink(m.user_id)}>
                   <Portrait avatar={m.avatar} />
                 </span>
                 <div className="msg__body">
-                  <span className="msg__name" style={{ color: m.color }}>
-                    {m.name}
+                  <span className="msg__name is-profile-link" style={{ color: m.color }} {...profileLink(m.user_id)}>
+                    <PlayerName name={m.name} fx={m.name_fx} club={m.club} />
                   </span>
                   <span className="msg__text">{m.body}</span>
                 </div>

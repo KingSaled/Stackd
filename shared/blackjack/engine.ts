@@ -49,6 +49,8 @@ export interface BjIdentity {
   color: string;
   frame?: string | null;
   backdrop?: string | null;
+  nameFx?: string | null;
+  club?: string | null;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -207,6 +209,8 @@ export function bjSitDown(s: BjState, who: BjIdentity, seatIdx: number, now: num
     color: who.color,
     frame: who.frame ?? null,
     backdrop: who.backdrop ?? null,
+    nameFx: who.nameFx ?? null,
+    club: who.club ?? null,
     bet: 0,
     lastBet: 0,
     hands: [],
@@ -675,5 +679,13 @@ export function bjCloseTable(s: BjState, fx: BjEffects, now: number) {
 export function bjUpdateIdentity(s: BjState, who: BjIdentity) {
   const i = bjSeatOf(s, who.userId);
   if (i < 0) return;
-  Object.assign(s.seats[i]!, { name: who.name, avatar: who.avatar, color: who.color, frame: who.frame ?? null, backdrop: who.backdrop ?? null });
+  Object.assign(s.seats[i]!, {
+    name: who.name,
+    avatar: who.avatar,
+    color: who.color,
+    frame: who.frame ?? null,
+    backdrop: who.backdrop ?? null,
+    nameFx: who.nameFx ?? null,
+    club: who.club ?? null,
+  });
 }

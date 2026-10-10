@@ -1,5 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import clsx from 'clsx';
+import { PlayerName } from '../flair/PlayerName';
+import { profileLink } from '../../store/profileViewer';
 import { PlusIcon, WifiSlashIcon, MoonIcon, SignOutIcon } from '@phosphor-icons/react';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import type { PublicState, Seat } from '../../../shared/poker/types';
@@ -689,7 +691,10 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
         )}
       </div>
 
-      <div className={clsx('seat__avatar', frameClass(seat.frame) && 'is-framed')}>
+      <div
+        className={clsx('seat__avatar', frameClass(seat.frame) && 'is-framed', !seat.isBot && 'is-profile-link')}
+        {...(seat.isBot ? {} : profileLink(seat.userId))}
+      >
         <Portrait avatar={seat.avatar} frame={seat.frame} backdrop={seat.backdrop} />
         {props.champion && <Emoji char="👑" className="seat__crown" label="Leaderboard champion" />}
         {isTurn && turnStartedAt && deadline && !seat.isBot && <TimerRing startedAt={turnStartedAt} deadline={deadline} />}
@@ -733,7 +738,9 @@ const SeatView = memo(function SeatView(props: SeatViewProps) {
         )}
       <div className="seat__plate">
         {seat.isBot && <span className="seat__bot">BOT</span>}
-        <span className={clsx('seat__name', plateTone && `seat__name--${plateTone}`)}>{plateLine}</span>
+        <span className={clsx('seat__name', plateTone && `seat__name--${plateTone}`)}>
+          {plateLine === seat.name && !seat.isBot ? <PlayerName name={seat.name} fx={seat.nameFx} club={seat.club} /> : plateLine}
+        </span>
         <span className="seat__stack">{seat.allIn && displayStack === 0 ? 'ALL-IN' : chips(displayStack)}</span>
       </div>
 

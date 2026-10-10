@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { animate, motion, useMotionValue, useMotionValueEvent } from 'framer-motion';
 import clsx from 'clsx';
+import { PlayerName } from '../../components/flair/PlayerName';
+import { profileLink } from '../../store/profileViewer';
 import { MinigameShell, BetInput } from '../../components/minigames/MinigameShell';
 import { Avatar } from '../../components/Avatar';
 import { supabase } from '../../lib/supabase';
@@ -31,6 +33,9 @@ interface FeedRow {
   multiplier: number;
   prize: number;
   created_at: string;
+  user_id?: string;
+  name_fx?: string | null;
+  club?: string | null;
 }
 
 const STRIP = 56;
@@ -353,10 +358,12 @@ export function CasesPage() {
               ) : (
                 <ul className="cases-feed">
                   {feed.map((f) => (
-                    <li key={f.id} className={`is-${f.tier}`}>
+                    <li key={f.id} className={`is-${f.tier} is-profile-link`} {...profileLink(f.user_id)}>
                       <Avatar avatar={f.avatar} color={f.color} size={28} />
                       <span className="cases-feed__who">
-                        <strong>{f.display_name}</strong>
+                        <strong>
+                          <PlayerName name={f.display_name} fx={f.name_fx} club={f.club} />
+                        </strong>
                         <small>{timeAgo(f.created_at)}</small>
                       </span>
                       <span className="cases-feed__win">

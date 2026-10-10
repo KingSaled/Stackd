@@ -1,6 +1,8 @@
 import { memo, useEffect, useReducer, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import clsx from 'clsx';
+import { PlayerName } from '../flair/PlayerName';
+import { profileLink } from '../../store/profileViewer';
 import { PlusIcon, WifiSlashIcon, SignOutIcon } from '@phosphor-icons/react';
 import { Portrait } from '../Avatar';
 import { PlayingCard } from '../PlayingCard';
@@ -533,7 +535,7 @@ const SeatView = memo(function SeatView({
   const netText = net != null ? (net > 0 ? `+${chips(net)}` : net < 0 ? `−${chips(-net)}` : 'Push') : null;
   return (
     <div className={clsx('seat bj-seat', isMe && 'seat--me', isTurn && 'is-turn')} style={{ left: at.x, top: at.y, '--c': seat.color } as React.CSSProperties}>
-      <div className={clsx('seat__avatar', frameClass(seat.frame) && 'is-framed')}>
+      <div className={clsx('seat__avatar', frameClass(seat.frame) && 'is-framed', 'is-profile-link')} {...profileLink(seat.userId)}>
         <Portrait avatar={seat.avatar} frame={seat.frame} backdrop={seat.backdrop} />
         {isTurn && turnStartedAt && deadline && <TimerRing startedAt={turnStartedAt} deadline={deadline} />}
         {offline && (
@@ -553,7 +555,9 @@ const SeatView = memo(function SeatView({
         )
       ) : (
         <div className="seat__plate">
-          <span className="seat__name">{isMe ? 'You' : seat.name}</span>
+          <span className="seat__name">
+            <PlayerName name={isMe ? 'You' : seat.name} fx={seat.nameFx} club={seat.club} />
+          </span>
           <span className={clsx('seat__stack', net != null && net > 0 && 'is-up', net != null && net < 0 && 'is-down')}>{netText ?? status}</span>
         </div>
       )}

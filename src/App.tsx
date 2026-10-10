@@ -19,6 +19,7 @@ import { ChallengeWatcher } from './components/challenges/ChallengeWatcher';
 import { SeasonDecor } from './components/season/SeasonDecor';
 import { SideMenu } from './components/SideMenu';
 import { CrashGuard } from './components/CrashGuard';
+import { ProfileViewer } from './components/flair/ProfileViewer';
 
 // Less-visited pages load on demand to keep the first download small.
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
@@ -68,6 +69,7 @@ function Routes() {
       {session && <OnlinePresence userId={session.user.id} />}
       {session && <ChallengeWatcher userId={session.user.id} />}
       {session && <SideMenu />}
+      {session && <ProfileViewer />}
       <Suspense fallback={<Splash />}>
       <Switch>
       <Route path="/auth" component={AuthPage} />

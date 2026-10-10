@@ -15,6 +15,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2026-10-10',
+    date: 'October 10, 2026',
+    title: 'High rollers: name styles, the Stackd Club and profile cards',
+    items: [
+      { icon: 'PaintBrush', text: 'Name styles: 19 ways to make your name stand out at every table, in chat and on the leaderboard. From Gold Leaf at 10,000 to old-school Wave and Rainbow Wave, all the way up to Divine and Sovereign at 20M and 30M.' },
+      { icon: 'Diamond', text: 'High Roller borders and backgrounds from 1M to 30M: Sakura Wreath, Glitch, Frostbound, Event Horizon, Ouroboros, Phoenix, Crown of Kings and Seraphim, plus eight new backgrounds topped by Heaven\'s Gate and Genesis.' },
+      { icon: 'CrownSimple', text: 'The Stackd Club: Silver, Gold, Platinum, Black and Infinite cards from 1M to 100M. Your card\'s badge sits next to your name everywhere, and your profile shows the full card with your member number. Get in early for a low number.' },
+      { icon: 'UserCircle', text: 'Profile cards: click any player\'s avatar or name (at tables, in chat, on the leaderboard or in the minigames) to see their look, net worth, collection value, rank and stats.' },
+      { icon: 'Coins', text: 'Faster reloads: if you drop under 1,000 chips you can now reload to 100,000 every 30 minutes.' },
+    ],
+  },
+  {
     version: '2026-10-09',
     date: 'October 9, 2026',
     title: 'Stackd Casino: four new minigames',

@@ -46,6 +46,8 @@ alter table public.profiles add column if not exists age_confirmed_at timestampt
 -- Equipped Cosmetic Shop items.
 alter table public.profiles add column if not exists frame text;
 alter table public.profiles add column if not exists backdrop text;
+alter table public.profiles add column if not exists name_fx text;
+alter table public.profiles add column if not exists club text;
 -- Set to true (in the Supabase table editor) to keep an account off the leaderboard.
 alter table public.profiles add column if not exists leaderboard_hidden boolean not null default false;
 alter table public.profiles alter column avatar set default 'p01';
@@ -118,6 +120,9 @@ create table if not exists public.chat_messages (
   created_at  timestamptz not null default now()
 );
 create index if not exists chat_messages_table_idx on public.chat_messages (table_id, id desc);
+-- The sender's name style and Stackd Club card when the message was sent.
+alter table public.chat_messages add column if not exists name_fx text;
+alter table public.chat_messages add column if not exists club text;
 create index if not exists chat_messages_user_idx on public.chat_messages (user_id, created_at desc);
 
 create table if not exists public.room_join_failures (
@@ -1032,11 +1037,11 @@ begin
   if v_total >= 1000 then
     return jsonb_build_object('ok', false, 'reason', 'not_broke', 'chips', v_p.chips, 'total', v_total);
   end if;
-  if v_p.last_reload_at is not null and v_p.last_reload_at > now() - interval '3 hours' then
+  if v_p.last_reload_at is not null and v_p.last_reload_at > now() - interval '30 minutes' then
     return jsonb_build_object(
       'ok', false,
       'reason', 'cooldown',
-      'next_reload_at', v_p.last_reload_at + interval '3 hours',
+      'next_reload_at', v_p.last_reload_at + interval '30 minutes',
       'chips', v_p.chips);
   end if;
   if v_dev is not null then
@@ -1059,12 +1064,12 @@ begin
     'ok', true,
     'amount', v_amount,
     'chips', v_p.chips,
-    'next_reload_at', v_p.last_reload_at + interval '3 hours');
+    'next_reload_at', v_p.last_reload_at + interval '30 minutes');
 end;
 $$;
 
 -- The reload went from 2,500 to 100,000. Anyone whose last reload was an old 2,500 one can claim
--- the new one straight away (their 3-hour cooldown starts with it). Players who have already had a
+-- the new one straight away (their cooldown starts with it). Players who have already had a
 -- 100,000 reload are left alone, so re-running this file never resets a real cooldown.
 update public.profiles p
    set last_reload_at = null
@@ -1129,7 +1134,8 @@ $$;
 
 drop function if exists public.leaderboard();
 create or replace function public.leaderboard()
-returns table (id uuid, display_name text, avatar text, color text, total_chips bigint, hands_played integer, hands_won integer, biggest_pot bigint, frame text, backdrop text)
+returns table (id uuid, display_name text, avatar text, color text, total_chips bigint, hands_played integer, hands_won integer, biggest_pot bigint, frame text, backdrop text,
+               name_fx text, club text)
 language sql
 stable
 security definer
@@ -1137,7 +1143,7 @@ set search_path = public
 as $$
   select p.id, p.display_name, p.avatar, p.color,
          p.chips + coalesce((select sum(s.stack) from public.table_seats s where s.user_id = p.id), 0) as total_chips,
-         p.hands_played, p.hands_won, p.biggest_pot, p.frame, p.backdrop
+         p.hands_played, p.hands_won, p.biggest_pot, p.frame, p.backdrop, p.name_fx, p.club
     from public.profiles p
    where not p.is_guest -- only saved accounts; guests can share names and come and go
      and not p.leaderboard_hidden
@@ -1240,6 +1246,8 @@ begin
   new.name := v_p.display_name;
   new.avatar := v_p.avatar;
   new.color := v_p.color;
+  new.name_fx := v_p.name_fx;
+  new.club := v_p.club;
   if new.kind = 'reaction' and char_length(new.body) > 8 then
     raise exception 'Invalid reaction';
   end if;
@@ -1586,10 +1594,13 @@ revoke all on public.abuse_report from anon, authenticated;
 
 create table if not exists public.cosmetics (
   id     text primary key,
-  kind   text not null check (kind in ('frame', 'backdrop')),
+  kind   text not null check (kind in ('frame', 'backdrop', 'name', 'club')),
   price  bigint not null check (price > 0),
   tier   smallint not null
 );
+-- Name styles and Stackd Club cards joined borders and backgrounds later.
+alter table public.cosmetics drop constraint if exists cosmetics_kind_check;
+alter table public.cosmetics add constraint cosmetics_kind_check check (kind in ('frame', 'backdrop', 'name', 'club'));
 
 create table if not exists public.player_cosmetics (
   user_id      uuid not null references public.profiles (id) on delete cascade,
@@ -1619,6 +1630,14 @@ insert into public.cosmetics (id, kind, price, tier) values
   ('frame-prism', 'frame', 125000, 4),
   ('frame-mythic', 'frame', 250000, 5),
   ('frame-celestial', 'frame', 300000, 5),
+  ('frame-sakura', 'frame', 1000000, 6),
+  ('frame-glitch', 'frame', 1500000, 6),
+  ('frame-frost', 'frame', 2500000, 6),
+  ('frame-horizon', 'frame', 5000000, 7),
+  ('frame-ouroboros', 'frame', 8000000, 7),
+  ('frame-phoenix', 'frame', 12000000, 7),
+  ('frame-crown', 'frame', 20000000, 8),
+  ('frame-seraph', 'frame', 30000000, 8),
   ('bg-felt', 'backdrop', 3000, 1),
   ('bg-blackjack', 'backdrop', 4000, 1),
   ('bg-sunset', 'backdrop', 8000, 2),
@@ -1628,7 +1647,39 @@ insert into public.cosmetics (id, kind, price, tier) values
   ('bg-velvet', 'backdrop', 50000, 4),
   ('bg-jackpot', 'backdrop', 60000, 4),
   ('bg-galaxy', 'backdrop', 120000, 5),
-  ('bg-aurora', 'backdrop', 150000, 5)
+  ('bg-aurora', 'backdrop', 150000, 5),
+  ('bg-sakura', 'backdrop', 1000000, 6),
+  ('bg-mainframe', 'backdrop', 1500000, 6),
+  ('bg-volcano', 'backdrop', 2500000, 6),
+  ('bg-vault', 'backdrop', 5000000, 7),
+  ('bg-hyperspace', 'backdrop', 8000000, 7),
+  ('bg-dragoneye', 'backdrop', 12000000, 7),
+  ('bg-heaven', 'backdrop', 20000000, 8),
+  ('bg-genesis', 'backdrop', 30000000, 8),
+  ('name-gold', 'name', 10000, 1),
+  ('name-glacier', 'name', 10000, 1),
+  ('name-ember', 'name', 15000, 1),
+  ('name-toxic', 'name', 20000, 1),
+  ('name-neon', 'name', 40000, 2),
+  ('name-wave', 'name', 50000, 2),
+  ('name-flash', 'name', 75000, 2),
+  ('name-rainbow', 'name', 150000, 3),
+  ('name-glitch', 'name', 200000, 3),
+  ('name-chrome', 'name', 300000, 4),
+  ('name-vapor', 'name', 400000, 4),
+  ('name-molten', 'name', 600000, 5),
+  ('name-hellfire', 'name', 800000, 5),
+  ('name-frostbite', 'name', 1500000, 6),
+  ('name-galaxy', 'name', 2500000, 6),
+  ('name-thunder', 'name', 5000000, 7),
+  ('name-holo', 'name', 8000000, 7),
+  ('name-divine', 'name', 20000000, 8),
+  ('name-sovereign', 'name', 30000000, 8),
+  ('club-silver', 'club', 1000000, 6),
+  ('club-gold', 'club', 5000000, 7),
+  ('club-platinum', 'club', 15000000, 8),
+  ('club-black', 'club', 40000000, 8),
+  ('club-infinite', 'club', 100000000, 8)
 on conflict (id) do update set kind = excluded.kind, price = excluded.price, tier = excluded.tier;
 
 -- Buy an item with wallet chips (chips seated at tables can't be spent) and equip it.
@@ -1660,12 +1711,113 @@ begin
      set chips = chips - v_item.price,
          frame = case when v_item.kind = 'frame' then p_id else frame end,
          backdrop = case when v_item.kind = 'backdrop' then p_id else backdrop end,
+         name_fx = case when v_item.kind = 'name' then p_id else name_fx end,
+         club = case when v_item.kind = 'club' then p_id else club end,
          updated_at = now()
    where id = v_uid;
   v_unlocked := public.bump_counters(v_uid, jsonb_build_object('cosmetics_bought', 1), '{}'::jsonb);
   select * into v_p from public.profiles where id = v_uid;
   return jsonb_build_object('ok', true, 'chips', v_p.chips, 'frame', v_p.frame, 'backdrop', v_p.backdrop,
-    'unlocked', to_jsonb(coalesce(v_unlocked, '{}')));
+    'name_fx', v_p.name_fx, 'club', v_p.club, 'unlocked', to_jsonb(coalesce(v_unlocked, '{}')));
+end;
+$$;
+
+-- Stackd Club: how many players hold each card, and the caller's member number for the cards
+-- they own (1 = the first player ever to buy that card).
+create or replace function public.club_stats()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select jsonb_build_object(
+    'counts', coalesce((select jsonb_object_agg(c.id, (select count(*) from public.player_cosmetics pc where pc.cosmetic_id = c.id))
+                          from public.cosmetics c where c.kind = 'club'), '{}'::jsonb),
+    'mine', coalesce((select jsonb_object_agg(pc.cosmetic_id,
+                              (select count(*) from public.player_cosmetics o
+                                where o.cosmetic_id = pc.cosmetic_id
+                                  and (o.bought_at, o.user_id) <= (pc.bought_at, pc.user_id)))
+                        from public.player_cosmetics pc join public.cosmetics c on c.id = pc.cosmetic_id
+                       where pc.user_id = auth.uid() and c.kind = 'club'), '{}'::jsonb))
+$$;
+
+-- Another player's public profile card (the pop-up you get by clicking a player): their look,
+-- net worth, what their collection cost, leaderboard rank, headline stats and Stackd Club card.
+-- Players hidden from the leaderboard keep their net worth and rank private.
+create or replace function public.public_profile(p_id uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_p public.profiles;
+  v_seated bigint;
+  v_total bigint;
+  v_c jsonb;
+  v_value bigint;
+  v_items integer;
+  v_ach integer;
+  v_club jsonb;
+  v_rank integer;
+  v_public boolean;
+begin
+  if auth.uid() is null then raise exception 'not_authenticated'; end if;
+  select * into v_p from public.profiles where id = p_id;
+  if not found then return null; end if;
+  select coalesce(sum(stack), 0) into v_seated from public.table_seats where user_id = p_id;
+  v_total := v_p.chips + v_seated;
+  select counters into v_c from public.player_stats where user_id = p_id;
+  v_c := coalesce(v_c, '{}'::jsonb);
+  select coalesce(sum(c.price), 0), count(*) into v_value, v_items
+    from public.player_cosmetics pc join public.cosmetics c on c.id = pc.cosmetic_id
+   where pc.user_id = p_id;
+  select count(*) into v_ach from public.player_achievements where user_id = p_id;
+  if v_p.club is not null then
+    select jsonb_build_object(
+             'id', pc.cosmetic_id,
+             'since', pc.bought_at,
+             'number', (select count(*) from public.player_cosmetics o
+                         where o.cosmetic_id = pc.cosmetic_id and (o.bought_at, o.user_id) <= (pc.bought_at, pc.user_id)))
+      into v_club
+      from public.player_cosmetics pc
+     where pc.user_id = p_id and pc.cosmetic_id = v_p.club;
+  end if;
+  v_public := not v_p.is_guest and not v_p.leaderboard_hidden;
+  if v_public then
+    select 1 + count(*) into v_rank
+      from public.profiles o
+     where not o.is_guest and not o.leaderboard_hidden and o.id <> p_id
+       and (o.hands_played > 0 or o.chips <> 10000)
+       and o.chips + coalesce((select sum(s.stack) from public.table_seats s where s.user_id = o.id), 0) > v_total;
+  end if;
+  return jsonb_build_object(
+    'id', v_p.id,
+    'display_name', v_p.display_name,
+    'avatar', v_p.avatar,
+    'color', v_p.color,
+    'frame', v_p.frame,
+    'backdrop', v_p.backdrop,
+    'name_fx', v_p.name_fx,
+    'club', v_p.club,
+    'club_card', v_club,
+    'is_guest', v_p.is_guest,
+    'created_at', v_p.created_at,
+    'net_worth', case when v_public or p_id = auth.uid() then v_total end,
+    'rank', v_rank,
+    'collection_value', v_value,
+    'items_owned', v_items,
+    'achievements', v_ach,
+    'hands_played', v_p.hands_played,
+    'hands_won', v_p.hands_won,
+    'biggest_pot', v_p.biggest_pot,
+    'best_hand', v_p.best_hand,
+    'bj_hands', coalesce((v_c ->> 'bj_hands')::bigint, 0),
+    'bj_wins', coalesce((v_c ->> 'bj_wins')::bigint, 0),
+    'bj_blackjacks', coalesce((v_c ->> 'bj_blackjacks')::bigint, 0),
+    'bj_net', coalesce((v_c ->> 'bj_net')::bigint, 0));
 end;
 $$;
 
@@ -1681,7 +1833,7 @@ declare
   v_p public.profiles;
 begin
   if v_uid is null then raise exception 'not_authenticated'; end if;
-  if p_kind not in ('frame', 'backdrop') then raise exception 'Invalid slot'; end if;
+  if p_kind not in ('frame', 'backdrop', 'name', 'club') then raise exception 'Invalid slot'; end if;
   if p_id is not null and not exists (
     select 1 from public.player_cosmetics pc join public.cosmetics c on c.id = pc.cosmetic_id
      where pc.user_id = v_uid and pc.cosmetic_id = p_id and c.kind = p_kind
@@ -1691,10 +1843,12 @@ begin
   update public.profiles
      set frame = case when p_kind = 'frame' then p_id else frame end,
          backdrop = case when p_kind = 'backdrop' then p_id else backdrop end,
+         name_fx = case when p_kind = 'name' then p_id else name_fx end,
+         club = case when p_kind = 'club' then p_id else club end,
          updated_at = now()
    where id = v_uid
   returning * into v_p;
-  return jsonb_build_object('ok', true, 'frame', v_p.frame, 'backdrop', v_p.backdrop);
+  return jsonb_build_object('ok', true, 'frame', v_p.frame, 'backdrop', v_p.backdrop, 'name_fx', v_p.name_fx, 'club', v_p.club);
 end;
 $$;
 
@@ -1778,14 +1932,16 @@ end;
 $$;
 
 -- The latest rare and covert drops across all players, for the live feed.
+drop function if exists public.recent_case_drops();
 create or replace function public.recent_case_drops()
-returns table (id bigint, display_name text, avatar text, color text, tier text, multiplier numeric, prize bigint, created_at timestamptz)
+returns table (id bigint, display_name text, avatar text, color text, tier text, multiplier numeric, prize bigint, created_at timestamptz,
+               name_fx text, club text, user_id uuid)
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select c.id, p.display_name, p.avatar, p.color, c.tier, c.multiplier, c.prize, c.created_at
+  select c.id, p.display_name, p.avatar, p.color, c.tier, c.multiplier, c.prize, c.created_at, p.name_fx, p.club, p.id
     from public.case_openings c
     join public.profiles p on p.id = c.user_id
    where c.tier in ('rare', 'covert')
@@ -1817,6 +1973,10 @@ create table if not exists public.coinflips (
   created_at         timestamptz not null default now(),
   updated_at         timestamptz not null default now()
 );
+alter table public.coinflips add column if not exists creator_name_fx text;
+alter table public.coinflips add column if not exists creator_club text;
+alter table public.coinflips add column if not exists challenger_name_fx text;
+alter table public.coinflips add column if not exists challenger_club text;
 create index if not exists coinflips_open_idx on public.coinflips (status, stake desc);
 create index if not exists coinflips_recent_idx on public.coinflips (flip_at desc) where status = 'flipped';
 alter table public.coinflips enable row level security;
@@ -1849,8 +2009,8 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'insufficient_chips', 'chips', v_p.chips);
   end if;
   update public.profiles set chips = chips - p_stake, updated_at = now() where id = v_uid returning * into v_p;
-  insert into public.coinflips (creator, creator_name, creator_avatar, creator_color, creator_frame, stake)
-  values (v_uid, v_p.display_name, v_p.avatar, v_p.color, v_p.frame, p_stake)
+  insert into public.coinflips (creator, creator_name, creator_avatar, creator_color, creator_frame, creator_name_fx, creator_club, stake)
+  values (v_uid, v_p.display_name, v_p.avatar, v_p.color, v_p.frame, v_p.name_fx, v_p.club, p_stake)
   returning id into v_id;
   return jsonb_build_object('ok', true, 'id', v_id, 'chips', v_p.chips);
 end;
@@ -1909,7 +2069,8 @@ begin
   update public.profiles set chips = chips + v_f.stake * 2, updated_at = now() where id = v_winner;
   update public.coinflips
      set status = 'flipped', challenger = v_uid, challenger_name = v_p.display_name, challenger_avatar = v_p.avatar,
-         challenger_color = v_p.color, challenger_frame = v_p.frame, challenger_side = p_side, result = v_result,
+         challenger_color = v_p.color, challenger_frame = v_p.frame, challenger_name_fx = v_p.name_fx, challenger_club = v_p.club,
+         challenger_side = p_side, result = v_result,
          winner = v_winner, flip_at = now() + interval '3 seconds', updated_at = now()
    where id = p_id
   returning * into v_f;
@@ -1951,6 +2112,8 @@ create table if not exists public.roulette_bets (
   unique (round_id, user_id, bet_color)
 );
 create index if not exists roulette_bets_round_idx on public.roulette_bets (round_id);
+alter table public.roulette_bets add column if not exists name_fx text;
+alter table public.roulette_bets add column if not exists club text;
 alter table public.roulette_rounds  enable row level security;
 alter table public.roulette_secrets enable row level security;
 alter table public.roulette_bets    enable row level security;
@@ -2046,7 +2209,7 @@ begin
   return jsonb_build_object(
     'round', jsonb_build_object('id', r.id, 'opens_at', r.opens_at, 'spin_at', r.spin_at, 'result_slot', r.result_slot, 'settled', r.settled_at is not null),
     'bets', coalesce((select jsonb_agg(jsonb_build_object('user_id', b.user_id, 'display_name', b.display_name, 'avatar', b.avatar, 'color', b.color,
-                        'bet_color', b.bet_color, 'amount', b.amount, 'payout', b.payout) order by b.amount desc)
+                        'name_fx', b.name_fx, 'club', b.club, 'bet_color', b.bet_color, 'amount', b.amount, 'payout', b.payout) order by b.amount desc)
                         from public.roulette_bets b where b.round_id = v_id), '[]'::jsonb),
     'history', coalesce((select jsonb_agg(h.result_slot order by h.id desc)
                            from (select id, result_slot from public.roulette_rounds where settled_at is not null and id <> v_id order by id desc limit 24) h), '[]'::jsonb),
@@ -2083,8 +2246,8 @@ begin
   if not found then raise exception 'profile_missing'; end if;
   if v_p.chips < p_amount then return jsonb_build_object('ok', false, 'reason', 'insufficient_chips', 'chips', v_p.chips); end if;
   update public.profiles set chips = chips - p_amount, updated_at = now() where id = v_uid returning * into v_p;
-  insert into public.roulette_bets as b (round_id, user_id, display_name, avatar, color, bet_color, amount)
-  values (v_id, v_uid, v_p.display_name, v_p.avatar, v_p.color, p_color, p_amount)
+  insert into public.roulette_bets as b (round_id, user_id, display_name, avatar, color, name_fx, club, bet_color, amount)
+  values (v_id, v_uid, v_p.display_name, v_p.avatar, v_p.color, v_p.name_fx, v_p.club, p_color, p_amount)
   on conflict (round_id, user_id, bet_color) do update set amount = b.amount + excluded.amount;
   return jsonb_build_object('ok', true, 'round', v_id, 'chips', v_p.chips);
 end;
@@ -2149,6 +2312,8 @@ create table if not exists public.crash_bets (
   unique (round_id, user_id)
 );
 create index if not exists crash_bets_round_idx on public.crash_bets (round_id);
+alter table public.crash_bets add column if not exists name_fx text;
+alter table public.crash_bets add column if not exists club text;
 alter table public.crash_rounds  enable row level security;
 alter table public.crash_secrets enable row level security;
 alter table public.crash_bets    enable row level security;
@@ -2265,6 +2430,7 @@ begin
   return jsonb_build_object(
     'round', jsonb_build_object('id', r.id, 'opens_at', r.opens_at, 'run_at', r.run_at, 'crash_point', r.crash_point, 'crashed_at', r.crashed_at),
     'bets', coalesce((select jsonb_agg(jsonb_build_object('user_id', b.user_id, 'display_name', b.display_name, 'avatar', b.avatar, 'color', b.color,
+                        'name_fx', b.name_fx, 'club', b.club,
                         'amount', b.amount, 'auto_cashout', b.auto_cashout, 'cashout_mult', b.cashout_mult, 'payout', b.payout) order by b.amount desc)
                         from public.crash_bets b where b.round_id = v_id), '[]'::jsonb),
     'history', coalesce((select jsonb_agg(h.crash_point order by h.id desc)
@@ -2299,8 +2465,8 @@ begin
   if not found then raise exception 'profile_missing'; end if;
   if v_p.chips < p_amount then return jsonb_build_object('ok', false, 'reason', 'insufficient_chips', 'chips', v_p.chips); end if;
   update public.profiles set chips = chips - p_amount, updated_at = now() where id = v_uid returning * into v_p;
-  insert into public.crash_bets (round_id, user_id, display_name, avatar, color, amount, auto_cashout)
-  values (v_id, v_uid, v_p.display_name, v_p.avatar, v_p.color, p_amount, round(p_auto, 2));
+  insert into public.crash_bets (round_id, user_id, display_name, avatar, color, name_fx, club, amount, auto_cashout)
+  values (v_id, v_uid, v_p.display_name, v_p.avatar, v_p.color, v_p.name_fx, v_p.club, p_amount, round(p_auto, 2));
   return jsonb_build_object('ok', true, 'round', v_id, 'chips', v_p.chips);
 end;
 $$;
@@ -2381,12 +2547,16 @@ revoke execute on function public.touch_device(text) from public, anon;
 revoke execute on function public.accept_terms(text, boolean) from public, anon;
 revoke execute on function public.buy_cosmetic(text) from public, anon;
 revoke execute on function public.equip_cosmetic(text, text) from public, anon;
+revoke execute on function public.club_stats() from public, anon;
+revoke execute on function public.public_profile(uuid) from public, anon;
 revoke execute on function public.my_challenges() from public, anon;
 revoke execute on function public.claim_challenge(text, text) from public, anon;
 grant execute on function public.touch_device(text) to authenticated;
 grant execute on function public.accept_terms(text, boolean) to authenticated;
 grant execute on function public.buy_cosmetic(text) to authenticated;
 grant execute on function public.equip_cosmetic(text, text) to authenticated;
+grant execute on function public.club_stats() to authenticated;
+grant execute on function public.public_profile(uuid) to authenticated;
 grant execute on function public.my_challenges() to authenticated;
 revoke execute on function public.rand_unit() from public, anon, authenticated;
 revoke execute on function public.open_case(bigint) from public, anon;

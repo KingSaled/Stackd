@@ -37,13 +37,20 @@ Everything runs on free tiers: **Netlify** (static site + serverless functions) 
 - Players can delete their account and all of its data from the profile.
 - 10,000 starting chips.
 - A daily bonus (2,000 chips, plus 500 per consecutive day up to a 7-day streak) every 24 hours.
-- An emergency reload: if your wallet plus the chips you have at tables drop below 1,000, you can top back up to 100,000. It has a 3-hour cooldown.
+- An emergency reload: if your wallet plus the chips you have at tables drop below 1,000, you can top back up to 100,000. It has a 30-minute cooldown.
 - Leaderboard of saved accounts (guest accounts are left off); the #1 player gets a champion card and wears a crown at every table.
 
 **Achievements & Cosmetic Shop**
 - 23 achievements (bronze to platinum) for milestones such as hands played, pots won, all-in wins, premium hands and daily streaks. Each pays a one-time chip reward (500 to 50,000, about 142,500 in total). Progress only counts from launch; nothing is awarded retroactively. Unlocks pop up live, wherever the player is.
-- The **Cosmetic Shop** (the pill in the top bar) sells five avatar borders (5,000 to 250,000 chips; the top one, Mythic Inferno, is animated) and five backgrounds (3,000 to 120,000). Items are bought with play chips only, show at tables, in the lobby and on the leaderboard, and act as a chip sink.
-- To change achievements or shop items, edit `shared/achievements.ts` / `shared/cosmetics.ts` **and** the matching `insert` in `supabase/schema.sql`; a test fails if they drift apart.
+- The **Cosmetic Shop** (the pill in the top bar) has four tabs, each split into a Classic shelf and a High Roller shelf (1M and up):
+  - **Borders**: 18 avatar borders from 5,000 to 30,000,000 chips (Seraphim at the top).
+  - **Backgrounds**: 18 backgrounds from 3,000 to 30,000,000 (Genesis at the top).
+  - **Name styles**: 19 looks for your display name, from static Gold Leaf at 10,000 through old-school Wave, Flash and Rainbow Wave, up to Divine and Sovereign at 20M and 30M. Shown at tables, in chat, on the leaderboard and in every minigame list.
+  - **Stackd Club**: pure-status membership cards (Silver 1M, Gold 5M, Platinum 15M, Black 40M, Infinite 100M). The card's badge sits next to the player's name everywhere; the profile shows the full card with a member number (1 = first ever to buy that card).
+
+  Items are bought with play chips only and act as a chip sink. The art is all code (`src/components/cosmetics/*Art*.tsx`, `src/styles/flair.css`); see every item at `/dev/cosmetics?kind=frame|backdrop|name|club` in development.
+- **Profile cards**: click any player's avatar or name (tables, chat, leaderboard, minigames) for a pop-up with their look, net worth, collection value, leaderboard rank, club card and poker / blackjack stats (`public_profile()` in the schema). Players hidden from the leaderboard keep their net worth and rank private.
+- To change achievements or shop items, edit `shared/achievements.ts` / `shared/cosmetics.ts` **and** the matching `insert` in `supabase/schema.sql`; a test fails if they drift apart. Item ids are permanent once released (players own items by id).
 
 **Minigames** (the ☰ menu next to the game switch, or the lobby's Minigames panel)
 - **Crash**: shared rounds with an 8 second betting window, then the multiplier climbs as e^(0.08·t). Players cash out (or set an auto cash-out) before the crash. The crash point is drawn when the round opens with P(crash ≥ x) = 0.97/x, so every strategy pays back 97%.
@@ -208,7 +215,7 @@ November 1.
 
 ## Running it safely
 
-- **Contact email:** set `CONTACT_EMAIL` in `src/legal.ts` before promoting the site. The Terms and Privacy Policy show it for questions and data requests.
+- **Contact email:** `CONTACT_EMAIL` in `src/legal.ts` (saled.labs@gmail.com). The Terms and Privacy Policy show it for questions and data requests.
 - **Changing the Terms or Privacy Policy:** edit `src/pages/LegalPage.tsx`, update `LEGAL_UPDATED` in `src/legal.ts`, and bump `TERMS_VERSION` if players must agree again (everyone is asked once more on their next visit).
 - **Reviewing cheating flags:** in the Supabase SQL editor run `select * from public.abuse_report;`. Mark a flag handled with `update public.abuse_flags set resolved = true, note = '…' where id = …;`. To keep someone off the leaderboard, set `leaderboard_hidden = true` on their row in `profiles` (Table editor).
 - **Deleting an account for someone:** they can do it themselves (Profile → Delete account); you can also delete the user under Supabase → Authentication → Users, which removes all of their data.
@@ -216,7 +223,7 @@ November 1.
 
 ## Credits
 
-- Player portraits: the pixel-art pack in `assets/Avatar Portraits` (backgrounds removed into `public/portraits`). Check that the pack's licence allows use on a public website.
+- Player portraits: the pixel-art pack by [Barely Games](https://barely-games.itch.io/) on itch.io (`assets/Avatar Portraits`, backgrounds removed into `public/portraits`). It is credited in the site footer and the portrait picker (`PORTRAIT_CREDIT` in `src/legal.ts`).
 - Icons: [Phosphor Icons](https://phosphoricons.com) (MIT).
 - Reaction images and the champion's crown are [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) by Microsoft (MIT license, see `public/emoji/LICENSE.txt`), bundled so every player sees the same picture on any device.
 

@@ -35,14 +35,14 @@ beforeAll(async () => {
 }, 120_000);
 
 describe('emergency reload', () => {
-  it('tops a broke player up to 100,000, then waits 3 hours', async () => {
+  it('tops a broke player up to 100,000, then waits 30 minutes', async () => {
     await setChips(A, 300);
     const r = await rpc<{ ok: boolean; amount: number; chips: number }>(A, 'public.emergency_reload()');
     expect(r).toMatchObject({ ok: true, amount: 99700, chips: 100000 });
     await setChips(A, 0);
-    await db.query(`update public.profiles set last_reload_at = now() - interval '2 hours 50 minutes' where id = $1`, [A]);
+    await db.query(`update public.profiles set last_reload_at = now() - interval '25 minutes' where id = $1`, [A]);
     expect((await rpc<{ reason: string }>(A, 'public.emergency_reload()')).reason).toBe('cooldown');
-    await db.query(`update public.profiles set last_reload_at = now() - interval '3 hours 1 minute' where id = $1`, [A]);
+    await db.query(`update public.profiles set last_reload_at = now() - interval '31 minutes' where id = $1`, [A]);
     expect((await rpc<{ ok: boolean }>(A, 'public.emergency_reload()')).ok).toBe(true);
   });
 

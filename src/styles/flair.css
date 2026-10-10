@@ -1,0 +1,1014 @@
+/* =====================================================================
+   Player flair: name styles (Cosmetic Shop) and Stackd Club cards.
+   Names render as .pname > .nfx.name-* > .nfx__t (see components/flair).
+   Glows use filter: drop-shadow so they aren't cut off by the text box,
+   and auras sit in ::before (behind the text), sparkles in ::after (in front).
+   ===================================================================== */
+
+.pname {
+  min-width: 0;
+}
+
+.nfx {
+  position: relative;
+  display: inline-block;
+  vertical-align: bottom;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.nfx__t {
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+  /* Some containers fill their text with a gradient; a name style always paints its own. */
+  -webkit-text-fill-color: currentcolor;
+}
+
+.nfx__t > i {
+  display: inline-block;
+  font-style: normal;
+}
+
+/* Text filled with a gradient (set per style as --nfx-fill). */
+.nfx--fill .nfx__t,
+.nfx--fill-letters .nfx__t > i {
+  background: var(--nfx-fill);
+  background-size: var(--nfx-size, 100% 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* --------------------------------------------------------------- Common: static colour */
+
+.name-gold {
+  --nfx-fill: linear-gradient(180deg, #fff6cf 0%, #ffd766 42%, #d4931f 58%, #ffe9a6 100%);
+  filter: drop-shadow(0 1px 0 rgba(80, 48, 0, 0.7));
+}
+
+.name-glacier {
+  --nfx-fill: linear-gradient(180deg, #ffffff 0%, #c9f3ff 40%, #5cc6ff 62%, #dcf8ff 100%);
+  filter: drop-shadow(0 0 3px rgba(80, 200, 255, 0.45));
+}
+
+.name-ember {
+  --nfx-fill: linear-gradient(180deg, #fff2b8 0%, #ffb23a 35%, #ff5a1f 65%, #d1121b 100%);
+  filter: drop-shadow(0 0 4px rgba(255, 90, 20, 0.6));
+}
+
+.name-toxic .nfx__t {
+  color: #b9ff3d;
+}
+
+.name-toxic {
+  filter: drop-shadow(0 0 3px rgba(140, 255, 40, 0.85)) drop-shadow(0 0 8px rgba(70, 255, 0, 0.35));
+}
+
+/* --------------------------------------------------------------- Rare: old-school MMO */
+
+.name-neon .nfx__t {
+  color: #fff0fb;
+}
+
+.name-neon {
+  filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 3px #ff3fd1) drop-shadow(0 0 7px #d4009f);
+  animation: nfx-neon 4.5s linear infinite;
+}
+
+.name-wave .nfx__t {
+  color: #2fe3ff;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.7);
+}
+
+.name-wave .nfx__t > i,
+.name-rainbow .nfx__t > i,
+.name-sovereign .nfx__t > i {
+  animation: nfx-wave 1.15s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.11s);
+}
+
+.name-flash .nfx__t {
+  text-shadow: 1px 1px 0 #000;
+  animation: nfx-flash 0.9s steps(1) infinite;
+}
+
+/* --------------------------------------------------------------- Epic */
+
+.name-rainbow .nfx__t {
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.65);
+}
+
+.name-rainbow .nfx__t > i {
+  animation:
+    nfx-wave 1.15s ease-in-out infinite,
+    nfx-hue 2.2s linear infinite;
+  animation-delay: calc(var(--i) * -0.11s), calc(var(--i) * -0.13s);
+}
+
+.name-glitch .nfx__t {
+  color: #f2fbff;
+  text-shadow:
+    -0.06em 0 rgba(255, 0, 90, 0.85),
+    0.06em 0 rgba(0, 235, 255, 0.85);
+  animation: nfx-glitch 2.8s steps(1) infinite;
+}
+
+/* --------------------------------------------------------------- Legendary */
+
+.name-chrome {
+  --nfx-fill: linear-gradient(100deg, #8e98a5 0%, #eef2f7 16%, #5f6974 30%, #c7ced8 44%, #ffffff 50%, #c7ced8 56%, #6c7682 70%, #e3e8ef 84%, #8e98a5 100%);
+  --nfx-size: 300% 100%;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.55));
+}
+
+.name-chrome .nfx__t {
+  animation: nfx-pan 3.4s ease-in-out infinite alternate;
+}
+
+.name-vapor {
+  --nfx-fill: linear-gradient(90deg, #ff71ce, #b967ff, #01cdfe, #05ffa1, #b967ff, #ff71ce);
+  --nfx-size: 300% 100%;
+  filter: drop-shadow(0 0 3px rgba(255, 113, 206, 0.55)) drop-shadow(0 0 6px rgba(1, 205, 254, 0.3));
+}
+
+.name-vapor .nfx__t {
+  animation: nfx-pan 6s linear infinite alternate;
+}
+
+/* --------------------------------------------------------------- Mythic */
+
+.name-molten {
+  --nfx-fill: linear-gradient(90deg, #8a5a10, #ffcf4d 18%, #fff6cc 28%, #ffb51f 44%, #a8661a 58%, #ffe07a 76%, #8a5a10);
+  --nfx-size: 200% 100%;
+  filter: drop-shadow(0 0 2px rgba(255, 190, 50, 0.85)) drop-shadow(0 0 7px rgba(255, 140, 0, 0.45));
+}
+
+.name-molten .nfx__t {
+  animation: nfx-pan 2.4s linear infinite;
+}
+
+.name-hellfire {
+  --nfx-fill: linear-gradient(0deg, #fff3a0 0%, #ffc21a 28%, #ff7a00 52%, #ff3300 74%, #ffd23a 100%);
+  --nfx-size: 100% 220%;
+  filter: drop-shadow(0 1px 0 rgba(60, 0, 0, 0.9)) drop-shadow(0 -1px 3px rgba(255, 100, 0, 0.95)) drop-shadow(0 -3px 7px rgba(255, 40, 0, 0.5));
+  animation: nfx-fireglow 0.35s ease-in-out infinite alternate;
+}
+
+.name-hellfire .nfx__t {
+  animation: nfx-rise 0.9s linear infinite;
+}
+
+/* Flame tongues rising off the letters, blended over them so the name burns. */
+.name-hellfire::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 30%;
+  height: 1.05em;
+  background:
+    radial-gradient(ellipse 8% 100% at 6% 100%, rgba(255, 200, 60, 0.95), transparent 78%),
+    radial-gradient(ellipse 7% 120% at 20% 100%, rgba(255, 120, 0, 0.9), transparent 78%),
+    radial-gradient(ellipse 8% 95% at 35% 100%, rgba(255, 220, 80, 0.95), transparent 78%),
+    radial-gradient(ellipse 7% 125% at 50% 100%, rgba(255, 100, 0, 0.9), transparent 78%),
+    radial-gradient(ellipse 8% 100% at 65% 100%, rgba(255, 190, 40, 0.95), transparent 78%),
+    radial-gradient(ellipse 7% 115% at 80% 100%, rgba(255, 110, 0, 0.9), transparent 78%),
+    radial-gradient(ellipse 8% 95% at 94% 100%, rgba(255, 200, 60, 0.95), transparent 78%);
+  mix-blend-mode: screen;
+  transform-origin: 50% 100%;
+  filter: blur(0.6px);
+  animation: nfx-flames 0.45s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------- Exotic */
+
+.name-frostbite {
+  --nfx-fill: linear-gradient(100deg, #ffffff 0%, #c4f1ff 20%, #5fc9ff 35%, #ffffff 50%, #8adfff 65%, #e9fbff 80%, #ffffff 100%);
+  --nfx-size: 250% 100%;
+  filter: drop-shadow(0 0 2px rgba(150, 230, 255, 0.95)) drop-shadow(0 0 7px rgba(60, 160, 255, 0.5));
+}
+
+.name-frostbite .nfx__t {
+  animation: nfx-pan 4s ease-in-out infinite alternate;
+}
+
+.name-galaxy {
+  --nfx-fill:
+    radial-gradient(circle at 30% 40%, #fff 0 0.6px, transparent 1.1px) 0 0 / 11px 9px,
+    radial-gradient(circle at 70% 70%, #fff 0 0.5px, transparent 1px) 0 0 / 7px 12px,
+    linear-gradient(90deg, #8a5cff, #d68bff, #ff7ae0, #6fc4ff, #a46bff, #c79bff, #8a5cff) 0 0 / 300% 100%;
+  filter: drop-shadow(0 0 2px rgba(190, 120, 255, 0.95)) drop-shadow(0 0 7px rgba(80, 150, 255, 0.5));
+}
+
+.name-galaxy .nfx__t {
+  animation: nfx-galaxy 9s linear infinite;
+}
+
+/* Glints that twinkle over the letters (Molten, Frostbite, Galaxy, Divine). */
+.name-molten::after,
+.name-frostbite::after,
+.name-galaxy::after,
+.name-divine::after {
+  content: '';
+  position: absolute;
+  inset: -0.14em -0.08em;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 8% 28%, var(--glint, #fff) 0 0.05em, transparent 0.09em),
+    radial-gradient(circle at 34% 6%, var(--glint, #fff) 0 0.045em, transparent 0.08em),
+    radial-gradient(circle at 58% 88%, var(--glint, #fff) 0 0.05em, transparent 0.09em),
+    radial-gradient(circle at 81% 14%, var(--glint, #fff) 0 0.06em, transparent 0.1em),
+    radial-gradient(circle at 96% 70%, var(--glint, #fff) 0 0.045em, transparent 0.08em);
+  animation: nfx-glints 1.9s ease-in-out infinite;
+}
+
+.name-molten {
+  --glint: #fff6c8;
+}
+
+.name-frostbite {
+  --glint: #e6fbff;
+}
+
+/* --------------------------------------------------------------- Ascendant */
+
+.name-thunder .nfx__t {
+  color: #eaf6ff;
+}
+
+.name-thunder {
+  filter: drop-shadow(0 0 2px #7fd8ff) drop-shadow(0 0 6px #2a7bff);
+  animation: nfx-thunder 3.2s linear infinite;
+}
+
+/* A bolt of lightning that cracks across the name. */
+.name-thunder::after {
+  content: '';
+  position: absolute;
+  inset: 10% -4%;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20' preserveAspectRatio='none'%3E%3Cpolyline points='0,9 12,4 20,13 31,6 40,15 52,5 61,12 70,3 81,14 90,7 100,11' fill='none' stroke='%23ffffff' stroke-width='1.4'/%3E%3Cpolyline points='0,9 12,4 20,13 31,6 40,15 52,5 61,12 70,3 81,14 90,7 100,11' fill='none' stroke='%237fd8ff' stroke-width='3.5' stroke-opacity='.45'/%3E%3C/svg%3E")
+    center / 100% 100% no-repeat;
+  opacity: 0;
+  animation: nfx-bolt 3.2s linear infinite;
+}
+
+.name-holo {
+  --nfx-fill:
+    linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.95) 50%, transparent 62%) 0 0 / 300% 100%,
+    linear-gradient(115deg, #ff9ad5, #a58bff 18%, #7fe3ff 36%, #9fffcf 52%, #fff1a3 68%, #ffb0e0 84%, #ff9ad5) 0 0 / 250% 100%;
+  filter: drop-shadow(0 0 2px rgba(200, 170, 255, 0.85)) drop-shadow(0 0 6px rgba(127, 227, 255, 0.35));
+}
+
+.name-holo .nfx__t {
+  animation: nfx-holo 3.6s linear infinite;
+}
+
+/* --------------------------------------------------------------- Sovereign */
+
+.name-divine {
+  --nfx-fill: linear-gradient(180deg, #ffffff 0%, #fff8dc 38%, #ffd96b 72%, #ffb52e 100%);
+  --glint: #fffbe6;
+  animation: nfx-divine 2.6s ease-in-out infinite;
+}
+
+/* Turning rays of light behind the name, kept inside the name's own box so no container clips them. */
+.name-divine::before {
+  content: '';
+  position: absolute;
+  inset: -0.16em -0.28em;
+  background: repeating-conic-gradient(from var(--nfx-ray, 0deg), rgba(255, 232, 160, 0.6) 0 5deg, transparent 5deg 17deg);
+  -webkit-mask-image: radial-gradient(closest-side, #000 30%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 30%, transparent 100%);
+  animation: nfx-rays 9s linear infinite;
+  pointer-events: none;
+}
+
+@property --nfx-ray {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.name-sovereign {
+  filter: drop-shadow(0 1px 0 rgba(70, 35, 0, 0.9)) drop-shadow(0 0 4px rgba(255, 196, 60, 0.7));
+}
+
+.name-sovereign .nfx__t > i {
+  background:
+    linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.95) 50%, transparent 65%) 0 0 / 300% 100%,
+    linear-gradient(180deg, #fffbe6 0%, #ffe07a 35%, #f0a81c 60%, #a8620c 82%, #ffd25a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation:
+    nfx-wave 1.15s ease-in-out infinite,
+    nfx-glint-roll 2.6s linear infinite;
+  animation-delay: calc(var(--i) * -0.11s), calc(var(--i) * 0.07s);
+}
+
+.nfx-crown {
+  display: inline-block;
+  width: 1.05em;
+  height: 0.7em;
+  margin-right: 0.12em;
+  vertical-align: 0.02em;
+  filter: drop-shadow(0 0 2px rgba(255, 200, 60, 0.8));
+  animation: nfx-crown 2.4s ease-in-out infinite;
+}
+
+/* --------------------------------------------------------------- Keyframes */
+
+@keyframes nfx-wave {
+  0%,
+  100% {
+    transform: translateY(-0.11em);
+  }
+  50% {
+    transform: translateY(0.11em);
+  }
+}
+
+@keyframes nfx-hue {
+  0%,
+  100% {
+    color: #ff3b3b;
+  }
+  16% {
+    color: #ff9f1c;
+  }
+  33% {
+    color: #ffee32;
+  }
+  50% {
+    color: #3bff7a;
+  }
+  66% {
+    color: #2bd9ff;
+  }
+  83% {
+    color: #b06bff;
+  }
+}
+
+@keyframes nfx-flash {
+  0% {
+    color: #ff2b2b;
+  }
+  50% {
+    color: #ffee00;
+  }
+}
+
+@keyframes nfx-neon {
+  0%,
+  17%,
+  21%,
+  24%,
+  52%,
+  56%,
+  100% {
+    opacity: 1;
+  }
+  19%,
+  23%,
+  54% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes nfx-glitch {
+  0%,
+  100% {
+    transform: none;
+    clip-path: none;
+  }
+  7% {
+    transform: translateX(0.05em) skewX(-10deg);
+    text-shadow:
+      -0.14em 0 rgba(255, 0, 90, 0.9),
+      0.12em 0 rgba(0, 235, 255, 0.9);
+  }
+  9% {
+    transform: translateX(-0.06em);
+    clip-path: inset(0 0 52% 0);
+  }
+  11% {
+    transform: none;
+    clip-path: none;
+  }
+  58% {
+    transform: translateX(-0.04em);
+    clip-path: inset(48% 0 0 0);
+    text-shadow:
+      0.12em 0 rgba(255, 0, 90, 0.9),
+      -0.12em 0 rgba(0, 235, 255, 0.9);
+  }
+  60% {
+    transform: translateX(0.06em) skewX(8deg);
+    clip-path: none;
+  }
+  62% {
+    transform: none;
+  }
+}
+
+@keyframes nfx-pan {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes nfx-glint-roll {
+  0% {
+    background-position: 100% 0, 0 0;
+  }
+  45%,
+  100% {
+    background-position: -50% 0, 0 0;
+  }
+}
+
+@keyframes nfx-rise {
+  from {
+    background-position: 0 0%;
+  }
+  to {
+    background-position: 0 100%;
+  }
+}
+
+@keyframes nfx-fireglow {
+  from {
+    filter: drop-shadow(0 -1px 2px rgba(255, 100, 0, 0.95)) drop-shadow(0 -2px 5px rgba(255, 40, 0, 0.5));
+  }
+  to {
+    filter: drop-shadow(0 -1px 3px rgba(255, 150, 0, 1)) drop-shadow(0 -3px 8px rgba(255, 60, 0, 0.65));
+  }
+}
+
+@keyframes nfx-flames {
+  from {
+    transform: scaleY(0.75) skewX(-4deg);
+    opacity: 0.75;
+  }
+  to {
+    transform: scaleY(1.15) skewX(4deg);
+    opacity: 1;
+  }
+}
+
+@keyframes nfx-glints {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes nfx-galaxy {
+  from {
+    background-position: 0 0, 0 0, 0% 50%;
+  }
+  to {
+    background-position: 44px 18px, -28px 24px, 100% 50%;
+  }
+}
+
+@keyframes nfx-holo {
+  from {
+    background-position: 100% 0, 0% 50%;
+  }
+  to {
+    background-position: -50% 0, 100% 50%;
+  }
+}
+
+@keyframes nfx-thunder {
+  0%,
+  9%,
+  13%,
+  57%,
+  61%,
+  100% {
+    filter: drop-shadow(0 0 2px #7fd8ff) drop-shadow(0 0 6px #2a7bff);
+    transform: none;
+  }
+  10%,
+  12%,
+  58% {
+    filter: brightness(1.6) drop-shadow(0 0 3px #ffffff) drop-shadow(0 0 10px #4fb6ff);
+    transform: translateX(0.03em);
+  }
+  11%,
+  59% {
+    transform: translateX(-0.03em);
+  }
+}
+
+@keyframes nfx-bolt {
+  0%,
+  9%,
+  14%,
+  56%,
+  62%,
+  100% {
+    opacity: 0;
+  }
+  10%,
+  12% {
+    opacity: 1;
+  }
+  11% {
+    opacity: 0.3;
+  }
+  58%,
+  60% {
+    opacity: 0.9;
+    transform: scaleY(-1);
+  }
+}
+
+@keyframes nfx-divine {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(255, 240, 190, 0.95)) drop-shadow(0 0 6px rgba(255, 200, 80, 0.55));
+  }
+  50% {
+    filter: drop-shadow(0 0 3px rgba(255, 250, 220, 1)) drop-shadow(0 0 12px rgba(255, 210, 100, 0.85));
+  }
+}
+
+@keyframes nfx-rays {
+  to {
+    --nfx-ray: 360deg;
+  }
+}
+
+@keyframes nfx-crown {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-6deg);
+  }
+  50% {
+    transform: translateY(-0.06em) rotate(-2deg);
+  }
+}
+
+/* =====================================================================
+   Stackd Club
+   ===================================================================== */
+
+.club-badge {
+  display: inline-block;
+  flex: none;
+  width: 1.45em;
+  height: 0.97em;
+  margin-left: 0.32em;
+  vertical-align: -0.1em;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.45));
+  overflow: hidden;
+  border-radius: 0.14em;
+}
+
+.club-badge.club-infinite {
+  filter: drop-shadow(0 0 3px rgba(185, 140, 255, 0.9)) drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.45));
+}
+
+.club-badge.club-black {
+  filter: drop-shadow(0 0 2px rgba(233, 197, 107, 0.55)) drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.45));
+}
+
+.club-sheen {
+  animation: club-sheen 3.8s ease-in-out infinite;
+}
+
+.club-prism {
+  animation: club-prism 3s ease-in-out infinite alternate;
+}
+
+@keyframes club-sheen {
+  0%,
+  55% {
+    transform: translateX(0) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(52px) skewX(-20deg);
+  }
+}
+
+@keyframes club-prism {
+  0% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0.75;
+  }
+}
+
+/* The full card */
+
+.club-card {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  aspect-ratio: 340 / 214;
+  perspective: 900px;
+}
+
+.club-card__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 4.7% / 7.5%;
+  overflow: hidden;
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.45),
+    0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.club-card.is-tilting .club-card__inner {
+  transition: transform 0.08s linear;
+}
+
+.club-card__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.club-card__shine {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.5), transparent 46%);
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+.club-card__glare {
+  position: absolute;
+  inset: -40% -60%;
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.32) 50%, transparent 58%);
+  mix-blend-mode: overlay;
+  animation: club-glare 5.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.club-black .club-card__glare {
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 220, 140, 0.35) 50%, transparent 58%);
+  mix-blend-mode: screen;
+}
+
+.club-infinite .club-card__shine {
+  background:
+    radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.45), transparent 40%),
+    linear-gradient(calc(110deg + var(--ry, 0deg) * 6), #ff4fd8, #7a5cff, #3fd7ff, #5dffb0, #ffe45c, #ff6a3d, #ff4fd8);
+  background-size:
+    100% 100%,
+    300% 300%;
+  mix-blend-mode: color-dodge;
+  opacity: 0.32;
+  animation: club-foil 6s linear infinite;
+}
+
+.club-infinite .club-card__inner {
+  box-shadow:
+    0 0 26px rgba(160, 110, 255, 0.45),
+    0 18px 40px rgba(0, 0, 0, 0.5);
+}
+
+.club-card__star {
+  animation: club-star 2.6s ease-in-out infinite;
+}
+
+@keyframes club-glare {
+  0%,
+  40% {
+    transform: translateX(-45%);
+  }
+  100% {
+    transform: translateX(45%);
+  }
+}
+
+@keyframes club-foil {
+  from {
+    background-position:
+      0 0,
+      0% 0%;
+  }
+  to {
+    background-position:
+      0 0,
+      100% 100%;
+  }
+}
+
+@keyframes club-star {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nfx,
+  .nfx *,
+  .nfx::before,
+  .nfx::after,
+  .club-badge *,
+  .club-card *,
+  .club-card__inner {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* =====================================================================
+   Profile card pop-up (click any player)
+   ===================================================================== */
+
+.pv-modal {
+  width: min(480px, calc(100vw - 24px));
+}
+
+.pv-loading {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+}
+
+.pv {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pv-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  background:
+    radial-gradient(ellipse 70% 90% at 10% 50%, color-mix(in srgb, var(--c, #f5c451) 22%, transparent), transparent 70%),
+    rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+}
+
+.pv-head .avatar {
+  flex: none;
+  margin: 8px;
+}
+
+.pv-head__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pv-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0.2em 0;
+}
+
+.pv-head__text p {
+  margin: 0;
+}
+
+.pv-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.pv-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+}
+
+.pv-pill.is-top {
+  color: var(--gold-2);
+  border-color: rgba(245, 196, 81, 0.4);
+  background: rgba(245, 196, 81, 0.1);
+}
+
+.pv-wealth {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 10px;
+}
+
+.pv-wealth__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+}
+
+.pv-wealth__item small {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.pv-wealth__item strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+}
+
+.pv-wealth__item span {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+}
+
+.pv-wealth__item--main {
+  background:
+    radial-gradient(ellipse 80% 100% at 0% 0%, rgba(245, 196, 81, 0.16), transparent 70%),
+    rgba(255, 255, 255, 0.04);
+  border-color: rgba(245, 196, 81, 0.3);
+}
+
+.pv-wealth__item--main strong {
+  font-size: 1.5rem;
+  color: var(--gold-2);
+}
+
+.pv-club {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.pv-gear {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.pv-gear li {
+  --tier: #8a93a8;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid color-mix(in srgb, var(--tier) 35%, transparent);
+}
+
+.pv-gear small {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.pv-gear strong {
+  font-size: 0.88rem;
+}
+
+.pv-gear span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--tier);
+}
+
+.pv-gear .tier-2 { --tier: #4dd4ff; }
+.pv-gear .tier-3 { --tier: #b06bff; }
+.pv-gear .tier-4 { --tier: #ffb347; }
+.pv-gear .tier-5 { --tier: #ff4d6d; }
+.pv-gear .tier-6 { --tier: #3ef0d0; }
+.pv-gear .tier-7 { --tier: #ff6bd5; }
+.pv-gear .tier-8 { --tier: #ffd24d; }
+
+.pv-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pv-stats section {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+}
+
+.pv-stats h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+
+.pv-stats h4 .game-pill__cards {
+  transform: scale(0.78);
+  margin-left: -4px;
+}
+
+.pv-stats dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px 8px;
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.pv-stats dt {
+  color: var(--text-dim);
+}
+
+.pv-stats dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+}
+
+.pv-stats dd.is-up {
+  color: var(--mint);
+}
+
+.pv-stats dd.is-down {
+  color: #ff7a7a;
+}
+
+@media (max-width: 420px) {
+  .pv-head {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .pv-pills {
+    justify-content: center;
+  }
+
+  .pv-wealth,
+  .pv-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Anything that opens a profile card when clicked. */
+.is-profile-link {
+  cursor: pointer;
+}
+
+.is-profile-link:hover .pname,
+.is-profile-link:focus-visible .pname {
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.35);
+  text-underline-offset: 3px;
+}

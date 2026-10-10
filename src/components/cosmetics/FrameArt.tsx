@@ -7,6 +7,7 @@
  */
 import { useId, type CSSProperties, type ReactNode } from 'react';
 import { arc, mix, polygon, pt, range, seeded, sparkle } from './geometry';
+import { HIGH_FRAME_ART } from './FrameArtHigh';
 
 type Art = (u: string) => ReactNode;
 
@@ -533,6 +534,7 @@ const FRAME_ART: Record<string, Art> = {
   'frame-prism': holoPrism,
   'frame-mythic': inferno,
   'frame-celestial': celestial,
+  ...HIGH_FRAME_ART,
 };
 
 export function FrameArt({ id }: { id: string }) {

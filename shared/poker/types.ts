@@ -72,6 +72,8 @@ export interface Seat {
   /** Equipped Cosmetic Shop items (see shared/cosmetics). */
   frame?: string | null;
   backdrop?: string | null;
+  nameFx?: string | null;
+  club?: string | null;
   /** Put chips in voluntarily before the flop this hand (VPIP). */
   vpip?: boolean;
   /** Bet or raised before the flop this hand (PFR). */
@@ -85,6 +87,8 @@ export interface SeatReservation {
   color: string;
   frame?: string | null;
   backdrop?: string | null;
+  nameFx?: string | null;
+  club?: string | null;
   /** Already taken from the player's wallet. */
   buyIn: number;
 }

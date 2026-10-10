@@ -2130,8 +2130,66 @@
 /* Four compact "current choice" boxes that open pickers. */
 .pickers {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+}
+
+.picker__glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 1rem;
+  color: var(--text-dim);
+}
+
+.picker__glyph .club-badge {
+  margin: 0;
+  font-size: 18px;
+}
+
+.profile-club {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.pill-stat--link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--text-dim);
+}
+
+.pill-stat--link:hover {
+  color: var(--text);
+}
+
+.owned-grid--names {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.owned-pick--name {
+  min-height: 82px;
+}
+
+.owned-pick__name {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.1rem;
+  padding: 0.2em 0;
 }
 
 .picker {
@@ -3070,20 +3128,156 @@
   font-size: 0.95rem;
 }
 
-/* Ten items, two per rarity: five across on wide screens, rarity pairs on narrow ones. */
+/* Items are grouped by rarity; each group fills the row. */
+.shop-tier {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shop-tier__head {
+  --tier: #8a93a8;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tier);
+}
+
+.shop-tier__head::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  align-self: center;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tier) 45%, transparent), transparent);
+}
+
+.shop-tier__head em {
+  font-style: normal;
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+.shop-tier--high .shop-tier__head {
+  --tier: #ffd24d;
+}
+
 .shop-grid {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(188px, 1fr));
   gap: 12px;
 }
 
-@media (max-width: 900px) {
+.shop-grid--names {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.shop-grid--club {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+@media (max-width: 560px) {
   .shop-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .shop-grid--names,
+  .shop-grid--club {
+    grid-template-columns: 1fr;
+  }
+}
+
+.shop__blurb {
+  margin: -4px 0 0;
+}
+
+.shop__tab-short {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .shop__tab-full {
+    display: none;
+  }
+
+  .shop__tab-short {
+    display: inline;
+  }
+}
+
+.shop__tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.shop__tab--club {
+  color: #ffd24d;
+}
+
+.shop-default__name {
+  font-weight: 800;
+  font-size: 0.95rem;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Name style previews: your own name, big, on a dark plate. */
+.shop-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 84px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.shop-name .avatar {
+  flex: none;
+}
+
+.shop-name__big {
+  min-width: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.45rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0.25em 0.1em;
+}
+
+.shop-item--name .shop-item__look,
+.shop-item--club .shop-item__look {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.shop-item__members {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 4px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-dim);
 }
 
 .shop-item {
@@ -3126,6 +3320,42 @@
   --tier: #ff4d6d;
   border-color: rgba(255, 77, 109, 0.35);
   box-shadow: 0 0 30px rgba(255, 77, 109, 0.12);
+}
+
+.shop-item.tier-6 {
+  --tier: #3ef0d0;
+  border-color: rgba(62, 240, 208, 0.3);
+  box-shadow: 0 0 28px rgba(62, 240, 208, 0.1);
+}
+
+.shop-item.tier-7 {
+  --tier: #ff6bd5;
+  border-color: rgba(255, 107, 213, 0.4);
+  box-shadow: 0 0 34px rgba(255, 107, 213, 0.16);
+}
+
+/* Sovereign: a slowly turning gold edge. */
+.shop-item.tier-8 {
+  --tier: #ffd24d;
+  border: 1px solid transparent;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255, 210, 77, 0.2), transparent 70%) padding-box,
+    linear-gradient(180deg, rgba(30, 26, 18, 0.92), rgba(14, 12, 10, 0.95)) padding-box,
+    conic-gradient(from var(--shop-angle, 0deg), #ffd24d, #fff6cf, #b5780f, #ff9a1a, #ffd24d) border-box;
+  box-shadow: 0 0 40px rgba(255, 200, 60, 0.22);
+  animation: shop-edge 6s linear infinite;
+}
+
+@property --shop-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes shop-edge {
+  to {
+    --shop-angle: 360deg;
+  }
 }
 
 .shop-item.is-equipped {
@@ -3250,6 +3480,20 @@
 .legal-footer__links {
   display: inline-flex;
   gap: 12px;
+}
+
+.legal-footer__credit {
+  flex-basis: 100%;
+  font-size: 0.72rem;
+}
+
+.portrait-credit {
+  margin: 10px 0 0;
+  text-align: center;
+}
+
+.portrait-credit a {
+  color: var(--gold);
 }
 
 .legal-footer a {

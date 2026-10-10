@@ -12,6 +12,9 @@ export const LEGAL_UPDATED = 'October 7, 2026';
  * promoting the site; until then the pages point players to in-app account
  * deletion and leave the contact line out.
  */
-export const CONTACT_EMAIL = '';
+export const CONTACT_EMAIL = 'saled.labs@gmail.com';
 
 export const MIN_AGE = 18;
+
+/** Player portraits: the pixel-art pack by Barely Games on itch.io (credited in the footer and the portrait picker). */
+export const PORTRAIT_CREDIT = { by: 'Barely Games', url: 'https://barely-games.itch.io/' } as const;

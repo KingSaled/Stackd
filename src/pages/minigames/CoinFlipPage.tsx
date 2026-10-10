@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import clsx from 'clsx';
+import { PlayerName } from '../../components/flair/PlayerName';
+import { profileLink } from '../../store/profileViewer';
 import { MinigameShell, BetInput } from '../../components/minigames/MinigameShell';
 import { Avatar } from '../../components/Avatar';
 import { supabase } from '../../lib/supabase';
@@ -22,6 +24,8 @@ interface Flip {
   creator_avatar: string;
   creator_color: string;
   creator_frame: string | null;
+  creator_name_fx?: string | null;
+  creator_club?: string | null;
   stake: number;
   status: 'open' | 'flipped' | 'cancelled';
   challenger: string | null;
@@ -29,6 +33,8 @@ interface Flip {
   challenger_avatar: string | null;
   challenger_color: string | null;
   challenger_frame: string | null;
+  challenger_name_fx?: string | null;
+  challenger_club?: string | null;
   challenger_side: Side | null;
   result: Side | null;
   winner: string | null;
@@ -149,7 +155,13 @@ function FlipShow({ flip, me, onDone }: { flip: Flip; me: string; onDone: () => 
           frame={isC ? flip.creator_frame : flip.challenger_frame}
           size={64}
         />
-        <strong>{id === me ? 'You' : isC ? flip.creator_name : flip.challenger_name}</strong>
+        <strong>
+          <PlayerName
+            name={(id === me ? 'You' : isC ? flip.creator_name : flip.challenger_name) ?? ''}
+            fx={isC ? flip.creator_name_fx : flip.challenger_name_fx}
+            club={isC ? flip.creator_club : flip.challenger_club}
+          />
+        </strong>
         <span className={clsx('flip-side', `flip-side--${side}`)}>
           <SideIcon side={side} /> {side === 'heads' ? 'Heads' : 'Tails'}
         </span>
@@ -369,9 +381,13 @@ export function CoinFlipPage() {
                       const short = wallet < f.stake;
                       return (
                         <motion.li key={f.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className={clsx('cf-lobby', mine && 'is-mine')}>
-                          <Avatar avatar={f.creator_avatar} color={f.creator_color} frame={f.creator_frame} size={42} />
+                          <span className="is-profile-link" {...profileLink(f.creator)}>
+                            <Avatar avatar={f.creator_avatar} color={f.creator_color} frame={f.creator_frame} size={42} />
+                          </span>
                           <span className="cf-lobby__who">
-                            <strong>{mine ? 'Your lobby' : f.creator_name}</strong>
+                            <strong className={mine ? undefined : 'is-profile-link'} {...(mine ? {} : profileLink(f.creator))}>
+                              {mine ? 'Your lobby' : <PlayerName name={f.creator_name} fx={f.creator_name_fx} club={f.creator_club} />}
+                            </strong>
                             <small>{timeAgo(f.created_at)}</small>
                           </span>
                           <span className="cf-lobby__stake">
@@ -427,7 +443,13 @@ export function CoinFlipPage() {
                           <SideIcon side={f.result!} />
                         </span>
                         <span className="cf-recent__who">
-                          <strong>{creatorWon ? f.creator_name : f.challenger_name}</strong>
+                          <strong className="is-profile-link" {...profileLink(creatorWon ? f.creator : f.challenger)}>
+                            <PlayerName
+                              name={(creatorWon ? f.creator_name : f.challenger_name) ?? ''}
+                              fx={creatorWon ? f.creator_name_fx : f.challenger_name_fx}
+                              club={creatorWon ? f.creator_club : f.challenger_club}
+                            />
+                          </strong>
                           <small>beat {creatorWon ? f.challenger_name : f.creator_name}</small>
                         </span>
                         <b>+{chipsShort(f.stake)}</b>

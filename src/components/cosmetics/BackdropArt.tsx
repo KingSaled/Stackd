@@ -6,6 +6,7 @@
  */
 import { useId, type CSSProperties, type ReactNode } from 'react';
 import { pt, range, seeded, sparkle } from './geometry';
+import { HIGH_BACKDROP_ART } from './BackdropArtHigh';
 
 type Art = (u: string) => ReactNode;
 
@@ -601,6 +602,7 @@ const BACKDROP_ART: Record<string, Art> = {
   'bg-jackpot': jackpot,
   'bg-galaxy': galaxy,
   'bg-aurora': auroraPeaks,
+  ...HIGH_BACKDROP_ART,
 };
 
 export function BackdropArt({ id }: { id: string }) {

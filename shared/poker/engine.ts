@@ -65,6 +65,8 @@ export interface PlayerIdentity {
   color: string;
   frame?: string | null;
   backdrop?: string | null;
+  nameFx?: string | null;
+  club?: string | null;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -321,6 +323,8 @@ function newSeat(player: PlayerIdentity, stack: number, now: number, isBot = fal
     color: player.color,
     ...(player.frame ? { frame: player.frame } : {}),
     ...(player.backdrop ? { backdrop: player.backdrop } : {}),
+    ...(player.nameFx ? { nameFx: player.nameFx } : {}),
+    ...(player.club ? { club: player.club } : {}),
     stack,
     bet: 0,
     committed: 0,
@@ -416,6 +420,8 @@ export function sitDown(
         color: player.color,
         frame: player.frame ?? null,
         backdrop: player.backdrop ?? null,
+        nameFx: player.nameFx ?? null,
+        club: player.club ?? null,
         buyIn,
       };
       walletDelta(fx, player.userId, -buyIn);
@@ -538,12 +544,16 @@ export function updateIdentity(s: EngineState, player: PlayerIdentity): boolean 
   const seat = seatAt(s, i);
   const frame = player.frame ?? null;
   const backdrop = player.backdrop ?? null;
+  const nameFx = player.nameFx ?? null;
+  const club = player.club ?? null;
   if (
     seat.name === player.name &&
     seat.avatar === player.avatar &&
     seat.color === player.color &&
     (seat.frame ?? null) === frame &&
-    (seat.backdrop ?? null) === backdrop
+    (seat.backdrop ?? null) === backdrop &&
+    (seat.nameFx ?? null) === nameFx &&
+    (seat.club ?? null) === club
   )
     return false;
   seat.name = player.name;
@@ -551,6 +561,8 @@ export function updateIdentity(s: EngineState, player: PlayerIdentity): boolean 
   seat.color = player.color;
   seat.frame = frame;
   seat.backdrop = backdrop;
+  seat.nameFx = nameFx;
+  seat.club = club;
   return true;
 }
 

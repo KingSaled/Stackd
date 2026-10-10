@@ -12,7 +12,7 @@ export const ECONOMY = {
   reloadThreshold: 1_000,
   /** An emergency reload tops the player's total back up to this amount. */
   reloadTarget: 100_000,
-  reloadCooldownMinutes: 180,
+  reloadCooldownMinutes: 30,
 };
 
 export function dailyBonusFor(streak: number): number {

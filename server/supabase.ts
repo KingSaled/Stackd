@@ -160,6 +160,8 @@ export class SupabaseRepo implements Repo {
       chips: Number(data.chips),
       frame: data.frame ?? null,
       backdrop: data.backdrop ?? null,
+      name_fx: data.name_fx ?? null,
+      club: data.club ?? null,
       ...('terms_version' in data ? { terms_version: data.terms_version ?? null } : {}),
     };
   }

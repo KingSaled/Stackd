@@ -37,6 +37,8 @@ export interface BjSeat {
   color: string;
   frame?: string | null;
   backdrop?: string | null;
+  nameFx?: string | null;
+  club?: string | null;
   /** Bet placed for the next deal (already taken from the wallet). */
   bet: number;
   /** Last bet the player made, for one-tap rebets. */

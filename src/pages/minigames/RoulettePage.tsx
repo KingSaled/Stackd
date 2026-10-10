@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { animate, AnimatePresence, motion, useMotionValue } from 'framer-motion';
 import clsx from 'clsx';
+import { PlayerName } from '../../components/flair/PlayerName';
+import { profileLink } from '../../store/profileViewer';
 import { MinigameShell, BetInput } from '../../components/minigames/MinigameShell';
 import { Avatar } from '../../components/Avatar';
 import { supabase } from '../../lib/supabase';
@@ -19,6 +21,8 @@ interface Bet {
   display_name: string;
   avatar: string;
   color: string;
+  name_fx?: string | null;
+  club?: string | null;
   bet_color: Color;
   amount: number;
   payout: number | null;
@@ -337,9 +341,15 @@ export function RoulettePage() {
                 ) : (
                   <ul>
                     {byColor[c].slice(0, 8).map((b) => (
-                      <li key={b.user_id} className={clsx(b.user_id === me && 'is-me', b.payout != null && (b.payout > 0 ? 'is-won' : 'is-lost'))}>
+                      <li
+                        key={b.user_id}
+                        className={clsx('is-profile-link', b.user_id === me && 'is-me', b.payout != null && (b.payout > 0 ? 'is-won' : 'is-lost'))}
+                        {...profileLink(b.user_id)}
+                      >
                         <Avatar avatar={b.avatar} color={b.color} size={24} />
-                        <span>{b.user_id === me ? 'You' : b.display_name}</span>
+                        <span>
+                          <PlayerName name={b.user_id === me ? 'You' : b.display_name} fx={b.name_fx} club={b.club} />
+                        </span>
                         <b>{b.payout != null && b.payout > 0 && landed != null ? `+${chipsShort(b.payout)}` : chipsShort(b.amount)}</b>
                       </li>
                     ))}

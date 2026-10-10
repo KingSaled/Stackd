@@ -28,6 +28,8 @@ export interface Profile {
   /** Equipped Cosmetic Shop items. */
   frame?: string | null;
   backdrop?: string | null;
+  name_fx?: string | null;
+  club?: string | null;
 }
 
 interface AuthState {

@@ -30,6 +30,9 @@ export interface ChatMessage {
   name: string;
   avatar: string;
   color: string;
+  /** Name style and Stackd Club card when sent (null on older messages). */
+  name_fx?: string | null;
+  club?: string | null;
   kind: 'chat' | 'reaction';
   body: string;
   created_at: string;

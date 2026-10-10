@@ -4,6 +4,8 @@ import clsx from 'clsx';
 import {
   CaretDownIcon,
   CheckIcon,
+  CrownSimpleIcon,
+  EyeIcon,
   FloppyDiskIcon,
   PencilSimpleIcon,
   ShieldCheckIcon,
@@ -22,8 +24,12 @@ import { deleteAccount } from '../lib/api';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toast';
 import { COLORS } from '../../shared/economy';
+import { PORTRAIT_CREDIT } from '../legal';
 import { PORTRAITS, portraitOf } from '../../shared/portraits';
-import { BACKDROPS, FRAMES, cosmeticById, type CosmeticKind } from '../../shared/cosmetics';
+import { BACKDROPS, CLUB_CARDS, FRAMES, NAME_STYLES, cosmeticById, type CosmeticKind } from '../../shared/cosmetics';
+import { PlayerName } from '../components/flair/PlayerName';
+import { ClubBadge, ClubCard } from '../components/flair/ClubCard';
+import { openProfile } from '../store/profileViewer';
 import { ACHIEVEMENTS } from '../../shared/achievements';
 import { chips, chipsShort } from '../lib/format';
 import { sound } from '../lib/sound';
@@ -70,6 +76,8 @@ export function ProfilePage() {
   const [tracked, setTracked] = useState<Tracked | null>(null);
   const [unlocked, setUnlocked] = useState<Map<string, string>>(new Map());
   const [owned, setOwned] = useState<Set<string>>(new Set());
+  const [boughtAt, setBoughtAt] = useState<Map<string, string>>(new Map());
+  const [clubNo, setClubNo] = useState<Record<string, number>>({});
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [upgrading, setUpgrading] = useState(false);
@@ -89,11 +97,15 @@ export function ProfilePage() {
     const [s, a, c] = await Promise.all([
       supabase.from('player_stats').select('counters, since').eq('user_id', profile.id).maybeSingle(),
       supabase.from('player_achievements').select('achievement_id, unlocked_at').eq('user_id', profile.id),
-      supabase.from('player_cosmetics').select('cosmetic_id'),
+      supabase.from('player_cosmetics').select('cosmetic_id, bought_at'),
     ]);
+    void supabase.rpc('club_stats').then(({ data, error }) => {
+      if (!error && data) setClubNo(((data as { mine?: Record<string, number> }).mine ?? {}) as Record<string, number>);
+    });
     setTracked(s.data ? { counters: (s.data.counters ?? {}) as Record<string, number>, since: s.data.since as string } : null);
     setUnlocked(new Map((a.data ?? []).map((r) => [r.achievement_id as string, r.unlocked_at as string])));
     setOwned(new Set((c.data ?? []).map((r) => r.cosmetic_id as string)));
+    setBoughtAt(new Map((c.data ?? []).map((r) => [r.cosmetic_id as string, (r as { bought_at?: string }).bought_at ?? ''])));
   }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -151,8 +163,8 @@ export function ProfilePage() {
   const equip = async (kind: CosmeticKind, id: string | null) => {
     const { data, error } = await supabase.rpc('equip_cosmetic', { p_kind: kind, p_id: id });
     if (error) return toast.error(error.message);
-    const r = data as { frame: string | null; backdrop: string | null };
-    patchProfile({ frame: r.frame, backdrop: r.backdrop });
+    const r = data as { frame: string | null; backdrop: string | null; name_fx?: string | null; club?: string | null };
+    patchProfile({ frame: r.frame, backdrop: r.backdrop, name_fx: r.name_fx ?? null, club: r.club ?? null });
     sound.play('click');
     setPicker(null);
   };
@@ -247,6 +259,9 @@ export function ProfilePage() {
                 {new Date(profile.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
               </p>
               <p className="profile-head__badges">
+                <button type="button" className="pill-stat pill-stat--link" onClick={() => openProfile(profile.id)}>
+                  <EyeIcon size={13} weight="bold" /> See your profile card
+                </button>
                 <span className="pill-stat">
                   <strong>{chipsShort(profile.chips)}</strong> chips
                 </span>
@@ -299,7 +314,33 @@ export function ProfilePage() {
               </span>
               <CaretDownIcon size={14} />
             </button>
+            <button className="picker" onClick={() => setPicker('name')}>
+              <span className="picker__glyph" aria-hidden>
+                <PlayerName name="Aa" fx={profile.name_fx} color={color} badge={false} />
+              </span>
+              <span className="picker__text">
+                <small>Name style</small>
+                <strong>{cosmeticById(profile.name_fx)?.name ?? 'Plain'}</strong>
+              </span>
+              <CaretDownIcon size={14} />
+            </button>
+            <button className="picker" onClick={() => setPicker('club')}>
+              <span className="picker__glyph" aria-hidden>
+                {profile.club ? <ClubBadge id={profile.club} /> : <CrownSimpleIcon size={18} />}
+              </span>
+              <span className="picker__text">
+                <small>Club card</small>
+                <strong>{cosmeticById(profile.club)?.name ?? 'None'}</strong>
+              </span>
+              <CaretDownIcon size={14} />
+            </button>
           </div>
+
+          {profile.club && (
+            <div className="profile-club">
+              <ClubCard id={profile.club} holder={profile.display_name} number={clubNo[profile.club] ?? null} since={boughtAt.get(profile.club) ?? null} />
+            </div>
+          )}
 
           {dirty && (
             <div className="profile-head__save">
@@ -508,6 +549,13 @@ export function ProfilePage() {
             </button>
           ))}
         </div>
+        <p className="portrait-credit muted small">
+          Pixel portraits by{' '}
+          <a href={PORTRAIT_CREDIT.url} target="_blank" rel="noopener noreferrer">
+            {PORTRAIT_CREDIT.by}
+          </a>{' '}
+          on itch.io
+        </p>
         <button className="btn btn--gold btn--block picker-done" onClick={() => setPicker(null)}>
           Done
         </button>
@@ -562,6 +610,41 @@ export function ProfilePage() {
             })}
           </div>
           <Link href="/shop" className="btn btn--gold btn--block picker-done">
+            <StorefrontIcon size={16} weight="fill" /> Visit the Cosmetic Shop
+          </Link>
+        </Modal>
+      )}
+
+      {(picker === 'name' || picker === 'club') && (
+        <Modal open onClose={() => setPicker(null)} title={picker === 'name' ? 'Your name styles' : 'Your Stackd Club cards'}>
+          <div className="owned-grid owned-grid--names">
+            {[null, ...(picker === 'name' ? NAME_STYLES : CLUB_CARDS)].map((item) => {
+              const id = item?.id ?? null;
+              const has = !item || owned.has(item.id);
+              const cur = picker === 'name' ? profile.name_fx : profile.club;
+              const on = (cur ?? null) === id;
+              return (
+                <button
+                  key={id ?? 'default'}
+                  className={clsx('owned-pick owned-pick--name', on && 'is-on', !has && 'is-locked')}
+                  disabled={!has}
+                  onClick={() => equip(picker, id)}
+                >
+                  <span className="owned-pick__name">
+                    <PlayerName
+                      name={profile.display_name}
+                      fx={picker === 'name' ? id : profile.name_fx}
+                      club={picker === 'club' ? id : profile.club}
+                      color={color}
+                    />
+                  </span>
+                  <span>{item?.name ?? (picker === 'name' ? 'Plain' : 'No card')}</span>
+                  {!has && <small>{chipsShort(item!.price)}</small>}
+                </button>
+              );
+            })}
+          </div>
+          <Link href={`/shop?tab=${picker}`} className="btn btn--gold btn--block picker-done">
             <StorefrontIcon size={16} weight="fill" /> Visit the Cosmetic Shop
           </Link>
         </Modal>

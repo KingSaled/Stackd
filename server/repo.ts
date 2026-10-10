@@ -35,6 +35,8 @@ export interface ProfileInfo {
   chips: number;
   frame?: string | null;
   backdrop?: string | null;
+  name_fx?: string | null;
+  club?: string | null;
   /** Undefined when the database predates terms tracking; null when not yet accepted. */
   terms_version?: string | null;
 }

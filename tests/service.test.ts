@@ -7,6 +7,7 @@ import type { PGlite } from '@electric-sql/pglite';
 import { createDb } from './pglite';
 import { GameError, VersionConflict } from '../server/errors';
 import type { CatalogRows, CommitPayload, CreateTableInput, ProfileInfo, Repo, StoredTable } from '../server/repo';
+import { COSMETICS } from '../shared/cosmetics';
 import { syncCatalog } from '../server/catalog';
 import { createRoom, deleteAccount, runJanitor, tableOp, JANITOR } from '../server/service';
 import { blackjackOp, createBlackjackRoom } from '../server/blackjack';
@@ -79,7 +80,7 @@ class PgliteRepo implements Repo {
   }
   async getProfile(userId: string): Promise<ProfileInfo | null> {
     const r = await this.db.query<ProfileInfo>(
-      'select id, display_name, avatar, color, chips, frame, backdrop, terms_version from public.profiles where id = $1',
+      'select id, display_name, avatar, color, chips, frame, backdrop, name_fx, club, terms_version from public.profiles where id = $1',
       [userId],
     );
     return r.rows[0] ? { ...r.rows[0], chips: Number(r.rows[0].chips) } : null;
@@ -330,10 +331,10 @@ describe('table service (with real SQL)', () => {
   });
 
   it('carries equipped cosmetics onto the seat', async () => {
-    await db.query(`update public.profiles set frame = 'frame-gold', backdrop = 'bg-galaxy' where id = $1`, [C]);
+    await db.query(`update public.profiles set frame = 'frame-gold', backdrop = 'bg-galaxy', name_fx = 'name-rainbow', club = 'club-gold' where id = $1`, [C]);
     const { roomId } = await createRoom(repo, C, { config: { bigBlind: 10 } }, opts);
     const r = await tableOp(repo, C, roomId, { type: 'sit', seat: 0, buyIn: 500 }, opts);
-    expect(r.state!.seats[0]).toMatchObject({ frame: 'frame-gold', backdrop: 'bg-galaxy' });
+    expect(r.state!.seats[0]).toMatchObject({ frame: 'frame-gold', backdrop: 'bg-galaxy', nameFx: 'name-rainbow', club: 'club-gold' });
   });
 
   it('deletes an account: leaves the tables, then removes the profile and its data', async () => {
@@ -473,7 +474,7 @@ describe('shop catalog sync', () => {
     expect((await buyAs(C, 'bg-storm')).reason).toBe('not_found');
 
     const r = await syncCatalog(repo);
-    expect(r.cosmetics).toBe(20);
+    expect(r.cosmetics).toBe(COSMETICS.length);
     const rows = await db.query<{ id: string; price: string; tier: number }>(`select id, price, tier from public.cosmetics where id = 'bg-storm'`);
     expect(rows.rows[0]).toMatchObject({ id: 'bg-storm', tier: 3 });
     expect(Number(rows.rows[0].price)).toBe(25000);
@@ -487,6 +488,6 @@ describe('shop catalog sync', () => {
     expect(await chips(C)).toBe(76000);
     // Running it again changes nothing.
     await syncCatalog(repo);
-    expect(Number((await db.query<{ n: number }>('select count(*)::int n from public.cosmetics')).rows[0].n)).toBe(20);
+    expect(Number((await db.query<{ n: number }>('select count(*)::int n from public.cosmetics')).rows[0].n)).toBe(COSMETICS.length);
   });
 });

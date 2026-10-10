@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import clsx from 'clsx';
+import { PlayerName } from '../../components/flair/PlayerName';
+import { profileLink } from '../../store/profileViewer';
 import { MinigameShell, BetInput } from '../../components/minigames/MinigameShell';
 import { Avatar } from '../../components/Avatar';
 import { supabase } from '../../lib/supabase';
@@ -17,6 +19,8 @@ interface Bet {
   display_name: string;
   avatar: string;
   color: string;
+  name_fx?: string | null;
+  club?: string | null;
   amount: number;
   auto_cashout: number | null;
   cashout_mult: number | null;
@@ -376,9 +380,15 @@ export function CrashPage() {
                     const out = outMult(b);
                     const lost = crashed && out == null;
                     return (
-                      <li key={b.user_id} className={clsx(b.user_id === me && 'is-me', out != null && 'is-out', lost && 'is-lost')}>
+                      <li
+                        key={b.user_id}
+                        className={clsx('is-profile-link', b.user_id === me && 'is-me', out != null && 'is-out', lost && 'is-lost')}
+                        {...profileLink(b.user_id)}
+                      >
                         <Avatar avatar={b.avatar} color={b.color} size={26} />
-                        <span className="crash-players__name">{b.user_id === me ? 'You' : b.display_name}</span>
+                        <span className="crash-players__name">
+                          <PlayerName name={b.user_id === me ? 'You' : b.display_name} fx={b.name_fx} club={b.club} />
+                        </span>
                         <span className="crash-players__bet">{chipsShort(b.amount)}</span>
                         <span className="crash-players__res">{out != null ? `${fmt(out)} · +${chipsShort(Math.floor(b.amount * out))}` : lost ? 'Bust' : '—'}</span>
                       </li>

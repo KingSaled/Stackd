@@ -3,6 +3,8 @@ import clsx from 'clsx';
 import { Avatar } from './Avatar';
 import { Emoji } from './Emoji';
 import { chips, chipsShort } from '../lib/format';
+import { PlayerName } from './flair/PlayerName';
+import { profileLink } from '../store/profileViewer';
 
 export interface Leader {
   id: string;
@@ -15,6 +17,8 @@ export interface Leader {
   biggest_pot: number;
   frame?: string | null;
   backdrop?: string | null;
+  name_fx?: string | null;
+  club?: string | null;
 }
 
 const TOP = 10;
@@ -32,7 +36,7 @@ export function Leaderboard({ leaders, me }: { leaders: Leader[]; me?: string })
 
   return (
     <div className="leaderboard">
-      <div className={clsx('champion', isMe && 'is-me')}>
+      <div className={clsx('champion is-profile-link', isMe && 'is-me')} {...profileLink(champ.id)}>
         <span className="champion__shine" aria-hidden />
         <span className="champion__sparks" aria-hidden>
           <i />
@@ -46,7 +50,9 @@ export function Leaderboard({ leaders, me }: { leaders: Leader[]; me?: string })
         </div>
         <div className="champion__info">
           <span className="champion__label">{isMe ? 'Champion · you' : 'Champion'}</span>
-          <strong className="champion__name">{champ.display_name}</strong>
+          <strong className="champion__name">
+            <PlayerName name={champ.display_name} fx={champ.name_fx} club={champ.club} />
+          </strong>
           <span className="champion__stats">
             {chips(champ.hands_won)} wins · best pot {chipsShort(champ.biggest_pot)}
           </span>
@@ -83,11 +89,11 @@ export function Leaderboard({ leaders, me }: { leaders: Leader[]; me?: string })
 
 function LeaderRow({ leader: l, rank, me }: { leader: Leader; rank: number; me?: string }) {
   return (
-    <li className={clsx('leaders__row', rank <= 3 && `is-top${rank}`, l.id === me && 'is-me')}>
+    <li className={clsx('leaders__row is-profile-link', rank <= 3 && `is-top${rank}`, l.id === me && 'is-me')} {...profileLink(l.id)}>
       <span className={clsx('leaders__rank', rank <= 3 && `medal medal--${rank}`)}>{rank}</span>
       <Avatar avatar={l.avatar} color={l.color} frame={l.frame} backdrop={l.backdrop} size={30} />
       <span className="leaders__name">
-        {l.display_name}
+        <PlayerName name={l.display_name} fx={l.name_fx} club={l.club} />
         {l.id === me && <em>you</em>}
       </span>
       <span className="leaders__chips">{chipsShort(l.total_chips)}</span>
