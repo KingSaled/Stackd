@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { CheckIcon, CoinsIcon, CrownSimpleIcon, LockSimpleIcon, SparkleIcon, StorefrontIcon, UsersIcon } from '@phosphor-icons/react';
+import { CheckIcon, CoinsIcon, CrownSimpleIcon, LockSimpleIcon, StorefrontIcon, UsersIcon } from '@phosphor-icons/react';
 import { TopNav } from '../components/TopNav';
 import { Avatar } from '../components/Avatar';
 import { LegalFooter } from '../components/LegalFooter';
@@ -265,11 +265,6 @@ export function ShopPage() {
                     <li key={item.id} className={clsx('shop-item', `tier-${item.tier}`, `shop-item--${item.kind}`, on && 'is-equipped', has && 'is-owned')}>
                       <div className="shop-item__look">
                         {preview(item)}
-                        {item.animated && item.kind !== 'club' && (
-                          <span className="shop-item__anim">
-                            <SparkleIcon size={11} weight="fill" /> Animated
-                          </span>
-                        )}
                       </div>
                       <div className="shop-item__info">
                         <span className="shop-item__rarity">{item.kind === 'club' ? 'Stackd Club' : RARITY[item.tier]}</span>

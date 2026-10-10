@@ -3254,7 +3254,7 @@
   min-width: 0;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 1.45rem;
+  font-size: 1.3rem;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
@@ -3368,21 +3368,11 @@
   padding: 8px;
 }
 
-.shop-item__anim {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  color: #fff;
-  background: linear-gradient(90deg, #ff2d55, #ff8a00);
-  box-shadow: 0 2px 8px rgba(255, 45, 85, 0.4);
+/* Wings, crowns and halos on the top borders reach well past the avatar: give them room. */
+.shop-item--frame.tier-6 .shop-item__look,
+.shop-item--frame.tier-7 .shop-item__look,
+.shop-item--frame.tier-8 .shop-item__look {
+  padding: 34px 8px 10px;
 }
 
 .shop-item__info {

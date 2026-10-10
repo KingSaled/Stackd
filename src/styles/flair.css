@@ -9,32 +9,65 @@
   min-width: 0;
 }
 
+/*
+ * A styled name truncates itself (in .nfx__t), so the box it sits in never has to clip it:
+ * glows, rays, flames and sparkles can spill past the text without being cut off.
+ */
 .nfx {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   vertical-align: bottom;
   white-space: nowrap;
   max-width: 100%;
+  min-width: 0;
+}
+
+.pname:has(.nfx) {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  vertical-align: bottom;
 }
 
 .nfx__t {
   position: relative;
   display: inline-block;
+  flex: 0 1 auto;
+  min-width: 0;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /*
+   * Room for waving letters and outlines inside the truncation box, without changing the layout.
+   * The 2px of slack on the right absorbs sub-pixel rounding in text measurement, so a name that
+   * fits never gets an ellipsis by half a pixel.
+   */
+  padding: 0.2em 0.22em;
+  margin: -0.2em calc(-0.22em + 2px) -0.2em -0.22em;
   /* Some containers fill their text with a gradient; a name style always paints its own. */
   -webkit-text-fill-color: currentcolor;
 }
 
+.pname .club-badge {
+  flex: none;
+}
+
+/* Whatever box a styled name sits in stops clipping it (the name handles long text itself). */
+:has(> .pname > .nfx) {
+  overflow: visible !important;
+}
+
+/* Letters stay plain inline text (so long names still get an ellipsis); waves move them with top. */
 .nfx__t > i {
-  display: inline-block;
+  position: relative;
   font-style: normal;
 }
 
-/* Text filled with a gradient (set per style as --nfx-fill). */
-.nfx--fill .nfx__t,
-.nfx--fill-letters .nfx__t > i {
+/* Text filled with a gradient (set per style as --nfx-fill, sizes included, so loops line up). */
+.nfx--fill .nfx__t {
   background: var(--nfx-fill);
-  background-size: var(--nfx-size, 100% 100%);
+  background-origin: content-box;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -118,8 +151,7 @@
 /* --------------------------------------------------------------- Legendary */
 
 .name-chrome {
-  --nfx-fill: linear-gradient(100deg, #8e98a5 0%, #eef2f7 16%, #5f6974 30%, #c7ced8 44%, #ffffff 50%, #c7ced8 56%, #6c7682 70%, #e3e8ef 84%, #8e98a5 100%);
-  --nfx-size: 300% 100%;
+  --nfx-fill: linear-gradient(100deg, #8e98a5 0%, #eef2f7 16%, #5f6974 30%, #c7ced8 44%, #ffffff 50%, #c7ced8 56%, #6c7682 70%, #e3e8ef 84%, #8e98a5 100%) 0 0 / 300% 100%;
   filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.55));
 }
 
@@ -128,8 +160,7 @@
 }
 
 .name-vapor {
-  --nfx-fill: linear-gradient(90deg, #ff71ce, #b967ff, #01cdfe, #05ffa1, #b967ff, #ff71ce);
-  --nfx-size: 300% 100%;
+  --nfx-fill: linear-gradient(90deg, #ff71ce, #b967ff, #01cdfe, #05ffa1, #b967ff, #ff71ce) 0 0 / 300% 100%;
   filter: drop-shadow(0 0 3px rgba(255, 113, 206, 0.55)) drop-shadow(0 0 6px rgba(1, 205, 254, 0.3));
 }
 
@@ -140,8 +171,8 @@
 /* --------------------------------------------------------------- Mythic */
 
 .name-molten {
-  --nfx-fill: linear-gradient(90deg, #8a5a10, #ffcf4d 18%, #fff6cc 28%, #ffb51f 44%, #a8661a 58%, #ffe07a 76%, #8a5a10);
-  --nfx-size: 200% 100%;
+  /* Two identical halves: panning by one half loops without a seam. */
+  --nfx-fill: linear-gradient(90deg, #8a5a10 0%, #ffcf4d 9%, #fff6cc 14%, #ffb51f 22%, #a8661a 29%, #ffe07a 38%, #8a5a10 50%, #ffcf4d 59%, #fff6cc 64%, #ffb51f 72%, #a8661a 79%, #ffe07a 88%, #8a5a10 100%) 0 0 / 200% 100%;
   filter: drop-shadow(0 0 2px rgba(255, 190, 50, 0.85)) drop-shadow(0 0 7px rgba(255, 140, 0, 0.45));
 }
 
@@ -150,14 +181,16 @@
 }
 
 .name-hellfire {
-  --nfx-fill: linear-gradient(0deg, #fff3a0 0%, #ffc21a 28%, #ff7a00 52%, #ff3300 74%, #ffd23a 100%);
-  --nfx-size: 100% 220%;
+  /* Bands of heat rising through a fire gradient; the band tile is 0.6em, and it moves exactly one tile per loop. */
+  --nfx-fill:
+    linear-gradient(0deg, rgba(255, 250, 200, 0) 0%, rgba(255, 250, 200, 0.55) 50%, rgba(255, 250, 200, 0) 100%) 0 0 / 100% 0.6em,
+    linear-gradient(0deg, #fff3a0 0%, #ffc21a 30%, #ff7a00 58%, #ff3300 82%, #c41a00 100%) 0 0 / 100% 100% no-repeat;
   filter: drop-shadow(0 1px 0 rgba(60, 0, 0, 0.9)) drop-shadow(0 -1px 3px rgba(255, 100, 0, 0.95)) drop-shadow(0 -3px 7px rgba(255, 40, 0, 0.5));
-  animation: nfx-fireglow 0.35s ease-in-out infinite alternate;
+  animation: nfx-fireglow 0.6s ease-in-out infinite alternate;
 }
 
 .name-hellfire .nfx__t {
-  animation: nfx-rise 0.9s linear infinite;
+  animation: nfx-heat 0.7s linear infinite;
 }
 
 /* Flame tongues rising off the letters, blended over them so the name burns. */
@@ -186,8 +219,7 @@
 /* --------------------------------------------------------------- Exotic */
 
 .name-frostbite {
-  --nfx-fill: linear-gradient(100deg, #ffffff 0%, #c4f1ff 20%, #5fc9ff 35%, #ffffff 50%, #8adfff 65%, #e9fbff 80%, #ffffff 100%);
-  --nfx-size: 250% 100%;
+  --nfx-fill: linear-gradient(100deg, #ffffff 0%, #c4f1ff 20%, #5fc9ff 35%, #ffffff 50%, #8adfff 65%, #e9fbff 80%, #ffffff 100%) 0 0 / 250% 100%;
   filter: drop-shadow(0 0 2px rgba(150, 230, 255, 0.95)) drop-shadow(0 0 7px rgba(60, 160, 255, 0.5));
 }
 
@@ -199,7 +231,7 @@
   --nfx-fill:
     radial-gradient(circle at 30% 40%, #fff 0 0.6px, transparent 1.1px) 0 0 / 11px 9px,
     radial-gradient(circle at 70% 70%, #fff 0 0.5px, transparent 1px) 0 0 / 7px 12px,
-    linear-gradient(90deg, #8a5cff, #d68bff, #ff7ae0, #6fc4ff, #a46bff, #c79bff, #8a5cff) 0 0 / 300% 100%;
+    linear-gradient(90deg, #8a5cff 0%, #d68bff 8%, #ff7ae0 17%, #6fc4ff 25%, #a46bff 33%, #c79bff 42%, #8a5cff 50%, #d68bff 58%, #ff7ae0 67%, #6fc4ff 75%, #a46bff 83%, #c79bff 92%, #8a5cff 100%) 0 0 / 200% 100%;
   filter: drop-shadow(0 0 2px rgba(190, 120, 255, 0.95)) drop-shadow(0 0 7px rgba(80, 150, 255, 0.5));
 }
 
@@ -259,7 +291,7 @@
 .name-holo {
   --nfx-fill:
     linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.95) 50%, transparent 62%) 0 0 / 300% 100%,
-    linear-gradient(115deg, #ff9ad5, #a58bff 18%, #7fe3ff 36%, #9fffcf 52%, #fff1a3 68%, #ffb0e0 84%, #ff9ad5) 0 0 / 250% 100%;
+    linear-gradient(90deg, #ff9ad5 0%, #a58bff 8%, #7fe3ff 17%, #9fffcf 25%, #fff1a3 33%, #ffb0e0 42%, #ff9ad5 50%, #a58bff 58%, #7fe3ff 67%, #9fffcf 75%, #fff1a3 83%, #ffb0e0 92%, #ff9ad5 100%) 0 0 / 200% 100%;
   filter: drop-shadow(0 0 2px rgba(200, 170, 255, 0.85)) drop-shadow(0 0 6px rgba(127, 227, 255, 0.35));
 }
 
@@ -291,6 +323,10 @@
   syntax: '<angle>';
   inherits: false;
   initial-value: 0deg;
+}
+
+.name-sovereign .nfx__t {
+  color: #ffd25a;
 }
 
 .name-sovereign {
@@ -326,10 +362,10 @@
 @keyframes nfx-wave {
   0%,
   100% {
-    transform: translateY(-0.11em);
+    top: -0.11em;
   }
   50% {
-    transform: translateY(0.11em);
+    top: 0.11em;
   }
 }
 
@@ -436,21 +472,22 @@
   }
 }
 
-@keyframes nfx-rise {
+@keyframes nfx-heat {
   from {
-    background-position: 0 0%;
+    background-position: 0 0, 0 0;
   }
   to {
-    background-position: 0 100%;
+    background-position: 0 -0.6em, 0 0;
   }
 }
 
+/* Same three shadows at both ends so the glow eases smoothly instead of jumping. */
 @keyframes nfx-fireglow {
   from {
-    filter: drop-shadow(0 -1px 2px rgba(255, 100, 0, 0.95)) drop-shadow(0 -2px 5px rgba(255, 40, 0, 0.5));
+    filter: drop-shadow(0 1px 0 rgba(60, 0, 0, 0.9)) drop-shadow(0 -1px 3px rgba(255, 100, 0, 0.95)) drop-shadow(0 -3px 7px rgba(255, 40, 0, 0.5));
   }
   to {
-    filter: drop-shadow(0 -1px 3px rgba(255, 150, 0, 1)) drop-shadow(0 -3px 8px rgba(255, 60, 0, 0.65));
+    filter: drop-shadow(0 1px 0 rgba(60, 0, 0, 0.9)) drop-shadow(0 -1px 4px rgba(255, 150, 0, 1)) drop-shadow(0 -4px 10px rgba(255, 60, 0, 0.7));
   }
 }
 
@@ -681,7 +718,7 @@
     300% 300%;
   mix-blend-mode: color-dodge;
   opacity: 0.32;
-  animation: club-foil 6s linear infinite;
+  animation: club-foil 6s ease-in-out infinite alternate;
 }
 
 .club-infinite .club-card__inner {

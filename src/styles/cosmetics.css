@@ -700,9 +700,10 @@
   }
 }
 
+/* Two whole dash periods (5 + 60), so the shimmer loops without a jump. */
 @keyframes fx-dash {
   to {
-    stroke-dashoffset: -110;
+    stroke-dashoffset: -130;
   }
 }
 

@@ -27,6 +27,10 @@ export default function CosmeticsGallery() {
             <span style={{ font: '700 14px Inter, sans-serif', color: '#eef1f8', background: 'rgba(0,0,0,.45)', padding: '4px 8px', borderRadius: 8, width: 'fit-content' }}>
               <PlayerName name="Maya" fx={n.id} club="club-gold" />
             </span>
+            {/* A long name in a tight, clipping box (like a seat plate). */}
+            <span style={{ display: 'block', width: 104, font: '600 13px Inter, sans-serif', color: '#9aa3b5', background: 'rgba(0,0,0,.45)', padding: '4px 8px', borderRadius: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <PlayerName name="Maximilian_Great" fx={n.id} club="club-black" />
+            </span>
           </div>
         ))}
       </div>
