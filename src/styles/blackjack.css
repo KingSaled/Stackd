@@ -352,6 +352,36 @@
 
 .bj-actions .btn {
   gap: 6px;
+  min-width: 0;
+}
+
+/* Phones: four buttons share the row, so the cost goes under the word and keyboard hints go away. */
+@media (max-width: 640px) {
+  .bj-actions {
+    gap: 6px;
+  }
+
+  .bj-actions .btn {
+    flex-direction: column;
+    justify-content: center;
+    gap: 0;
+    padding-left: 4px;
+    padding-right: 4px;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+
+  .bj-actions .btn kbd {
+    display: none;
+  }
+
+  .bj-actions .btn .btn__amt {
+    display: block;
+    font-size: 0.72em;
+    font-weight: 700;
+    opacity: 0.85;
+    margin: 0;
+  }
 }
 
 .bj-tools {
