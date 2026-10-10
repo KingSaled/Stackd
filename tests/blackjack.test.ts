@@ -426,4 +426,43 @@ describe('blackjack rounds', () => {
     // Every rank turns up as the dealer's card 1 time in 13.
     for (const rank of '23456789TJQKA') expect(Math.abs(upCards[rank] / ROUNDS - 1 / 13)).toBeLessThan(0.004);
   }, 60_000);
+
+  it("deals the dealer the textbook distribution: no extra cards, no stacked 21s", () => {
+    // A player who always stands makes the dealer play out every hand. Published figures for
+    // 6 decks, dealer stands on 17: bust ~28%, 17-21 about 14.6/13.9/13.4/18.0/7.4%, blackjack ~4.7%.
+    const r = seededRng(2024);
+    const s = table(1);
+    const ROUNDS = 120_000;
+    let played = 0;
+    const final: Record<string, number> = {};
+    let fiveOrMore = 0;
+    let drewTo21 = 0;
+    let now = T0;
+    for (let round = 0; round < ROUNDS; round++) {
+      const fx = newBjEffects();
+      bjPlaceBet(s, fx, 'u0', 100, r, now);
+      while (s.phase === 'playing') bjAct(s, fx, 'u0', 'stand', r, now);
+      const playerNatural = s.seats[0]!.hands[0].outcome === 'blackjack';
+      if (!playerNatural) {
+        played++;
+        const t = handTotal(s.dealer).total;
+        const k = s.dealer.length === 2 && t === 21 ? 'bj' : t > 21 ? 'bust' : String(t);
+        final[k] = (final[k] ?? 0) + 1;
+        if (s.dealer.length >= 5) fiveOrMore++;
+        if (t === 21 && s.dealer.length > 2) drewTo21++;
+      }
+      now = s.nextRoundAt!;
+      bjTick(s, fx, r, now);
+    }
+    const share = (k: string) => (final[k] ?? 0) / played;
+    expect(share('bust')).toBeGreaterThan(0.265);
+    expect(share('bust')).toBeLessThan(0.3);
+    expect(drewTo21 / played).toBeGreaterThan(0.065);
+    expect(drewTo21 / played).toBeLessThan(0.083);
+    expect(share('bj')).toBeGreaterThan(0.042);
+    expect(share('bj')).toBeLessThan(0.053);
+    for (const [k, p] of [['17', 0.146], ['18', 0.139], ['19', 0.134], ['20', 0.18]] as const) expect(Math.abs(share(k) - p), k).toBeLessThan(0.012);
+    // Long dealer hands are rare: five or more cards about 4% of the time.
+    expect(fiveOrMore / played).toBeLessThan(0.05);
+  }, 60_000);
 });
